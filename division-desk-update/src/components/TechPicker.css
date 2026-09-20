@@ -1,0 +1,43 @@
+/* Tech tree and doctrine pickers. Colours fall back sensibly if the app does not define these variables. */
+.tp-open { margin-top: .5rem; }
+.tp-overlay { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.5); display: flex; align-items: stretch; justify-content: center; padding: 1rem; }
+.tp-panel { background: var(--paper, #fff); color: var(--ink, #1b1b1b); border: 1px solid var(--line, #c9c9c9); border-radius: 6px; width: min(100%, 92rem); display: flex; flex-direction: column; overflow: hidden; }
+.tp-head { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .75rem 1rem; border-bottom: 1px solid var(--line, #c9c9c9); }
+.tp-head h2 { margin: 0 auto 0 0; font-size: 1.1rem; }
+.tp-search { min-width: 12rem; padding: .35rem .5rem; }
+.tp-tabs { display: flex; flex-wrap: wrap; gap: .25rem; padding: .5rem 1rem 0; border-bottom: 1px solid var(--line, #c9c9c9); }
+.tp-tabs button { border: 1px solid var(--line, #c9c9c9); border-bottom: 0; background: transparent; color: inherit; padding: .4rem .75rem; border-radius: 4px 4px 0 0; cursor: pointer; }
+.tp-tabs button.on { background: var(--accent, #1f4e79); color: #fff; border-color: var(--accent, #1f4e79); }
+.tp-tabcount { opacity: .7; font-size: .8em; margin-left: .25rem; }
+.tp-hint { padding: 0 1rem; margin: .5rem 0; }
+.tp-scroll { overflow: auto; padding: .5rem 1rem 1rem; flex: 1; }
+.tp-grid { display: grid; gap: .5rem; align-items: start; }
+.tp-loose { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: .5rem; margin-top: 1rem; }
+.tp-card { border: 1px solid var(--line, #c9c9c9); border-radius: 4px; padding: .4rem; font-size: .8rem; background: var(--paper, #fff); }
+.tp-card.on { border-color: var(--accent, #1f4e79); box-shadow: inset 0 0 0 1px var(--accent, #1f4e79); background: color-mix(in srgb, var(--accent, #1f4e79) 10%, var(--paper, #fff)); }
+.tp-card.locked { opacity: .6; }
+.tp-card.blocked { opacity: .4; }
+.tp-card.dim { opacity: .2; }
+.tp-main { display: flex; justify-content: space-between; gap: .5rem; width: 100%; text-align: left; background: none; border: 0; padding: 0; color: inherit; cursor: pointer; font: inherit; }
+.tp-main:disabled { cursor: not-allowed; }
+.tp-main:focus-visible, .tp-sub:focus-visible { outline: 2px solid var(--accent, #1f4e79); outline-offset: 2px; }
+.tp-year { opacity: .65; white-space: nowrap; font-size: .75rem; }
+.tp-effects { margin: .3rem 0 0; padding-left: 1rem; opacity: .85; }
+.tp-subs { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .35rem; }
+.tp-sub { border: 1px solid var(--line, #c9c9c9); background: transparent; color: inherit; border-radius: 3px; padding: .15rem .4rem; cursor: pointer; font-size: .75rem; }
+.tp-sub.on { background: var(--accent, #1f4e79); color: #fff; border-color: var(--accent, #1f4e79); }
+@media (prefers-reduced-motion: no-preference) { .tp-card { transition: background-color .15s; } }
+
+.dp-field, .dp-progress { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin: .4rem 0; }
+.dp-folder { border: 1px solid var(--line, #c9c9c9); border-radius: 4px; margin: .5rem 0; padding: .5rem; }
+.dp-folder select { max-width: 100%; }
+.dp-track h4 { margin: .75rem 0 .25rem; font-size: .9rem; }
+.dp-slot { margin-bottom: .5rem; }
+.dp-rewards { margin: .25rem 0 0; padding-left: 1.1rem; font-size: .8rem; }
+.dp-rewards li { opacity: .55; }
+.dp-rewards li.on { opacity: 1; }
+.dp-rewards small { display: block; opacity: .8; }
+.dp-milestone.on { font-weight: 600; }
+.designs { margin: .5rem 0 0; font-size: .85rem; }
+.designs dt { font-weight: 600; margin-top: .4rem; }
+.designs dd { margin: 0; opacity: .85; }
