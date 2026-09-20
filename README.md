@@ -24,8 +24,11 @@ can compare designs on the trade-offs that matter to you instead of copying a te
   Picking a tech also researches what it needs. Special-project techs are included.
 - **Doctrine picker.** Grand doctrines, subdoctrines per track and how many rewards are unlocked, including special forces
   doctrines and milestones that enlarge columns.
-- **Full template model.** Up to five columns, regimental support companies, divisional support companies, and support
-  companies that boost whole categories of battalions (a recon company lifting artillery, for example).
+- **Full template model.** Up to five columns, regimental support companies (a column needs three battalions to unlock one),
+  divisional support companies, and support companies that boost whole categories of battalions (a recon company lifting
+  artillery, for example). The search spreads battalions over spare columns when that unlocks more regimental slots.
+- **Allowed units.** Special forces (marines, paratroopers, mountaineers, rangers, amtracs) and cavalry are off by default.
+  Switch any unit type on or off before searching.
 - **Tank designer.** Tank battalions and self-propelled support use designs built from the modules you have researched, at the
   highest engine and armor upgrade levels your research allows.
 - **Ranked alternatives.** The top designs are genuinely different from each other, each with its full stats.
@@ -48,7 +51,7 @@ can compare designs on the trade-offs that matter to you instead of copying a te
 
 Check a result in game before you rely on it. These rules are assumptions, and the app lists them under "Data and assumptions":
 
-- One regimental support company per column, and which column types each can attach to.
+- One regimental support company per column, and which column types each can attach to. (A column needs three battalions first.)
 - Whether support companies count in the organization average (there is a switch).
 - Whether doctrine supply bonuses are fractions of a unit's supply.
 - Tank modules are chosen automatically. There is no hand editor yet.

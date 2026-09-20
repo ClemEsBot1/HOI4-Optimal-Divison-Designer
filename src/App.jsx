@@ -3,11 +3,12 @@ import TemplateGrid from './components/TemplateGrid.jsx';
 import Pareto from './components/Pareto.jsx';
 import TechPicker from './components/TechPicker.jsx';
 import DoctrinePicker from './components/DoctrinePicker.jsx';
+import UnitPool from './components/UnitPool.jsx';
 import raw from './data/game.json';
 import { buildGame, EMPTY_DOCTRINE } from './lib/game.js';
 import { STATS, MOD_KEYS, DEFAULT_OPTS, evaluate, fmt } from './lib/stats.js';
 import { parseKey, DEFAULT_CONSTRAINTS } from './lib/optimizer.js';
-import { ROLES, ZERO_WEIGHTS, defaultTech } from './lib/presets.js';
+import { ROLES, ZERO_WEIGHTS, defaultTech, defaultExclude } from './lib/presets.js';
 import { describeTemplate, countBy, encodeState, decodeState } from './lib/format.js';
 import { describeDesign } from './lib/describe.js';
 
@@ -35,6 +36,7 @@ function loadInitial() {
     constraints: { ...DEFAULT_CONSTRAINTS, ...ROLES[0].constraints },
     techs: defaultTech(game),
     doctrine: { ...EMPTY_DOCTRINE, slotCount: 1 },
+    exclude: defaultExclude(game),
     mods: {},
     opts: { ...DEFAULT_OPTS },
     axes: ROLE_AXES[ROLES[0].id],
@@ -49,6 +51,7 @@ function loadInitial() {
         constraints: { ...DEFAULT_CONSTRAINTS, ...s.c },
         techs: s.t || base.techs, // links made for an older data set fall back to the default research
         doctrine: { ...base.doctrine, ...(s.d || {}) },
+        exclude: Array.isArray(s.x) ? s.x : base.exclude,
         mods: s.m || {},
         opts: { ...DEFAULT_OPTS, ...(s.o || {}) },
         axes: s.ax || base.axes,
@@ -65,6 +68,7 @@ export default function App() {
   const [constraints, setConstraints] = useState(initial.constraints);
   const [techs, setTechs] = useState(initial.techs);
   const [doctrine, setDoctrine] = useState(initial.doctrine);
+  const [exclude, setExclude] = useState(initial.exclude);
   const [mods, setMods] = useState(initial.mods);
   const [opts, setOpts] = useState(initial.opts);
   const [axisX, setAxisX] = useState(initial.axes[0]);
@@ -104,18 +108,18 @@ export default function App() {
         setResult({ res: { error: 'The search worker failed to start.' }, mods, opts, roleId });
         setRunning(false);
       };
-      w.postMessage({ id, params: { techs: [...techs], doctrine, weights, constraints, mods, opts, topN: 10 } });
+      w.postMessage({ id, params: { techs: [...techs], doctrine, exclude, weights, constraints, mods, opts, topN: 10 } });
     }, 400);
     return () => clearTimeout(timer);
-  }, [weights, constraints, techs, doctrine, mods, opts]); // roleId only labels the result
+  }, [weights, constraints, techs, doctrine, exclude, mods, opts]); // roleId only labels the result
 
   useEffect(() => () => workerRef.current && workerRef.current.terminate(), []);
 
   // ---- keep the URL in sync so a setup can be shared ----
   useEffect(() => {
-    const s = encodeState({ r: roleId, w: weights, c: constraints, t: [...techs], d: doctrine, m: mods, o: opts, ax: [axisX, axisY] }, game);
+    const s = encodeState({ r: roleId, w: weights, c: constraints, t: [...techs], d: doctrine, x: exclude, m: mods, o: opts, ax: [axisX, axisY] }, game);
     if (s) window.history.replaceState(null, '', '#s=' + s);
-  }, [roleId, weights, constraints, techs, doctrine, mods, opts, axisX, axisY]);
+  }, [roleId, weights, constraints, techs, doctrine, exclude, mods, opts, axisX, axisY]);
 
   // ---- derived display data ----
   const res = result?.res;
@@ -250,6 +254,11 @@ export default function App() {
           </section>
 
           <section className="block">
+            <h2>Allowed units</h2>
+            <UnitPool game={game} exclude={exclude} setExclude={setExclude} />
+          </section>
+
+          <section className="block">
             <h2>Other bonuses</h2>
             <details className="group">
               <summary>Bonus modifiers (percent)</summary>
@@ -272,7 +281,7 @@ export default function App() {
 
         <main className="main">
           <div className="banner" role="note">
-            <strong>Numbers come from the game files</strong>{version ? ` (version ${version})` : ''}, with every DLC and no mods. A few rules are still assumptions, including how regimental support attaches to columns and how tank modules are chosen. Check a result in game before you trust it. See <a href="#data">data and assumptions</a>.
+            <strong>Numbers come from the game files</strong>{version ? ` (version ${version})` : ''}, with every DLC and no mods. A few rules are still assumptions, including how many regimental companies a column takes and how tank modules are chosen. Check a result in game before you trust it. See <a href="#data">data and assumptions</a>.
           </div>
 
           <section className="result" aria-live="polite">
@@ -289,7 +298,7 @@ export default function App() {
 
             {shown && byId && (
               <div className="result-body">
-                <TemplateGrid items={selected.items} support={selected.support} reg={selected.reg || []} byId={byId} columnSize={res.columnSize} />
+                <TemplateGrid items={selected.items} support={selected.support} reg={selected.reg || []} byId={byId} columnSize={res.columnSize} layout={shown.layout} />
                 <div className="detail">
                   <h3>Composition</h3>
                   <ul className="compo">
@@ -397,6 +406,8 @@ function DataSection({ version, meta }) {
       <h3>Rules as implemented</h3>
       <ul className="rules">
         <li>A template has up to five columns. A column holds one type (infantry, mobile or armor) and five battalions, or more if a doctrine milestone raises the column size. Artillery, anti-tank and anti-air brigades sit in the column that matches their chassis.</li>
+        <li>A column needs at least three battalions before it can take a regimental support company. The search spreads battalions over spare columns when that unlocks more regimental slots.</li>
+        <li>Special forces units (marines, paratroopers, mountaineers, rangers, amtracs, amphibious tanks) and cavalry are left out unless you switch them on under Allowed units.</li>
         <li>Attack, defense, breakthrough, air attack, hit points, cost, manpower and supply are summed over battalions and support companies.</li>
         <li>Organization and recovery are averaged over battalions. Whether support companies join that average is unverified, so it is a switch in the sidebar.</li>
         <li>Armor, piercing and hardness are averaged over line battalions only. Speed is the slowest line battalion.</li>

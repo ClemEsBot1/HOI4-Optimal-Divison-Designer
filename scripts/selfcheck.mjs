@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildGame, techsUpTo, researchTech, unresearchTech, canResearch, resolve, collectModifiers } from '../src/lib/game.js';
-import { evaluate } from '../src/lib/stats.js';
+import { evaluate, planColumns } from '../src/lib/stats.js';
+import { defaultExclude } from '../src/lib/presets.js';
 import { search } from '../src/lib/optimizer.js';
 import { encodeState, decodeState } from '../src/lib/format.js';
 
@@ -49,5 +50,21 @@ if (r.top) {
   const st0 = evaluate(t0, byId, {}, undefined, r.columnSize);
   ok(Math.abs(st0.sa - t0.stats.sa) < 1e-6 && st0.width === 20, 'top result re-evaluates to the same stats at width 20');
 }
+// regimental support needs three battalions in a column
+ok(!planColumns({ infantry: 2, mobile: 0, armor: 0 }, 5, 0, 1).ok, 'two battalions cannot take a regimental company');
+ok(planColumns({ infantry: 3, mobile: 0, armor: 0 }, 5, 0, 1).ok, 'three battalions can take one');
+const p6 = planColumns({ infantry: 6, mobile: 0, armor: 0 }, 5, 0, 2);
+ok(p6.ok && p6.infantry === 2, 'six battalions spread over two columns take two companies');
+ok(!planColumns({ infantry: 6, mobile: 0, armor: 0 }, 5, 0, 3).ok, 'six battalions cannot take three companies');
+ok(!planColumns({ infantry: 9, mobile: 0, armor: 0 }, 5, 1, 0).ok, 'an SP company needs an armor column');
+ok(planColumns({ infantry: 9, mobile: 0, armor: 3 }, 5, 1, 3).ok, 'nine infantry and three tanks take one SP and three other companies');
+
+// special forces stay out by default
+const ex = defaultExclude(game);
+ok(['paratrooper', 'marine', 'amphibious_mechanized', 'mountaineers', 'ranger_battalion', 'cavalry'].every((id) => ex.includes(id)), 'special forces and cavalry are excluded by default');
+const r2 = search(game, { techs: [...T], exclude: ex, weights: { sa: 5, def: 8, org: 6, hp: 5, ic: 4 }, constraints: { wmin: 20, wmax: 20 }, ms: 800, topN: 5 });
+const used = new Set(r2.top.flatMap((t) => [...t.items, ...t.support, ...t.reg]));
+ok(![...used].some((id) => ex.includes(id)), 'search results never use excluded units');
+ok(r2.top.every((t) => { const c = { infantry: 0, mobile: 0, armor: 0 }; t.items.forEach((id) => c[r2.units.find((u) => u.id === id).cat]++); const p = planColumns(c, r2.columnSize, t.reg.filter((id) => r2.units.find((u) => u.id === id).tank).length, t.reg.filter((id) => !r2.units.find((u) => u.id === id).tank).length); return p.ok; }), 'every result respects the regimental rule');
 console.log(fails ? `\n${fails} check(s) failed` : '\nAll checks passed');
 process.exit(fails ? 1 : 0);

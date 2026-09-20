@@ -12,6 +12,7 @@
  *   doctrine: { grands: string[], slots: { [trackId]: string[] }, progress: { [subId]: number } }
  *   manual:   { sa, ha, def, brk, pier, org, hp, arm }   extra percent bonuses applied to division totals (see stats.js)
  *   design:   weights object          priorities used to pick tank modules (same keys as the priority sliders)
+ *   exclude:  string[]                unit ids the player does not want in templates
  * }
  *
  * Stat model (from the game files):
@@ -406,8 +407,10 @@ export function resolve(game, setup) {
     return designs[key];
   };
 
+  const excluded = new Set(setup.exclude || []);
   const out = [];
   for (const u of game.units.values()) {
+    if (excluded.has(u.id)) continue;
     if (!unitOpen(game, u, techSet, open, tiers, chassisBest)) continue;
     const eq = { sa: 0, ha: 0, def: 0, brk: 0, pier: 0, air: 0, arm: 0, hard: 0 };
     let ic = 0;

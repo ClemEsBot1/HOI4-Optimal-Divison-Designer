@@ -50,7 +50,7 @@ export function search(game, params) {
   const weights = params.weights || {};
   const topN = params.topN || 10;
 
-  const resolved = resolve(game, { techs: params.techs, doctrine: params.doctrine, design: weights });
+  const resolved = resolve(game, { techs: params.techs, doctrine: params.doctrine, design: weights, exclude: params.exclude });
   const { byId, columnSize } = resolved;
   const base = { units: [...byId.values()], designs: resolved.designs, columnSize };
   const lineByCol = { infantry: [], mobile: [], armor: [] };
@@ -67,14 +67,6 @@ export function search(game, params) {
   const regSupport = resolved.regimental;
 
   // ---------- validity ----------
-  const regOk = (tpl, cnt) => {
-    if (tpl.reg.length > columnsNeeded(cnt, columnSize)) return false;
-    // every regimental company needs a column it can attach to; count how many columns of each type exist
-    const colsOf = { infantry: Math.ceil(cnt.infantry / columnSize), mobile: Math.ceil(cnt.mobile / columnSize), armor: Math.ceil(cnt.armor / columnSize) };
-    const armorOnly = tpl.reg.filter((id) => byId.get(id).tank).length;
-    const other = tpl.reg.length - armorOnly;
-    return armorOnly <= colsOf.armor && other <= colsOf.infantry + colsOf.mobile;
-  };
   const supportOk = (tpl) => {
     if (tpl.support.length > MAX_SUPPORT) return false;
     for (let i = 0; i < tpl.support.length; i++) for (let j = i + 1; j < tpl.support.length; j++) {
@@ -116,7 +108,7 @@ export function search(game, params) {
 
   const evalTpl = (tpl) => {
     const st = evaluate(tpl, byId, mods, opts, columnSize);
-    if (!st || !st.valid || !regOk(tpl, st.cnt) || !supportOk(tpl)) return null;
+    if (!st || !st.valid || !supportOk(tpl)) return null;
     explored++;
     const viol = violation(st);
     const score = rawScore(st);
@@ -159,8 +151,8 @@ export function search(game, params) {
       if (support.every((id) => !supportConflict(byId.get(id), u))) support.push(u.id);
     }
     const reg = [];
-    const nCols2 = columnsNeeded(countOf(items), columnSize);
-    const nReg = Math.floor(R() * (nCols2 + 1));
+    // a column needs three battalions before it can take a regimental company
+    const nReg = Math.floor(R() * (Math.min(MAX_COLUMNS, Math.floor(items.length / 3)) + 1));
     for (let i = 0; i < nReg && regSupport.length; i++) reg.push(pick(regSupport).id);
     return { items, support, reg };
   };
@@ -205,6 +197,7 @@ export function search(game, params) {
   const climb = (start) => {
     let cur = start;
     let curEval = evalTpl(cur);
+    if (!curEval) { cur = { ...cur, reg: [] }; curEval = evalTpl(cur); }
     if (!curEval) return;
     for (let step = 0; step < 80 && Date.now() - t0 < budget; step++) {
       let best = null; let bestEval = null;
@@ -229,7 +222,7 @@ export function search(game, params) {
     const vals = sample.map((st) => Math.max(0, valueOf(st, a.key))).filter((v) => v > 0).sort((x, y) => x - y);
     const med = vals.length ? vals[Math.floor(vals.length / 2)] : 0;
     const mean = vals.length ? vals.reduce((x, y) => x + y, 0) / vals.length : 0;
-    scale[a.key] = 0.25 * (med > 0 ? med : mean > 0 ? mean : 1);
+    scale[a.key] = 0.05 * (med > 0 ? med : mean > 0 ? mean : 1);
   }
 
   // ---------- run ----------

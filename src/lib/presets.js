@@ -23,7 +23,7 @@ export const ROLES = [
   {
     id: 'spear', name: 'Breakthrough spearhead', blurb: 'Mobile divisions that punch through and keep going.',
     weights: { brk: 9, org: 6, spd: 6, sa: 4, ha: 3, arm: 3, recon: 2 },
-    constraints: { wmin: 20, wmax: 32, minOrg: 0, minArm: 0, maxIc: 0, perWidth: false },
+    constraints: { wmin: 20, wmax: 32, minOrg: 10, minArm: 0, maxIc: 0, perWidth: false },
   },
   {
     id: 'grinder', name: 'Attrition grinder', blurb: 'The most soft attack for the money.',
@@ -33,12 +33,12 @@ export const ROLES = [
   {
     id: 'armor', name: 'Armored punch', blurb: 'Tanks first: breakthrough, hard attack and armor.',
     weights: { brk: 8, arm: 6, ha: 5, spd: 5, org: 3, ic: 2 },
-    constraints: { wmin: 24, wmax: 32, minOrg: 0, minArm: 0, maxIc: 0, perWidth: false },
+    constraints: { wmin: 24, wmax: 32, minOrg: 8, minArm: 0, maxIc: 0, perWidth: false },
   },
   {
     id: 'hunter', name: 'Tank hunter', blurb: 'Piercing and hard attack to kill armor.',
     weights: { ha: 8, pier: 9, arm: 5, brk: 3, spd: 3, ic: 3 },
-    constraints: { wmin: 20, wmax: 32, minOrg: 0, minArm: 0, maxIc: 0, perWidth: false },
+    constraints: { wmin: 20, wmax: 32, minOrg: 8, minArm: 0, maxIc: 0, perWidth: false },
   },
   {
     id: 'mass', name: 'Cheap mass', blurb: 'Bodies and defense per IC and per man.',
@@ -65,3 +65,11 @@ export function defaultTech(game) {
   return techPreset(game, DEFAULT_TECH_YEAR);
 }
 export const sameSet = (a, b) => a.size === b.size && [...a].every((x) => b.has(x));
+
+/**
+ * Units left out of templates unless the player switches them on: the special forces units (marines, paratroopers,
+ * mountaineers, rangers, amtracs, amphibious tanks) need specific conditions to be useful, and cavalry is obsolete.
+ */
+export function defaultExclude(game) {
+  return [...game.units.values()].filter((u) => u.special || u.id === 'cavalry').map((u) => u.id);
+}

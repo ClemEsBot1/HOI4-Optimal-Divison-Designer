@@ -5,7 +5,8 @@
  *                 support: string[] divisional support company ids (one of each type, up to 5),
  *                 reg: string[]     regimental support company ids (up to one per column) }.
  * Columns are derived: a column holds one base type (infantry, mobile or armor) and at most `columnSize` battalions.
- * A division has at most 5 columns.
+ * A division has at most 5 columns. A column needs at least 3 battalions before it can take a regimental support
+ * company, so the layout (how many columns each type is spread over) is planned to make the regimental companies fit.
  *
  * `byId` maps unit id to a resolved unit (see resolve() in game.js).
  */
@@ -67,6 +68,41 @@ export const MAX_SUPPORT = 5;
 
 export function columnsNeeded(counts, size = 5) {
   return Math.ceil(counts.infantry / size) + Math.ceil(counts.mobile / size) + Math.ceil(counts.armor / size);
+}
+
+export const REG_MIN_BATTALIONS = 3;
+const COL_TYPES = ['infantry', 'mobile', 'armor'];
+
+/**
+ * Decide how many columns each type is spread over. Every type needs enough columns to hold its battalions.
+ * Spare columns (up to five in all) can be used to spread battalions out so more columns reach three battalions,
+ * which is what unlocks a regimental support slot. Vehicle (SP) regimental companies need an armor column,
+ * the rest need an infantry or mobile column. Returns { ok, infantry, mobile, armor, slots } where slots is the
+ * number of regimental companies the layout can take.
+ */
+export function planColumns(cnt, size, armorRegs = 0, otherRegs = 0) {
+  const min = {};
+  let base = 0;
+  for (const t of COL_TYPES) { min[t] = Math.ceil(cnt[t] / size); base += min[t]; }
+  if (base > MAX_COLUMNS) return { ok: false, ...min, slots: 0 };
+  const spare = MAX_COLUMNS - base;
+  const room = (t) => Math.max(0, cnt[t] - min[t]); // a column cannot be empty
+  let bestSlots = null;
+  for (let extra = 0; extra <= spare; extra++) {
+    for (let a = 0; a <= extra; a++) {
+      for (let b = 0; b <= extra - a; b++) {
+        const c = extra - a - b;
+        if (a > room('infantry') || b > room('mobile') || c > room('armor')) continue;
+        const cols = { infantry: min.infantry + a, mobile: min.mobile + b, armor: min.armor + c };
+        const elig = (t) => Math.min(cols[t], Math.floor(cnt[t] / REG_MIN_BATTALIONS));
+        const armorSlots = elig('armor');
+        const otherSlots = elig('infantry') + elig('mobile');
+        if (armorRegs <= armorSlots && otherRegs <= otherSlots) return { ok: true, ...cols, slots: armorSlots + otherSlots };
+        if (!bestSlots) bestSlots = { ok: false, ...cols, slots: armorSlots + otherSlots };
+      }
+    }
+  }
+  return armorRegs + otherRegs === 0 ? { ok: true, ...min, slots: 0 } : bestSlots || { ok: false, ...min, slots: 0 };
 }
 
 /** Do two support companies exclude each other? (same id, or they share a "same support type" tag) */
@@ -132,7 +168,9 @@ export function evaluate(tpl, byId, mods = {}, opts = DEFAULT_OPTS, columnSize =
     for (const k in u.perks) if (k in perks) perks[k] += u.perks[k];
   }
   const m = (k) => 1 + (mods[k] || 0) / 100;
-  const cols = columnsNeeded(cnt, columnSize);
+  const armorRegs = reg.filter((id) => byId.get(id).tank).length;
+  const layout = planColumns(cnt, columnSize, armorRegs, reg.length - armorRegs);
+  const cols = layout.infantry + layout.mobile + layout.armor;
   return {
     sa: sa * m('sa'),
     ha: ha * m('ha'),
@@ -152,7 +190,8 @@ export function evaluate(tpl, byId, mods = {}, opts = DEFAULT_OPTS, columnSize =
     n,
     cols,
     cnt,
-    valid: cols <= MAX_COLUMNS && reg.length <= cols && support.length <= MAX_SUPPORT && Math.max(cnt.infantry, cnt.mobile, cnt.armor) <= MAX_COLUMNS * columnSize,
+    layout,
+    valid: layout.ok && support.length <= MAX_SUPPORT,
   };
 }
 

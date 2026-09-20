@@ -5,6 +5,7 @@ const COLS = [
   { id: 'mobile', label: 'Mobile' },
   { id: 'armor', label: 'Armor' },
 ];
+const MIN_FOR_REG = 3; // a column needs three battalions before it can take a regimental company
 
 /** NATO-style unit counter: frame, a symbol for the branch, and the unit's short name. */
 function Counter({ unit }) {
@@ -28,34 +29,53 @@ function Counter({ unit }) {
   );
 }
 
-function Column({ label, ids, byId, size }) {
+/** Split ids over `n` columns as evenly as possible. */
+function spread(ids, n) {
+  const out = Array.from({ length: n }, () => []);
+  ids.forEach((id, i) => out[i % n].push(id));
+  return out;
+}
+
+function Column({ label, ids, reg, byId, size }) {
   const slots = Array.from({ length: size }, (_, i) => ids[i]);
+  const canReg = ids.length >= MIN_FOR_REG;
   return (
     <div className="tg-col">
       <h4>{label}</h4>
       {slots.map((id, i) => (id ? <Counter key={i} unit={byId.get(id)} /> : <div key={i} className="counter empty" aria-hidden="true" />))}
+      <div className="tg-reg">
+        {reg ? <Counter unit={byId.get(reg)} /> : <div className={'counter empty' + (canReg ? ' open' : '')} title={canReg ? 'Free regimental support slot' : 'Needs three battalions for regimental support'} aria-hidden="true" />}
+      </div>
     </div>
   );
 }
 
-/** A division template laid out like the game's designer: columns of battalions, then regimental and divisional support. */
-export default function TemplateGrid({ items, support = [], reg = [], byId, columnSize = 5 }) {
-  const grouped = COLS.map((c) => ({ ...c, ids: items.filter((id) => byId.get(id).cat === c.id) }));
+/**
+ * A division template laid out like the game's designer: columns of battalions, a regimental support slot under
+ * each column that has three or more battalions, and divisional support below.
+ */
+export default function TemplateGrid({ items, support = [], reg = [], byId, columnSize = 5, layout }) {
   const columns = [];
-  for (const g of grouped) {
-    for (let i = 0; i < g.ids.length; i += columnSize) columns.push({ label: g.label, ids: g.ids.slice(i, i + columnSize) });
+  for (const c of COLS) {
+    const ids = items.filter((id) => byId.get(id).cat === c.id);
+    if (!ids.length) continue;
+    const n = layout ? layout[c.id] : Math.ceil(ids.length / columnSize);
+    for (const part of spread(ids, Math.max(1, n))) columns.push({ type: c.id, label: c.label, ids: part, reg: null });
+  }
+  // attach regimental companies: vehicle companies to armor columns, the rest to infantry or mobile columns
+  const tankRegs = reg.filter((id) => byId.get(id).tank);
+  const footRegs = reg.filter((id) => !byId.get(id).tank);
+  for (const c of columns) {
+    if (c.ids.length < MIN_FOR_REG) continue;
+    const pool = c.type === 'armor' ? tankRegs : footRegs;
+    if (pool.length) c.reg = pool.shift();
   }
   return (
     <div className="tg" role="img" aria-label={`Template with ${items.length} battalions in ${columns.length} columns`}>
       <div className="tg-cols">
-        {columns.map((c, i) => <Column key={i} label={c.label} ids={c.ids} byId={byId} size={columnSize} />)}
+        {columns.map((c, i) => <Column key={i} label={c.label} ids={c.ids} reg={c.reg} byId={byId} size={columnSize} />)}
       </div>
-      {reg.length > 0 && (
-        <div className="tg-row">
-          <h4>Regimental support</h4>
-          <div className="tg-strip">{reg.map((id, i) => <Counter key={i} unit={byId.get(id)} />)}</div>
-        </div>
-      )}
+      {columns.length > 0 && <p className="note tg-note">The bottom slot of each column is regimental support. It opens once a column has three battalions.</p>}
       {support.length > 0 && (
         <div className="tg-row">
           <h4>Divisional support</h4>

@@ -41,3 +41,10 @@
 .designs { margin: .5rem 0 0; font-size: .85rem; }
 .designs dt { font-weight: 600; margin-top: .4rem; }
 .designs dd { margin: 0; opacity: .85; }
+
+.up-list { list-style: none; margin: .25rem 0 0; padding: 0; }
+.up-list .check { margin-top: .2rem; }
+.up .seg { margin: .4rem 0; }
+.tg-reg { margin-top: .35rem; padding-top: .35rem; border-top: 1px solid var(--line, #c9c9c9); }
+.tg-note { max-width: 22rem; }
+.counter.empty.open { border-style: solid; opacity: .8; }
