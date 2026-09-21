@@ -71,6 +71,7 @@ select, input[type='number'], input[type='search'] { background: var(--panel); b
 .doctrine-rec { padding: .65rem .75rem; border: 1px solid var(--line); border-left: 3px solid var(--olive); border-radius: 5px; background: rgba(17,23,26,.28); }
 .doctrine-rec.primary { border-left-color: var(--accent); background: linear-gradient(90deg, rgba(196,154,74,.15), transparent); }
 .doctrine-rec strong { display: block; color: var(--ink); font-family: var(--head); font-size: 1.05rem; }
+.doctrine-icon { width: 2.5rem; height: 2.5rem; object-fit: cover; float: left; margin: 0 .55rem .25rem 0; border: 1px solid var(--accent); }
 .doctrine-rec p { margin: .2rem 0 0; color: var(--muted); font-size: .84rem; }
 .rec-kicker { color: var(--accent); text-transform: uppercase; letter-spacing: .08em; font-size: .68rem; font-weight: 700; margin-bottom: .15rem; }
 .section-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
@@ -136,6 +137,7 @@ table.rank { border-collapse: collapse; width: 100%; font-size: .88rem; font-var
 .c-frame { fill: color-mix(in srgb, var(--accent) 16%, var(--panel)); stroke: var(--ink); stroke-width: 2; }
 .c-sym { fill: none; stroke: var(--ink); stroke-width: 2; }
 .c-fill { fill: var(--ink); }
+.c-icon { display: block; width: 1.25rem; height: 1.25rem; object-fit: contain; margin: -.2rem auto .05rem; filter: sepia(.2) saturate(.8); }
 .c-name { display: block; font-size: .68rem; line-height: 1.1; margin-top: .1rem; overflow: hidden; text-overflow: ellipsis; }
 
 /* trade-off chart */

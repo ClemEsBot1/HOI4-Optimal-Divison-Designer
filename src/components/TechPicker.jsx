@@ -96,14 +96,14 @@ function TreeDialog({ game, techs, setTechs, onClose }) {
         </div>
         <p className="note tp-hint">Click a technology to research it together with anything it needs. Click a researched one to remove it and everything that depends on it. Techs marked “special project” come from the special projects system rather than normal research.</p>
         <div className="tp-scroll">
-          <TreeGrid game={game} list={tabTechs} techs={techs} toggle={toggle} matches={matches} />
+          <TreeGrid game={game} list={tabTechs} folder={tab} techs={techs} toggle={toggle} matches={matches} />
         </div>
       </div>
     </div>
   );
 }
 
-function TreeGrid({ game, list, techs, toggle, matches }) {
+function TreeGrid({ game, list, folder, techs, toggle, matches }) {
   const positioned = list.filter((t) => t.x && !t.subOf);
   const loose = list.filter((t) => (!t.x && !t.subOf));
   const layout = useMemo(() => {
@@ -123,7 +123,7 @@ function TreeGrid({ game, list, techs, toggle, matches }) {
   return (
     <>
       {layout && (
-        <div className="tp-tree-wrap" style={{ '--tp-cols': layout.cols, '--tp-rows': rows }}>
+        <div className={`tp-tree-wrap tp-folder-${folder}`} style={{ '--tp-cols': layout.cols, '--tp-rows': rows }}>
           <svg className="tp-lines" viewBox={`0 0 ${layout.cols} ${rows}`} preserveAspectRatio="none" aria-hidden="true">
             {edges.map(({ from, to }) => (
               <path key={`${from.id}-${to.id}`} d={`M ${from.x.x - layout.minX + .5} ${layout.rowOf.get(from.x.y) - .5} H ${to.x.x - layout.minX + .5} V ${layout.rowOf.get(to.x.y) - .5}`} />
@@ -149,6 +149,8 @@ function TreeGrid({ game, list, techs, toggle, matches }) {
 
 function TechCard({ game, tech, techs, toggle, dim }) {
   const on = techs.has(tech.id);
+  const [iconFailed, setIconFailed] = useState(false);
+  const icon = `/hoi4/technologies/${tech.id}.png`;
   const open = canResearch(game, techs, tech.id);
   const blocked = !on && tech.xor.some((x) => techs.has(x));
   const lines = useMemo(() => describeTech(game, tech), [game, tech]);
@@ -164,6 +166,7 @@ function TechCard({ game, tech, techs, toggle, dim }) {
   return (
     <div className={`tp-card ${state}${dim ? ' dim' : ''}`}>
       <button type="button" className="tp-main" aria-pressed={on} onClick={() => toggle(tech.id)} title={title} disabled={blocked}>
+        {!iconFailed && <img className="tp-icon" src={icon} alt="" onError={() => setIconFailed(true)} />}
         <strong>{tech.name}</strong>
         <span className="tp-year">{tech.special ? 'Special project' : tech.year}</span>
       </button>

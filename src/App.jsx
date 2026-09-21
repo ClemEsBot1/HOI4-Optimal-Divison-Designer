@@ -413,6 +413,7 @@ function DoctrineRecommendations({ recommendations }) {
       {recommendations.map((r, i) => (
         <article key={r.doctrine.id} className={'doctrine-rec' + (i === 0 ? ' primary' : '')}>
           <div className="rec-kicker">{i === 0 ? 'Primary recommendation' : 'Alternative'}</div>
+          <img className="doctrine-icon" src={`/hoi4/icons/${({ new_mobile_warfare: 'mob_warfare_bg', superior_firepower: 'sup_firepower_bg', grand_battleplan: 'grand_battleplan_bg', mass_assault: 'mass_assault_bg' }[r.doctrine.id] || 'grand_battleplan_bg')}.png`} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
           <strong>{r.doctrine.name}</strong>
           <p>{r.why}</p>
         </article>

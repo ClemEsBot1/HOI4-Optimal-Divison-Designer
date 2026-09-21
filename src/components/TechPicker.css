@@ -11,14 +11,23 @@
 .tp-tabcount { opacity: .7; font-size: .8em; margin-left: .25rem; }
 .tp-hint { padding: 0 1rem; margin: .5rem 0; }
 .tp-scroll { overflow: auto; padding: .5rem 1rem 1rem; flex: 1; }
-.tp-tree-wrap { position: relative; min-width: max(100%, calc(var(--tp-cols) * 9.5rem)); min-height: calc(var(--tp-rows) * 11rem); padding: .25rem; background: linear-gradient(180deg, rgba(31,78,121,.04), transparent 18%); }
+.tp-tree-wrap { position: relative; min-width: max(100%, calc(var(--tp-cols) * 9.5rem)); min-height: calc(var(--tp-rows) * 11rem); padding: .25rem; background-color: #182124; background-repeat: no-repeat; background-position: center top; background-size: cover; }
+.tp-folder-infantry_folder { background-image: linear-gradient(rgba(24,33,36,.3), rgba(24,33,36,.72)), url('/hoi4/techtree/infantry_techtree_bg.png'); }
+.tp-folder-support_folder { background-image: linear-gradient(rgba(24,33,36,.3), rgba(24,33,36,.72)), url('/hoi4/techtree/support_techtree_bg.png'); }
+.tp-folder-artillery_folder { background-image: linear-gradient(rgba(24,33,36,.3), rgba(24,33,36,.72)), url('/hoi4/techtree/artillery_techtree_bg.png'); }
+.tp-folder-armour_folder, .tp-folder-nsb_armour_folder { background-image: linear-gradient(rgba(24,33,36,.3), rgba(24,33,36,.72)), url('/hoi4/techtree/techtree_stripes.png'); }
 .tp-lines { position: absolute; inset: .25rem; width: calc(100% - .5rem); height: calc(100% - .5rem); overflow: visible; pointer-events: none; }
 .tp-lines path { fill: none; stroke: var(--accent, #1f4e79); stroke-width: .035; stroke-linecap: square; opacity: .55; vector-effect: non-scaling-stroke; }
 .tp-grid { position: relative; z-index: 1; display: grid; gap: .5rem; align-items: stretch; }
 .tp-cell { min-width: 0; }
 .tp-loose { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: .5rem; margin-top: 1rem; }
-.tp-card { border: 1px solid var(--line, #c9c9c9); border-radius: 4px; padding: .4rem; font-size: .8rem; background: var(--paper, #fff); min-height: 9.5rem; box-sizing: border-box; }
-.tp-card.on { border-color: var(--accent, #1f4e79); box-shadow: inset 0 0 0 1px var(--accent, #1f4e79); background: color-mix(in srgb, var(--accent, #1f4e79) 10%, var(--paper, #fff)); }
+.tp-card { border: 1px solid #66716d; border-radius: 3px; padding: .4rem; font-size: .8rem; background-color: #263134; background-image: url('/hoi4/techtree/technology_unavailable_item_bg.png'); background-size: 100% 100%; min-height: 9.5rem; box-sizing: border-box; }
+.tp-card.open { background-image: url('/hoi4/techtree/technology_available_item_bg.png'); }
+.tp-card.locked, .tp-card.blocked { background-image: url('/hoi4/techtree/technology_unavailable_item_bg.png'); }
+.tp-card.on { background-image: url('/hoi4/techtree/technology_researched_item_bg.png'); }
+.tp-icon { width: 2.5rem; height: 2.5rem; object-fit: cover; float: left; margin: 0 .45rem .2rem 0; border: 1px solid rgba(196,154,74,.65); }
+.tp-main strong { display: block; min-height: 2.5rem; }
+.tp-card.on { border-color: #d4b56e; box-shadow: inset 0 0 0 1px #d4b56e, 0 0 .7rem rgba(196,154,74,.3); }
 .tp-card.locked { opacity: .6; }
 .tp-card.blocked { opacity: .4; }
 .tp-card.dim { opacity: .2; }
