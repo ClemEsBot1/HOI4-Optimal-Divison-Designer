@@ -1,9 +1,12 @@
 import React from 'react';
 import { defaultExclude } from '../lib/presets.js';
 
+const isArtillery = (u) => (u.cats || []).includes('category_line_artillery');
 const GROUPS = [
-  { id: 'infantry', label: 'Infantry columns', pick: (u) => u.role === 'line' && u.col === 'infantry' },
-  { id: 'mobile', label: 'Mobile columns', pick: (u) => u.role === 'line' && u.col === 'mobile' },
+  { id: 'infantry', label: 'Infantry columns', pick: (u) => u.role === 'line' && u.col === 'infantry' && !isArtillery(u) },
+  { id: 'artillery', label: 'Artillery columns', pick: (u) => u.role === 'line' && u.col === 'infantry' && isArtillery(u) },
+  { id: 'mobile', label: 'Mobile columns', pick: (u) => u.role === 'line' && u.col === 'mobile' && !isArtillery(u) },
+  { id: 'mobile_artillery', label: 'Mobile artillery columns', pick: (u) => u.role === 'line' && u.col === 'mobile' && isArtillery(u) },
   { id: 'armor', label: 'Armor columns', pick: (u) => u.role === 'line' && u.col === 'armor' },
   { id: 'reg', label: 'Regimental support', pick: (u) => u.role === 'reg' },
   { id: 'div', label: 'Divisional support', pick: (u) => u.role === 'div' },

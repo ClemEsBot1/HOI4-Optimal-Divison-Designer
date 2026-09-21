@@ -39,6 +39,18 @@ export const PERK_BY_UNIT = {
 };
 export const PERK_KEYS = ['recon', 'engineer', 'hospital', 'logistics', 'maintenance', 'signal', 'police'];
 
+// HOI4 keeps infantry, artillery, mobile artillery and armor battalions in separate designer columns.
+// The extracted `col` field describes the chassis family, so line artillery needs this finer grouping.
+export const COLUMN_TYPES = ['infantry', 'artillery', 'mobile', 'mobile_artillery', 'armor'];
+export function columnType(u) {
+  if (u.col === 'armor') return 'armor';
+  const cats = u.cats || [];
+  const artillery = cats.includes('category_line_artillery');
+  if (artillery && cats.includes('category_mobile_and_mobile_combat_sup')) return 'mobile_artillery';
+  if (artillery) return 'artillery';
+  return u.col === 'mobile' ? 'mobile' : 'infantry';
+}
+
 export const BASE_COLUMN_SIZE = 5;
 export const MAX_COLUMNS = 5;
 export const MAX_SUPPORT = 5;
@@ -445,7 +457,7 @@ export function resolve(game, setup) {
     const m = unitModifiers(mods, u);
     const F = (k) => num(u.base[k]) + num(m[k]);
     const trucks = num(u.need.motorized_equipment) + num(u.need.motorbike_equipment);
-    const cat = u.col; // infantry | mobile | armor for line units
+    const cat = columnType(u); // separate infantry, artillery, mobile artillery and armor columns
     out.push({
       id: u.id, name: u.name, abbr: u.abbr, role: u.role, cat, group: u.group, cats: u.cats, special: u.special,
       sameType: [u.id, ...u.sameType],

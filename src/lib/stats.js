@@ -66,12 +66,14 @@ export const DEFAULT_OPTS = {
 export const MAX_COLUMNS = 5;
 export const MAX_SUPPORT = 5;
 
+// Column families mirror the game's designer: artillery is not an infantry column.
+export const COLUMN_TYPES = ['infantry', 'artillery', 'mobile', 'mobile_artillery', 'armor'];
 export function columnsNeeded(counts, size = 5) {
-  return Math.ceil(counts.infantry / size) + Math.ceil(counts.mobile / size) + Math.ceil(counts.armor / size);
+  return COLUMN_TYPES.reduce((n, t) => n + Math.ceil((counts[t] || 0) / size), 0);
 }
 
 export const REG_MIN_BATTALIONS = 3;
-const COL_TYPES = ['infantry', 'mobile', 'armor'];
+const COL_TYPES = COLUMN_TYPES;
 
 /**
  * Decide how many columns each type is spread over. Every type needs enough columns to hold its battalions.
@@ -81,28 +83,30 @@ const COL_TYPES = ['infantry', 'mobile', 'armor'];
  * number of regimental companies the layout can take.
  */
 export function planColumns(cnt, size, armorRegs = 0, otherRegs = 0) {
-  const min = {};
-  let base = 0;
-  for (const t of COL_TYPES) { min[t] = Math.ceil(cnt[t] / size); base += min[t]; }
+  const min = Object.fromEntries(COL_TYPES.map((t) => [t, Math.ceil((cnt[t] || 0) / size)]));
+  const base = COL_TYPES.reduce((n, t) => n + min[t], 0);
   if (base > MAX_COLUMNS) return { ok: false, ...min, slots: 0 };
   const spare = MAX_COLUMNS - base;
-  const room = (t) => Math.max(0, cnt[t] - min[t]); // a column cannot be empty
-  let bestSlots = null;
-  for (let extra = 0; extra <= spare; extra++) {
-    for (let a = 0; a <= extra; a++) {
-      for (let b = 0; b <= extra - a; b++) {
-        const c = extra - a - b;
-        if (a > room('infantry') || b > room('mobile') || c > room('armor')) continue;
-        const cols = { infantry: min.infantry + a, mobile: min.mobile + b, armor: min.armor + c };
-        const elig = (t) => Math.min(cols[t], Math.floor(cnt[t] / REG_MIN_BATTALIONS));
-        const armorSlots = elig('armor');
-        const otherSlots = elig('infantry') + elig('mobile');
-        if (armorRegs <= armorSlots && otherRegs <= otherSlots) return { ok: true, ...cols, slots: armorSlots + otherSlots };
-        if (!bestSlots) bestSlots = { ok: false, ...cols, slots: armorSlots + otherSlots };
-      }
+  const room = (t) => Math.max(0, (cnt[t] || 0) - min[t]); // a column cannot be empty
+  let best = null;
+  const visit = (index, left, cols) => {
+    if (index === COL_TYPES.length) {
+      const elig = (t) => Math.min(cols[t], Math.floor((cnt[t] || 0) / REG_MIN_BATTALIONS));
+      const armorSlots = elig('armor');
+      const otherSlots = COL_TYPES.filter((t) => t !== 'armor').reduce((n, t) => n + elig(t), 0);
+      const candidate = { ...cols, slots: armorSlots + otherSlots };
+      if (!best || candidate.slots > best.slots) best = candidate;
+      if (armorRegs <= armorSlots && otherRegs <= otherSlots) best = { ...candidate, ok: true };
+      return;
     }
-  }
-  return armorRegs + otherRegs === 0 ? { ok: true, ...min, slots: 0 } : bestSlots || { ok: false, ...min, slots: 0 };
+    const t = COL_TYPES[index];
+    for (let extra = 0; extra <= Math.min(left, room(t)); extra++) {
+      visit(index + 1, left - extra, { ...cols, [t]: min[t] + extra });
+      if (best?.ok) return;
+    }
+  };
+  visit(0, spare, {});
+  return best ? { ...best, ok: !!best.ok || (armorRegs === 0 && otherRegs === 0) } : { ok: false, ...min, slots: 0 };
 }
 
 /** Do two support companies exclude each other? (same id, or they share a "same support type" tag) */
@@ -141,7 +145,7 @@ export function evaluate(tpl, byId, mods = {}, opts = DEFAULT_OPTS, columnSize =
   let sa = 0, ha = 0, air = 0, def = 0, brk = 0, hp = 0, ic = 0, mp = 0, sup = 0, trucks = 0, width = 0, recon = 0;
   let orgSum = 0, recSum = 0, hardSum = 0, armSum = 0, pierSum = 0;
   let spd = Infinity;
-  const cnt = { infantry: 0, mobile: 0, armor: 0 };
+  const cnt = Object.fromEntries(COLUMN_TYPES.map((t) => [t, 0]));
   for (const u of line) {
     let bsa = u.sa, bha = u.ha, bdef = u.def, bbrk = u.brk, bpier = u.pier, bair = u.air;
     if (boost.size) {

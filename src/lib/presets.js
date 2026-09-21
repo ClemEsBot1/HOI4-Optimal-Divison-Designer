@@ -12,37 +12,37 @@ export const ZERO_WEIGHTS = Object.fromEntries(STAT_KEYS.map((k) => [k, 0]));
 export const ROLES = [
   {
     id: 'line', name: 'Line infantry', blurb: 'Sturdy, affordable divisions that hold and grind.',
-    weights: { sa: 5, def: 8, org: 6, hp: 6, ic: 4, mp: 2 },
+    weights: { sa: 5, def: 8, org: 6, hp: 6, ic: 4, mp: 2, engineer: 7, logistics: 2, recon: 2 },
     constraints: { wmin: 20, wmax: 20, minOrg: 0, minArm: 0, maxIc: 0, perWidth: false },
   },
   {
     id: 'wall', name: 'Defensive wall', blurb: 'As much defense and staying power as the cost allows.',
-    weights: { def: 10, hp: 7, org: 6, rec: 3, ic: 6, sup: 2 },
+    weights: { def: 10, hp: 7, org: 6, rec: 3, ic: 6, sup: 2, engineer: 9, logistics: 5, maintenance: 2 },
     constraints: { wmin: 20, wmax: 20, minOrg: 0, minArm: 0, maxIc: 0, perWidth: false },
   },
   {
     id: 'spear', name: 'Breakthrough spearhead', blurb: 'Mobile divisions that punch through and keep going.',
-    weights: { brk: 9, org: 6, spd: 6, sa: 4, ha: 3, arm: 3, recon: 2 },
+    weights: { brk: 9, org: 6, spd: 6, sa: 4, ha: 3, arm: 3, recon: 5, engineer: 5, logistics: 7, maintenance: 6, signal: 4 },
     constraints: { wmin: 20, wmax: 32, minOrg: 10, minArm: 0, maxIc: 0, perWidth: false },
   },
   {
     id: 'grinder', name: 'Attrition grinder', blurb: 'The most soft attack for the money.',
-    weights: { sa: 9, ic: 7, org: 4, hp: 3 },
+    weights: { sa: 9, ic: 7, org: 4, hp: 3, engineer: 4, logistics: 5 },
     constraints: { wmin: 20, wmax: 20, minOrg: 0, minArm: 0, maxIc: 0, perWidth: true },
   },
   {
     id: 'armor', name: 'Armored punch', blurb: 'Tanks first: breakthrough, hard attack and armor.',
-    weights: { brk: 8, arm: 6, ha: 5, spd: 5, org: 3, ic: 2 },
+    weights: { brk: 8, arm: 6, ha: 5, spd: 5, org: 3, ic: 2, engineer: 4, logistics: 8, maintenance: 8, signal: 5, recon: 4 },
     constraints: { wmin: 24, wmax: 32, minOrg: 8, minArm: 0, maxIc: 0, perWidth: false },
   },
   {
     id: 'hunter', name: 'Tank hunter', blurb: 'Piercing and hard attack to kill armor.',
-    weights: { ha: 8, pier: 9, arm: 5, brk: 3, spd: 3, ic: 3 },
+    weights: { ha: 8, pier: 9, arm: 5, brk: 3, spd: 3, ic: 3, engineer: 4, logistics: 6, maintenance: 6 },
     constraints: { wmin: 20, wmax: 32, minOrg: 8, minArm: 0, maxIc: 0, perWidth: false },
   },
   {
     id: 'mass', name: 'Cheap mass', blurb: 'Bodies and defense per IC and per man.',
-    weights: { def: 5, ic: 9, mp: 8, sa: 3, hp: 3 },
+    weights: { def: 5, ic: 9, mp: 8, sa: 3, hp: 3, engineer: 5, logistics: 5 },
     constraints: { wmin: 10, wmax: 20, minOrg: 0, minArm: 0, maxIc: 0, perWidth: true },
   },
 ];

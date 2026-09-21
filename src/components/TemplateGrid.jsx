@@ -2,7 +2,9 @@ import React from 'react';
 
 const COLS = [
   { id: 'infantry', label: 'Infantry' },
+  { id: 'artillery', label: 'Artillery' },
   { id: 'mobile', label: 'Mobile' },
+  { id: 'mobile_artillery', label: 'Mobile artillery' },
   { id: 'armor', label: 'Armor' },
 ];
 const MIN_FOR_REG = 3; // a column needs three battalions before it can take a regimental company
@@ -62,7 +64,7 @@ export default function TemplateGrid({ items, support = [], reg = [], byId, colu
     const n = layout ? layout[c.id] : Math.ceil(ids.length / columnSize);
     for (const part of spread(ids, Math.max(1, n))) columns.push({ type: c.id, label: c.label, ids: part, reg: null });
   }
-  // attach regimental companies: vehicle companies to armor columns, the rest to infantry or mobile columns
+  // attach regimental companies: vehicle companies to armor columns, the rest to non-armor columns
   const tankRegs = reg.filter((id) => byId.get(id).tank);
   const footRegs = reg.filter((id) => !byId.get(id).tank);
   for (const c of columns) {

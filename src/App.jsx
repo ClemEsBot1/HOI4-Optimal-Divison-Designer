@@ -405,7 +405,7 @@ function DataSection({ version, meta }) {
       </p>
       <h3>Rules as implemented</h3>
       <ul className="rules">
-        <li>A template has up to five columns. A column holds one type (infantry, mobile or armor) and five battalions, or more if a doctrine milestone raises the column size. Artillery, anti-tank and anti-air brigades sit in the column that matches their chassis.</li>
+        <li>A template has up to five columns. Infantry, artillery, mobile, mobile-artillery and armor battalions use separate columns, with five battalions per column or more if a doctrine milestone raises the column size.</li>
         <li>A column needs at least three battalions before it can take a regimental support company. The search spreads battalions over spare columns when that unlocks more regimental slots.</li>
         <li>Special forces units (marines, paratroopers, mountaineers, rangers, amtracs, amphibious tanks) and cavalry are left out unless you switch them on under Allowed units.</li>
         <li>Attack, defense, breakthrough, air attack, hit points, cost, manpower and supply are summed over battalions and support companies.</li>

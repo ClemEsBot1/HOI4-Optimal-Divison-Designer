@@ -6,7 +6,7 @@
  * feasible template it evaluates, and returns the best ones that differ meaningfully from each other.
  */
 import { resolve, MAX_COLUMNS, MAX_SUPPORT } from './game.js';
-import { evaluate, columnsNeeded, supportConflict, regFitsColumn, STATS, DEFAULT_OPTS } from './stats.js';
+import { evaluate, columnsNeeded, planColumns, supportConflict, regFitsColumn, STATS, DEFAULT_OPTS, COLUMN_TYPES } from './stats.js';
 
 export const DEFAULT_CONSTRAINTS = { wmin: 20, wmax: 20, minOrg: 0, minArm: 0, maxIc: 0, perWidth: false };
 
@@ -20,7 +20,7 @@ export function parseKey(key) {
 
 /** Group battalions by column type, then by unit, so templates read like a division designer. */
 export function orderItems(items, byId) {
-  const rank = { infantry: 0, mobile: 1, armor: 2 };
+  const rank = { infantry: 0, artillery: 1, mobile: 2, mobile_artillery: 3, armor: 4 };
   return [...items].sort((a, b) => {
     const ua = byId.get(a); const ub = byId.get(b);
     return (rank[ua.cat] - rank[ub.cat]) || (ua.name < ub.name ? -1 : ua.name > ub.name ? 1 : 0);
@@ -53,7 +53,7 @@ export function search(game, params) {
   const resolved = resolve(game, { techs: params.techs, doctrine: params.doctrine, design: weights, exclude: params.exclude });
   const { byId, columnSize } = resolved;
   const base = { units: [...byId.values()], designs: resolved.designs, columnSize };
-  const lineByCol = { infantry: [], mobile: [], armor: [] };
+  const lineByCol = Object.fromEntries(COLUMN_TYPES.map((c) => [c, []]));
   for (const u of resolved.combat) lineByCol[u.cat].push(u);
   const cols = Object.keys(lineByCol).filter((c) => lineByCol[c].length);
   if (!cols.length) return { ...base, error: 'No battalions can be built with this research. Research infantry weapons or a tank chassis first.' };
@@ -72,7 +72,12 @@ export function search(game, params) {
     for (let i = 0; i < tpl.support.length; i++) for (let j = i + 1; j < tpl.support.length; j++) {
       if (supportConflict(byId.get(tpl.support[i]), byId.get(tpl.support[j]))) return false;
     }
-    return true;
+    // Companies are unique support slots; don't let a hill-climb create duplicate regimental companies.
+    if (new Set(tpl.reg).size !== tpl.reg.length) return false;
+    const counts = countOf(tpl.items);
+    const armorRegs = tpl.reg.filter((id) => byId.get(id).tank).length;
+    const otherRegs = tpl.reg.length - armorRegs;
+    return planColumns(counts, columnSize, armorRegs, otherRegs).ok;
   };
 
   let explored = 0;
@@ -122,7 +127,7 @@ export function search(game, params) {
 
   // ---------- template construction ----------
   const colOf = (id) => byId.get(id).cat;
-  const countOf = (items) => { const c = { infantry: 0, mobile: 0, armor: 0 }; for (const id of items) c[colOf(id)]++; return c; };
+  const countOf = (items) => { const c = Object.fromEntries(COLUMN_TYPES.map((t) => [t, 0])); for (const id of items) c[colOf(id)]++; return c; };
   const canAdd = (items, id) => {
     const c = countOf(items); c[colOf(id)]++;
     return columnsNeeded(c, columnSize) <= MAX_COLUMNS;
