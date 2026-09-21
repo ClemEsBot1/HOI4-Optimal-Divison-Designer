@@ -107,6 +107,11 @@ export function search(game, params) {
     if (C.minOrg && st.org < C.minOrg) v += C.minOrg - st.org;
     if (C.minArm && st.arm < C.minArm) v += C.minArm - st.arm;
     if (C.maxIc && st.ic > C.maxIc) v += (st.ic - C.maxIc) / 50;
+    const armorShare = st.n ? (st.cnt.armor || 0) / st.n : 0;
+    if (C.minArmorShare && armorShare < C.minArmorShare) v += (C.minArmorShare - armorShare) * 20;
+    if (C.maxArmorShare && armorShare > C.maxArmorShare) v += (armorShare - C.maxArmorShare) * 20;
+    if (C.minArmorBattalions && (st.cnt.armor || 0) < C.minArmorBattalions) v += C.minArmorBattalions - (st.cnt.armor || 0);
+    if (C.maxArmorBattalions && (st.cnt.armor || 0) > C.maxArmorBattalions) v += (st.cnt.armor || 0) - C.maxArmorBattalions;
     return v;
   };
   const PENALTY = 500;

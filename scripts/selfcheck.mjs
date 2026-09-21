@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildGame, techsUpTo, researchTech, unresearchTech, canResearch, resolve, collectModifiers } from '../src/lib/game.js';
 import { evaluate, planColumns } from '../src/lib/stats.js';
-import { defaultExclude } from '../src/lib/presets.js';
+import { defaultExclude, ROLES } from '../src/lib/presets.js';
 import { search } from '../src/lib/optimizer.js';
 import { encodeState, decodeState } from '../src/lib/format.js';
 
@@ -68,5 +68,11 @@ const r2 = search(game, { techs: [...T], exclude: ex, weights: { sa: 5, def: 8, 
 const used = new Set(r2.top.flatMap((t) => [...t.items, ...t.support, ...t.reg]));
 ok(![...used].some((id) => ex.includes(id)), 'search results never use excluded units');
 ok(r2.top.every((t) => { const c = { infantry: 0, mobile: 0, armor: 0 }; t.items.forEach((id) => c[r2.units.find((u) => u.id === id).cat]++); const p = planColumns(c, r2.columnSize, t.reg.filter((id) => r2.units.find((u) => u.id === id).tank).length, t.reg.filter((id) => !r2.units.find((u) => u.id === id).tank).length); return p.ok; }), 'every result respects the regimental rule');
+const armorRole = ROLES.find((x) => x.id === 'armor');
+const ra = search(game, { techs: [...T], exclude: ex, weights: armorRole.weights, constraints: armorRole.constraints, ms: 500, topN: 2 });
+ok(ra.top?.every((t) => { const n = t.items.length; return t.items.filter((id) => ra.units.find((u) => u.id === id).cat === 'armor').length / n > 0.5; }), 'armoured role keeps more than half its line battalions armoured');
+const spaceRole = ROLES.find((x) => x.id === 'space_marines');
+const rs = search(game, { techs: [...T], exclude: ex, weights: spaceRole.weights, constraints: spaceRole.constraints, ms: 500, topN: 2 });
+ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id) => rs.units.find((u) => u.id === id).cat === 'armor').length; return a >= 1 && a <= 2 && a / n <= 0.5; }), 'space marine role uses a small armoured component');
 console.log(fails ? `\n${fails} check(s) failed` : '\nAll checks passed');
 process.exit(fails ? 1 : 0);

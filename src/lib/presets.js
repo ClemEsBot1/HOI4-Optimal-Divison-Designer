@@ -11,41 +11,61 @@ export const ZERO_WEIGHTS = Object.fromEntries(STAT_KEYS.map((k) => [k, 0]));
 
 export const ROLES = [
   {
-    id: 'line', name: 'Line infantry', blurb: 'Sturdy, affordable divisions that hold and grind.',
-    weights: { sa: 5, def: 8, org: 6, hp: 6, ic: 4, mp: 2, engineer: 7, logistics: 2, recon: 2 },
-    constraints: { wmin: 20, wmax: 20, minOrg: 0, minArm: 0, maxIc: 0, perWidth: false },
+    id: 'line', name: 'Line infantry', blurb: 'Mostly defensive infantry: organization, defense and staying power.',
+    weights: { def: 10, org: 9, hp: 7, ic: 7, sa: 3, mp: 3, engineer: 8, logistics: 2 },
+    constraints: { wmin: 18, wmax: 21, minOrg: 45, minArm: 0, maxIc: 0, perWidth: false },
   },
   {
-    id: 'wall', name: 'Defensive wall', blurb: 'As much defense and staying power as the cost allows.',
-    weights: { def: 10, hp: 7, org: 6, rec: 3, ic: 6, sup: 2, engineer: 9, logistics: 5, maintenance: 2 },
-    constraints: { wmin: 20, wmax: 20, minOrg: 0, minArm: 0, maxIc: 0, perWidth: false },
+    id: 'offensive_infantry', name: 'Offensive Infantry', blurb: 'Infantry with enough soft attack to push when tanks are scarce.',
+    weights: { sa: 9, def: 6, brk: 5, org: 8, hp: 6, ic: 4, engineer: 7, logistics: 2, recon: 2 },
+    constraints: { wmin: 18, wmax: 27, minOrg: 45, minArm: 0, maxIc: 0, perWidth: false },
   },
   {
-    id: 'spear', name: 'Breakthrough spearhead', blurb: 'Mobile divisions that punch through and keep going.',
-    weights: { brk: 9, org: 6, spd: 6, sa: 4, ha: 3, arm: 3, recon: 5, engineer: 5, logistics: 7, maintenance: 6, signal: 4 },
-    constraints: { wmin: 20, wmax: 32, minOrg: 10, minArm: 0, maxIc: 0, perWidth: false },
+    id: 'armor', name: 'Armoured division', blurb: 'More than half armoured battalions, with the soft attack to break a line.',
+    weights: { sa: 9, brk: 9, arm: 7, ha: 6, spd: 5, org: 5, ic: 2, engineer: 5, logistics: 8, maintenance: 8, signal: 5, recon: 4 },
+    constraints: { wmin: 30, wmax: 42, minOrg: 25, minArm: 0, minArmorShare: 0.51, maxIc: 0, perWidth: false },
   },
   {
-    id: 'grinder', name: 'Attrition grinder', blurb: 'The most soft attack for the money.',
-    weights: { sa: 9, ic: 7, org: 4, hp: 3, engineer: 4, logistics: 5 },
-    constraints: { wmin: 20, wmax: 20, minOrg: 0, minArm: 0, maxIc: 0, perWidth: true },
+    id: 'hunter', name: 'Tank Hunter', blurb: 'Anti-armour infantry for multiplayer: piercing and hard attack first.',
+    weights: { pier: 10, ha: 10, def: 6, org: 8, ic: 5, sa: 3, engineer: 6, logistics: 3 },
+    constraints: { wmin: 18, wmax: 27, minOrg: 45, minArm: 0, maxIc: 0, perWidth: false },
   },
   {
-    id: 'armor', name: 'Armored punch', blurb: 'Tanks first: breakthrough, hard attack and armor.',
-    weights: { brk: 8, arm: 6, ha: 5, spd: 5, org: 3, ic: 2, engineer: 4, logistics: 8, maintenance: 8, signal: 5, recon: 4 },
-    constraints: { wmin: 24, wmax: 32, minOrg: 8, minArm: 0, maxIc: 0, perWidth: false },
-  },
-  {
-    id: 'hunter', name: 'Tank hunter', blurb: 'Piercing and hard attack to kill armor.',
-    weights: { ha: 8, pier: 9, arm: 5, brk: 3, spd: 3, ic: 3, engineer: 4, logistics: 6, maintenance: 6 },
-    constraints: { wmin: 20, wmax: 32, minOrg: 8, minArm: 0, maxIc: 0, perWidth: false },
-  },
-  {
-    id: 'mass', name: 'Cheap mass', blurb: 'High-organization infantry that is cheap to field and reinforce.',
-    weights: { def: 6, ic: 8, mp: 7, sa: 2, hp: 3, org: 9, engineer: 5, logistics: 3 },
-    constraints: { wmin: 10, wmax: 20, minOrg: 45, minArm: 0, maxIc: 0, perWidth: true },
+    id: 'space_marines', name: 'Space marines', blurb: 'Infantry backed by a small armoured component to raise armor and punch.',
+    weights: { sa: 8, arm: 9, def: 7, org: 8, brk: 4, ic: 5, ha: 4, engineer: 7, logistics: 4, maintenance: 3 },
+    constraints: { wmin: 18, wmax: 27, minOrg: 40, minArm: 10, minArmorBattalions: 1, maxArmorBattalions: 2, maxArmorShare: 0.5, maxIc: 0, perWidth: false },
   },
 ];
+
+export const DOCTRINE_RECOMMENDATIONS = {
+  line: [
+    { names: ['Grand Battleplan', 'Mass Mobilization'], why: 'Best fit for entrenchment, defense and holding a front.' },
+    { names: ['Superior Firepower'], why: 'A strong alternative when support artillery and infantry firepower matter more.' },
+  ],
+  offensive_infantry: [
+    { names: ['Superior Firepower'], why: 'The natural infantry-and-fire-support choice for soft attack.' },
+    { names: ['Grand Battleplan'], why: 'Strong when planning bonus and prepared attacks are available.' },
+  ],
+  armor: [
+    { names: ['Mobile Warfare'], why: 'The specialist choice for breakthrough, speed and armoured formations.' },
+    { names: ['Superior Firepower'], why: 'A strong alternative when maximizing division firepower.' },
+  ],
+  hunter: [
+    { names: ['Superior Firepower'], why: 'Improves the firepower of anti-tank-heavy infantry formations.' },
+    { names: ['Grand Battleplan'], why: 'Useful for planned defensive multiplayer responses.' },
+  ],
+  space_marines: [
+    { names: ['Grand Battleplan'], why: 'A common space-marine choice: planning, entrenchment and defensive value.' },
+    { names: ['Superior Firepower'], why: 'Use it when the armoured infantry is intended to attack.' },
+  ],
+};
+
+export function doctrineRecommendations(game, roleId) {
+  return (DOCTRINE_RECOMMENDATIONS[roleId] || []).map((r) => ({
+    ...r,
+    doctrine: r.names.map((name) => [...game.grands.values()].find((g) => g.name === name)).find(Boolean),
+  })).filter((r) => r.doctrine);
+}
 
 export const TECH_PRESETS = [
   { year: 1936, label: '1936 start' },

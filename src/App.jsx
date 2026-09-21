@@ -8,16 +8,17 @@ import raw from './data/game.json';
 import { buildGame, EMPTY_DOCTRINE } from './lib/game.js';
 import { STATS, MOD_KEYS, DEFAULT_OPTS, evaluate, fmt } from './lib/stats.js';
 import { parseKey, DEFAULT_CONSTRAINTS } from './lib/optimizer.js';
-import { ROLES, ZERO_WEIGHTS, defaultTech, defaultExclude } from './lib/presets.js';
+import { ROLES, ZERO_WEIGHTS, defaultTech, defaultExclude, doctrineRecommendations } from './lib/presets.js';
 import { describeTemplate, countBy, encodeState, decodeState } from './lib/format.js';
 import { describeDesign } from './lib/describe.js';
 
 const game = buildGame(raw);
 
 const ROLE_AXES = {
-  line: ['sa', 'def'], wall: ['def', 'ic'], spear: ['brk', 'org'], grinder: ['sa', 'ic'],
-  armor: ['brk', 'arm'], hunter: ['ha', 'pier'], mass: ['def', 'ic'], custom: ['sa', 'def'],
+  line: ['def', 'org'], offensive_infantry: ['sa', 'org'], armor: ['sa', 'brk'], hunter: ['ha', 'pier'],
+  space_marines: ['arm', 'sa'], custom: ['sa', 'def'],
 };
+const SHOW_ADVANCED_PRIORITIES = false; // Keep the optimizer controls implemented, but present role presets for now.
 
 const COST_LABEL = { ic: 'Cheaper to build', mp: 'Uses less manpower', sup: 'Uses less supply', trucks: 'Needs fewer trucks' };
 const GROUP_ORDER = ['Offense', 'Staying power', 'Mobility', 'Cost', 'Utility'];
@@ -132,6 +133,7 @@ export default function App() {
   }, [res, selected, byId, result]);
   const topKeys = useMemo(() => (res?.top ? res.top.map((t) => t.key) : []), [res]);
   const role = ROLES.find((r) => r.id === result?.roleId);
+  const recommendations = doctrineRecommendations(game, result?.roleId);
   const bestScore = res?.top?.[0]?.score;
 
   const designsUsed = useMemo(() => {
@@ -196,9 +198,9 @@ export default function App() {
             </div>
           </section>
 
-          <section className="block">
-            <h2>Priorities</h2>
-            <p className="note">Slide right for stats you want more of. Every stat is compared by percentage change, so weights are directly comparable. Zero ignores a stat.</p>
+          {SHOW_ADVANCED_PRIORITIES && <section className="block">
+            <h2>Advanced priorities</h2>
+            <p className="note">These controls remain available for future custom optimization. Role presets currently define the search priorities.</p>
             {groups.map(({ g, stats }) => (
               <details key={g} className="group" open={g !== 'Utility'}>
                 <summary>{g}</summary>
@@ -216,7 +218,7 @@ export default function App() {
                 })}
               </details>
             ))}
-          </section>
+          </section>}
 
           <section className="block">
             <h2>Limits</h2>
@@ -249,7 +251,12 @@ export default function App() {
           </section>
 
           <section className="block">
-            <h2>Doctrine</h2>
+            <h2>Recommended doctrines</h2>
+            <DoctrineRecommendations recommendations={recommendations} />
+          </section>
+
+          <section className="block">
+            <h2>Doctrine setup</h2>
             <DoctrinePicker game={game} doctrine={doctrine} setDoctrine={setDoctrine} />
           </section>
 
@@ -394,6 +401,21 @@ export default function App() {
   );
 }
 
+function DoctrineRecommendations({ recommendations }) {
+  if (!recommendations.length) return <p className="note">Select a role to see doctrine guidance.</p>;
+  return (
+    <div className="doctrine-recs">
+      {recommendations.map((r, i) => (
+        <article key={r.doctrine.id} className={'doctrine-rec' + (i === 0 ? ' primary' : '')}>
+          <div className="rec-kicker">{i === 0 ? 'Primary recommendation' : 'Alternative'}</div>
+          <strong>{r.doctrine.name}</strong>
+          <p>{r.why}</p>
+        </article>
+      ))}
+    </div>
+  );
+}
+
 function DataSection({ version, meta }) {
   return (
     <section className="block wide-block" id="data">
@@ -409,12 +431,13 @@ function DataSection({ version, meta }) {
         <li>A column needs at least three battalions before it can take a regimental support company. The search spreads battalions over spare columns when that unlocks more regimental slots.</li>
         <li>Special forces units (marines, paratroopers, mountaineers, rangers, amtracs, amphibious tanks) and cavalry are left out unless you switch them on under Allowed units.</li>
         <li>Attack, defense, breakthrough, air attack, hit points, cost, manpower and supply are summed over battalions and support companies.</li>
-        <li>Organization and recovery are averaged over battalions. Whether support companies join that average is unverified, so it is a switch in the sidebar.</li>
+        <li>Organization and recovery are averaged over battalions and support companies, matching the current HOI4 reference formula. The sidebar switch remains for comparing alternate assumptions.</li>
         <li>Armor, piercing and hardness are averaged over line battalions only. Speed is the slowest line battalion.</li>
         <li>Unit stats are the sum of the equipment each unit needs (best researched variant) times one plus the unit, tech and doctrine bonuses. Organization, hit points, recovery and combat width take flat bonuses.</li>
         <li>Support companies can lift whole categories of battalions (a recon company boosts artillery, for example). Divisional support allows one company per type, up to five.</li>
         <li>Tank battalions and self-propelled support use a design built from the tank modules you have researched, at the highest No Step Back engine and armor upgrade levels your research allows.</li>
         <li>Not verified against the game: one regimental support company per column, which column types each regimental company can attach to, and whether doctrine supply bonuses are fractions of a unit's supply.</li>
+        <li>Space marines are modelled as mostly infantry with one or two armoured battalions to raise armor and resist ordinary piercing; they remain especially matchup- and multiplayer-dependent.</li>
         <li>Not modelled: national focus techs, leaders, terrain, equipment stockpiles, the land cruiser, flame tanks, amphibious tank roles, and hand-editing a tank design.</li>
       </ul>
     </section>
