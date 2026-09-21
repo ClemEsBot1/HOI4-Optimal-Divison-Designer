@@ -71,6 +71,8 @@ ok(r2.top.every((t) => { const c = { infantry: 0, mobile: 0, armor: 0 }; t.items
 const armorRole = ROLES.find((x) => x.id === 'armor');
 const ra = search(game, { techs: [...T], exclude: ex, weights: armorRole.weights, constraints: armorRole.constraints, ms: 500, topN: 2 });
 ok(ra.top?.every((t) => { const n = t.items.length; return t.items.filter((id) => ra.units.find((u) => u.id === id).cat === 'armor').length / n > 0.5; }), 'armoured role keeps more than half its line battalions armoured');
+ok(ra.top?.every((t) => t.stats.org >= armorRole.constraints.minOrg && t.stats.ic <= armorRole.constraints.maxIc && t.stats.width >= 30 && t.stats.width <= 36 && (t.stats.cnt.mobile / t.stats.n) >= armorRole.constraints.minMobileShare), 'armoured role uses a usable width, organization, cost and mechanized mix');
+ok(ROLES.find((x) => x.id === 'line').constraints.wmax < armorRole.constraints.wmax, 'infantry role is narrower than armoured role');
 const spaceRole = ROLES.find((x) => x.id === 'space_marines');
 const rs = search(game, { techs: [...T], exclude: ex, weights: spaceRole.weights, constraints: spaceRole.constraints, ms: 500, topN: 2 });
 ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id) => rs.units.find((u) => u.id === id).cat === 'armor').length; return a >= 1 && a <= 2 && a / n <= 0.5; }), 'space marine role uses a small armoured component');

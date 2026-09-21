@@ -100,9 +100,12 @@ export function search(game, params) {
     }
     // Very low organization is not a practical division even when its attack looks attractive.
     // The role target is a soft lower bound: it rewards usable formations without making every role identical.
-    if (C.orgTarget && st.org < C.orgTarget) {
-      const gap = (C.orgTarget - st.org) / C.orgTarget;
-      s -= 6 * gap * gap;
+    if (C.orgTarget) {
+      const gap = (st.org - C.orgTarget) / C.orgTarget;
+      // Organization is useful around a role-specific band, not an unbounded maximize target.
+      // Penalize divisions below the floor heavily and gently penalize bloated, low-firepower designs above it.
+      if (gap < 0) s -= 18 * gap * gap;
+      else if (C.orgCeiling && st.org > C.orgCeiling) s -= 2 * ((st.org - C.orgCeiling) / C.orgTarget) ** 2;
     }
     return s;
   };
@@ -114,8 +117,11 @@ export function search(game, params) {
     if (C.minArm && st.arm < C.minArm) v += C.minArm - st.arm;
     if (C.maxIc && st.ic > C.maxIc) v += (st.ic - C.maxIc) / 50;
     const armorShare = st.n ? (st.cnt.armor || 0) / st.n : 0;
+    const mobileShare = st.n ? (st.cnt.mobile || 0) / st.n : 0;
     if (C.minArmorShare && armorShare < C.minArmorShare) v += (C.minArmorShare - armorShare) * 20;
     if (C.maxArmorShare && armorShare > C.maxArmorShare) v += (armorShare - C.maxArmorShare) * 20;
+    if (C.minMobileShare && mobileShare < C.minMobileShare) v += (C.minMobileShare - mobileShare) * 20;
+    if (C.maxMobileShare && mobileShare > C.maxMobileShare) v += (mobileShare - C.maxMobileShare) * 20;
     if (C.minArmorBattalions && (st.cnt.armor || 0) < C.minArmorBattalions) v += C.minArmorBattalions - (st.cnt.armor || 0);
     if (C.maxArmorBattalions && (st.cnt.armor || 0) > C.maxArmorBattalions) v += (st.cnt.armor || 0) - C.maxArmorBattalions;
     return v;

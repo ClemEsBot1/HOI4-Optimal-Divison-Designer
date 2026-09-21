@@ -349,6 +349,8 @@ export default function App() {
             <ManualDesigner units={res.units} columnSize={res.columnSize} mods={result.mods} opts={result.opts} best={res.top?.[0]} />
           )}
 
+          {res?.designs && <DesignSection designs={res.designs} />}
+
           {res?.top && byId && (
             <section className="block wide-block">
               <h2>Ranked alternatives</h2>
@@ -403,6 +405,34 @@ export default function App() {
         </main>
       </div>
     </div>
+  );
+}
+
+function DesignSection({ designs }) {
+  const tankDesigns = Object.values(designs).filter(Boolean);
+  return (
+    <section className="block wide-block designs-panel">
+      <h2>Optimal equipment designs</h2>
+      <p className="note">Tank designs are selected from researched modules, then applied automatically to every matching tank or self-propelled battalion in the divisions above.</p>
+      <div className="design-grid">
+        {tankDesigns.length > 0 ? tankDesigns.map((d) => (
+          <article className="design-card" key={`${d.chassis}|${d.role}`}>
+            <div className="rec-kicker">{d.role.replaceAll('_', ' ')}</div>
+            <h3>{d.chassis.replaceAll('_', ' ')}</h3>
+            <dl className="design-stats">
+              {['sa', 'ha', 'brk', 'arm', 'pier', 'spd', 'ic', 'rel'].filter((k) => d.stats && d.stats[k] != null).map((k) => (
+                <div key={k}><dt>{k.toUpperCase()}</dt><dd>{fmt(d.stats[k], k === 'spd' ? 'spd' : k)}</dd></div>
+              ))}
+            </dl>
+            <p className="note">{Object.entries(d.modules || {}).filter(([, id]) => id).map(([slot, id]) => `${slot.replaceAll('_', ' ')}: ${id.replaceAll('_', ' ')}`).join(' · ')}</p>
+          </article>
+        )) : <p className="note">No researched tank chassis are available.</p>}
+      </div>
+      <article className="air-design-note">
+        <strong>Air designs</strong>
+        <p>The current game extraction contains no aircraft designer chassis, aircraft modules, or aircraft equipment definitions—only land equipment is available to the optimizer. The section is reserved for air designs and will populate when aircraft designer data is added to the extractor.</p>
+      </article>
+    </section>
   );
 }
 
