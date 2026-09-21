@@ -9,24 +9,11 @@ const COLS = [
 ];
 const MIN_FOR_REG = 3; // a column needs three battalions before it can take a regimental company
 
-/** NATO-style unit counter: frame, a symbol for the branch, and the unit's short name. */
+/** HOI4-style unit counter using the game's branch icon instead of NATO symbols. */
 function Counter({ unit }) {
-  const cats = unit.cats || [];
   const iconName = unit.cat === 'armor' ? 'category_all_armor' : unit.cat === 'artillery' || unit.cat === 'mobile_artillery' ? 'category_artillery' : 'category_all_infantry';
-  const has = (c) => cats.includes(c);
-  const armored = unit.cat === 'armor' || has('category_tanks') || has('category_all_armor');
-  const artillery = has('category_artillery') || has('category_rocket_artillery');
-  const infantry = has('category_all_infantry') || has('category_light_infantry');
-  const mech = has('category_mobile') || has('category_mechanized') || unit.cat === 'mobile';
   return (
     <div className="counter" title={unit.name}>
-      <svg viewBox="0 0 56 38" aria-hidden="true">
-        <rect x="1.5" y="1.5" width="53" height="35" rx="1" className="c-frame" />
-        {armored && <ellipse cx="28" cy="19" rx="15" ry="8" className="c-sym" />}
-        {infantry && !armored && <path d="M1.5 1.5 L54.5 36.5 M54.5 1.5 L1.5 36.5" className="c-sym" />}
-        {mech && !armored && !infantry && <ellipse cx="28" cy="19" rx="8" ry="5" className="c-sym" />}
-        {artillery && <circle cx="28" cy="19" r="3.4" className="c-fill" />}
-      </svg>
       <img className="c-icon" src={`/hoi4/icons/${iconName}.png`} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
       <span className="c-name">{unit.abbr || unit.name}</span>
     </div>

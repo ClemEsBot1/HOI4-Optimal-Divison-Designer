@@ -132,12 +132,8 @@ table.rank { border-collapse: collapse; width: 100%; font-size: .88rem; font-var
 .tg-col { display: grid; gap: .3rem; align-content: start; }
 .tg-strip { display: flex; gap: .3rem; flex-wrap: wrap; }
 .counter { width: 3.6rem; text-align: center; }
-.counter svg { display: block; width: 100%; height: auto; }
 .counter.empty { height: 2.7rem; border: 1px dashed var(--line); border-radius: 2px; opacity: .5; }
-.c-frame { fill: color-mix(in srgb, var(--accent) 16%, var(--panel)); stroke: var(--ink); stroke-width: 2; }
-.c-sym { fill: none; stroke: var(--ink); stroke-width: 2; }
-.c-fill { fill: var(--ink); }
-.c-icon { display: block; width: 1.25rem; height: 1.25rem; object-fit: contain; margin: -.2rem auto .05rem; filter: sepia(.2) saturate(.8); }
+.c-icon { display: block; width: 3rem; height: 3rem; object-fit: contain; margin: 0 auto .05rem; filter: sepia(.2) saturate(.8); }
 .c-name { display: block; font-size: .68rem; line-height: 1.1; margin-top: .1rem; overflow: hidden; text-overflow: ellipsis; }
 
 /* trade-off chart */

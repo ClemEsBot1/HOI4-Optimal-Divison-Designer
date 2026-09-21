@@ -98,6 +98,12 @@ export function search(game, params) {
       if (a.perk) { s += weights[a.key] * PERK_VALUE * (st[a.key] > 0 ? 1 : 0); continue; }
       s += weights[a.key] * a.dir * Math.log1p(Math.max(0, valueOf(st, a.key)) / scale[a.key]);
     }
+    // Very low organization is not a practical division even when its attack looks attractive.
+    // The role target is a soft lower bound: it rewards usable formations without making every role identical.
+    if (C.orgTarget && st.org < C.orgTarget) {
+      const gap = (C.orgTarget - st.org) / C.orgTarget;
+      s -= 6 * gap * gap;
+    }
     return s;
   };
   const violation = (st) => {

@@ -11,34 +11,49 @@
 .tp-tabcount { opacity: .7; font-size: .8em; margin-left: .25rem; }
 .tp-hint { padding: 0 1rem; margin: .5rem 0; }
 .tp-scroll { overflow: auto; padding: .5rem 1rem 1rem; flex: 1; }
-.tp-tree-wrap { position: relative; min-width: max(100%, calc(var(--tp-cols) * 9.5rem)); min-height: calc(var(--tp-rows) * 11rem); padding: .25rem; background-color: #182124; background-repeat: no-repeat; background-position: center top; background-size: cover; }
+.tp-tree-wrap { position: relative; min-width: max(100%, calc(var(--tp-cols) * 4.6rem)); min-height: calc(var(--tp-rows) * 5.5rem); padding: .25rem; background-color: #182124; background-repeat: no-repeat; background-position: center top; background-size: cover; }
 .tp-folder-infantry_folder { background-image: linear-gradient(rgba(24,33,36,.3), rgba(24,33,36,.72)), url('/hoi4/techtree/infantry_techtree_bg.png'); }
 .tp-folder-support_folder { background-image: linear-gradient(rgba(24,33,36,.3), rgba(24,33,36,.72)), url('/hoi4/techtree/support_techtree_bg.png'); }
 .tp-folder-artillery_folder { background-image: linear-gradient(rgba(24,33,36,.3), rgba(24,33,36,.72)), url('/hoi4/techtree/artillery_techtree_bg.png'); }
 .tp-folder-armour_folder, .tp-folder-nsb_armour_folder { background-image: linear-gradient(rgba(24,33,36,.3), rgba(24,33,36,.72)), url('/hoi4/techtree/techtree_stripes.png'); }
 .tp-lines { position: absolute; inset: .25rem; width: calc(100% - .5rem); height: calc(100% - .5rem); overflow: visible; pointer-events: none; }
+.tp-years { position: absolute; top: 0; bottom: 0; width: 2.5rem; color: #e1d6b8; font-family: var(--head); font-size: .82rem; pointer-events: none; }
+.tp-years-left { left: -2.5rem; text-align: right; }
+.tp-years-right { right: -2.5rem; text-align: left; }
+.tp-years span { position: absolute; display: block; width: 100%; }
 .tp-lines path { fill: none; stroke: var(--accent, #1f4e79); stroke-width: .035; stroke-linecap: square; opacity: .55; vector-effect: non-scaling-stroke; }
-.tp-grid { position: relative; z-index: 1; display: grid; gap: .5rem; align-items: stretch; }
-.tp-cell { min-width: 0; }
-.tp-loose { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: .5rem; margin-top: 1rem; }
-.tp-card { border: 1px solid #66716d; border-radius: 3px; padding: .4rem; font-size: .8rem; background-color: #263134; background-image: url('/hoi4/techtree/technology_unavailable_item_bg.png'); background-size: 100% 100%; min-height: 9.5rem; box-sizing: border-box; }
+.tp-grid { position: relative; z-index: 1; display: grid; gap: .9rem 0; align-items: center; }
+.tp-cell { min-width: 0; display: flex; justify-content: center; }
+.tp-loose { display: grid; grid-template-columns: repeat(auto-fill, 4.6rem); gap: .9rem; margin-top: 1rem; }
+.tp-tooltip { position: absolute; z-index: 10; left: 50%; top: calc(100% + .35rem); transform: translateX(-50%); width: 15rem; padding: .6rem; border: 1px solid var(--accent); border-radius: 4px; background: #192124; color: var(--ink); box-shadow: 0 .5rem 1.2rem rgba(0,0,0,.6); opacity: 0; pointer-events: none; transition: opacity .12s; }
+.tp-tooltip strong, .tp-tooltip small { display: block; }
+.tp-tooltip small { color: var(--muted); margin-top: .1rem; }
+.tp-tooltip ul { margin: .35rem 0 0; padding-left: 1rem; font-size: .78rem; }
+.tp-card:hover .tp-tooltip, .tp-card:focus-within .tp-tooltip { opacity: 1; }
+.tp-card { position: relative; }
+.tp-card { border: 0; border-radius: 3px; padding: .12rem; font-size: .8rem; background-color: transparent; min-height: 4.2rem; width: 4.2rem; box-sizing: border-box; }
 .tp-card.open { background-image: url('/hoi4/techtree/technology_available_item_bg.png'); }
 .tp-card.locked, .tp-card.blocked { background-image: url('/hoi4/techtree/technology_unavailable_item_bg.png'); }
 .tp-card.on { background-image: url('/hoi4/techtree/technology_researched_item_bg.png'); }
-.tp-icon { width: 2.5rem; height: 2.5rem; object-fit: cover; float: left; margin: 0 .45rem .2rem 0; border: 1px solid rgba(196,154,74,.65); }
-.tp-main strong { display: block; min-height: 2.5rem; }
-.tp-card.on { border-color: #d4b56e; box-shadow: inset 0 0 0 1px #d4b56e, 0 0 .7rem rgba(196,154,74,.3); }
-.tp-card.locked { opacity: .6; }
+.tp-icon { width: 3.7rem; height: 3.7rem; object-fit: cover; display: block; border-radius: 4px; }
+.tp-main strong { display: none; }
+.tp-card.on { box-shadow: 0 0 .65rem rgba(196,154,74,.75); }
+.tp-card.on .tp-icon { outline: 2px solid #d4b56e; outline-offset: 1px; }
+.tp-card.open .tp-icon { outline: 1px solid #d4b56e; outline-offset: 1px; }
+.tp-main { height: 3.9rem; align-items: center; justify-content: center; padding: .05rem; }
+.tp-year { display: none; }
+.tp-card.locked { opacity: .62; }
 .tp-card.blocked { opacity: .4; }
-.tp-card.dim { opacity: .2; }
+.tp-card.dim { opacity: .18; }
+.tp-subs { position: absolute; left: 50%; bottom: -.35rem; transform: translateX(-50%); display: flex; gap: .08rem; }
+.tp-sub { width: 1.1rem; height: 1.1rem; padding: 0; font-size: .55rem; line-height: 1; overflow: hidden; }
+.tp-sub.on { background: var(--accent); color: var(--accent-ink); }
+
 .tp-main { display: flex; justify-content: space-between; gap: .5rem; width: 100%; text-align: left; background: none; border: 0; padding: 0; color: inherit; cursor: pointer; font: inherit; }
 .tp-main:disabled { cursor: not-allowed; }
 .tp-main:focus-visible, .tp-sub:focus-visible { outline: 2px solid var(--accent, #1f4e79); outline-offset: 2px; }
 .tp-year { opacity: .65; white-space: nowrap; font-size: .75rem; }
-.tp-effects { margin: .3rem 0 0; padding-left: 1rem; opacity: .85; }
-.tp-subs { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .35rem; }
-.tp-sub { border: 1px solid var(--line, #c9c9c9); background: transparent; color: inherit; border-radius: 3px; padding: .15rem .4rem; cursor: pointer; font-size: .75rem; }
-.tp-sub.on { background: var(--accent, #1f4e79); color: #fff; border-color: var(--accent, #1f4e79); }
+.tp-effects { display: none; }
 @media (prefers-reduced-motion: no-preference) { .tp-card { transition: background-color .15s; } }
 
 .dp-field, .dp-progress { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin: .4rem 0; }

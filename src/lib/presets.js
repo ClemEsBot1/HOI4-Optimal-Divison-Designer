@@ -13,27 +13,27 @@ export const ROLES = [
   {
     id: 'line', name: 'Line infantry', blurb: 'Mostly defensive infantry: organization, defense and staying power.',
     weights: { def: 10, org: 9, hp: 7, ic: 7, sa: 3, mp: 3, engineer: 8, logistics: 2 },
-    constraints: { wmin: 0, wmax: 45, minOrg: 0, minArm: 0, maxIc: 0, perWidth: false },
+    constraints: { wmin: 0, wmax: 45, minOrg: 0, minArm: 0, orgTarget: 55, maxIc: 0, perWidth: false },
   },
   {
     id: 'offensive_infantry', name: 'Offensive Infantry', blurb: 'Infantry with enough soft attack to push when tanks are scarce.',
     weights: { sa: 9, def: 6, brk: 5, org: 8, hp: 6, ic: 4, engineer: 7, logistics: 2, recon: 2 },
-    constraints: { wmin: 0, wmax: 45, minOrg: 0, minArm: 0, maxIc: 0, perWidth: false },
+    constraints: { wmin: 0, wmax: 45, minOrg: 0, minArm: 0, orgTarget: 45, maxIc: 0, perWidth: false },
   },
   {
     id: 'armor', name: 'Armoured division', blurb: 'More than half armoured battalions, with the soft attack to break a line.',
     weights: { sa: 9, brk: 9, arm: 7, ha: 6, spd: 5, org: 5, ic: 2, engineer: 5, logistics: 8, maintenance: 8, signal: 5, recon: 4 },
-    constraints: { wmin: 0, wmax: 45, minOrg: 0, minArm: 0, minArmorShare: 0.51, maxIc: 0, perWidth: false },
+    constraints: { wmin: 0, wmax: 45, minOrg: 0, minArm: 0, orgTarget: 30, minArmorShare: 0.51, maxIc: 0, perWidth: false },
   },
   {
     id: 'hunter', name: 'Tank Hunter', blurb: 'Anti-armour infantry for multiplayer: piercing and hard attack first.',
     weights: { pier: 10, ha: 10, def: 6, org: 8, ic: 5, sa: 3, engineer: 6, logistics: 3 },
-    constraints: { wmin: 0, wmax: 45, minOrg: 0, minArm: 0, maxIc: 0, perWidth: false },
+    constraints: { wmin: 0, wmax: 45, minOrg: 0, minArm: 0, orgTarget: 45, maxIc: 0, perWidth: false },
   },
   {
     id: 'space_marines', name: 'Space marines', blurb: 'Infantry backed by a small armoured component to raise armor and punch.',
     weights: { sa: 8, arm: 9, def: 7, org: 8, brk: 4, ic: 5, ha: 4, engineer: 7, logistics: 4, maintenance: 3 },
-    constraints: { wmin: 0, wmax: 45, minOrg: 0, minArm: 0, minArmorBattalions: 1, maxArmorBattalions: 2, maxArmorShare: 0.5, maxIc: 0, perWidth: false },
+    constraints: { wmin: 0, wmax: 45, minOrg: 0, minArm: 0, orgTarget: 40, minArmorBattalions: 1, maxArmorBattalions: 2, maxArmorShare: 0.5, maxIc: 0, perWidth: false },
   },
 ];
 
