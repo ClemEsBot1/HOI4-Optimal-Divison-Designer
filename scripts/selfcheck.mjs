@@ -50,6 +50,8 @@ if (r.top) {
   const st0 = evaluate(t0, byId, {}, undefined, r.columnSize);
   ok(Math.abs(st0.sa - t0.stats.sa) < 1e-6 && st0.width === 20, 'top result re-evaluates to the same stats at width 20');
 }
+const orgPair = evaluate({ items: ['infantry', 'artillery_brigade'], support: [], reg: [] }, before.byId, {}, undefined, before.columnSize);
+ok(orgPair && Math.abs(orgPair.org - 30) < 1e-9, 'organization averages line-battalion organization instead of summing it');
 // regimental support needs three battalions in a column
 ok(!planColumns({ infantry: 2, mobile: 0, armor: 0 }, 5, 0, 1).ok, 'two battalions cannot take a regimental company');
 ok(planColumns({ infantry: 3, mobile: 0, armor: 0 }, 5, 0, 1).ok, 'three battalions can take one');

@@ -114,15 +114,28 @@ function TreeGrid({ game, list, techs, toggle, matches }) {
     return { minX, cols: Math.max(...xs) - minX + 1, rowOf: new Map(ys.map((y, i) => [y, i + 1])) };
   }, [positioned]);
 
+  const positionedIds = new Set(positioned.map((t) => t.id));
+  const edges = positioned.flatMap((t) => t.parents
+    .map((p) => game.techs.get(p))
+    .filter((p) => p && positionedIds.has(p.id))
+    .map((p) => ({ from: p, to: t })));
+  const rows = layout ? layout.rowOf.size : 0;
   return (
     <>
       {layout && (
-        <div className="tp-grid" style={{ gridTemplateColumns: `repeat(${layout.cols}, minmax(9.5rem, 1fr))` }}>
-          {positioned.map((t) => (
-            <div key={t.id} className="tp-cell" style={{ gridColumn: t.x.x - layout.minX + 1, gridRow: layout.rowOf.get(t.x.y) }}>
-              <TechCard game={game} tech={t} techs={techs} toggle={toggle} dim={!matches(t)} />
-            </div>
-          ))}
+        <div className="tp-tree-wrap" style={{ '--tp-cols': layout.cols, '--tp-rows': rows }}>
+          <svg className="tp-lines" viewBox={`0 0 ${layout.cols} ${rows}`} preserveAspectRatio="none" aria-hidden="true">
+            {edges.map(({ from, to }) => (
+              <path key={`${from.id}-${to.id}`} d={`M ${from.x.x - layout.minX + .5} ${layout.rowOf.get(from.x.y) - .5} H ${to.x.x - layout.minX + .5} V ${layout.rowOf.get(to.x.y) - .5}`} />
+            ))}
+          </svg>
+          <div className="tp-grid" style={{ gridTemplateColumns: `repeat(${layout.cols}, minmax(9.5rem, 1fr))`, gridTemplateRows: `repeat(${rows}, 11rem)` }}>
+            {positioned.map((t) => (
+              <div key={t.id} className="tp-cell" style={{ gridColumn: t.x.x - layout.minX + 1, gridRow: layout.rowOf.get(t.x.y) }}>
+                <TechCard game={game} tech={t} techs={techs} toggle={toggle} dim={!matches(t)} />
+              </div>
+            ))}
+          </div>
         </div>
       )}
       {loose.length > 0 && (

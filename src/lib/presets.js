@@ -41,9 +41,9 @@ export const ROLES = [
     constraints: { wmin: 20, wmax: 32, minOrg: 8, minArm: 0, maxIc: 0, perWidth: false },
   },
   {
-    id: 'mass', name: 'Cheap mass', blurb: 'Bodies and defense per IC and per man.',
-    weights: { def: 5, ic: 9, mp: 8, sa: 3, hp: 3, engineer: 5, logistics: 5 },
-    constraints: { wmin: 10, wmax: 20, minOrg: 0, minArm: 0, maxIc: 0, perWidth: true },
+    id: 'mass', name: 'Cheap mass', blurb: 'High-organization infantry that is cheap to field and reinforce.',
+    weights: { def: 6, ic: 8, mp: 7, sa: 2, hp: 3, org: 9, engineer: 5, logistics: 3 },
+    constraints: { wmin: 10, wmax: 20, minOrg: 45, minArm: 0, maxIc: 0, perWidth: true },
   },
 ];
 

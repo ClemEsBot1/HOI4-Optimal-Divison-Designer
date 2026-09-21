@@ -4,7 +4,7 @@
  * A template is { items: string[]  line battalion ids,
  *                 support: string[] divisional support company ids (one of each type, up to 5),
  *                 reg: string[]     regimental support company ids (up to one per column) }.
- * Columns are derived: a column holds one base type (infantry, mobile or armor) and at most `columnSize` battalions.
+ * Columns are derived: infantry, artillery, mobile, mobile-artillery and armor each use their own column family, with at most `columnSize` battalions per column.
  * A division has at most 5 columns. A column needs at least 3 battalions before it can take a regimental support
  * company, so the layout (how many columns each type is spread over) is planned to make the regimental companies fit.
  *
@@ -174,7 +174,7 @@ export function evaluate(tpl, byId, mods = {}, opts = DEFAULT_OPTS, columnSize =
   const m = (k) => 1 + (mods[k] || 0) / 100;
   const armorRegs = reg.filter((id) => byId.get(id).tank).length;
   const layout = planColumns(cnt, columnSize, armorRegs, reg.length - armorRegs);
-  const cols = layout.infantry + layout.mobile + layout.armor;
+  const cols = COLUMN_TYPES.reduce((sum, type) => sum + (layout[type] || 0), 0);
   return {
     sa: sa * m('sa'),
     ha: ha * m('ha'),
@@ -182,6 +182,7 @@ export function evaluate(tpl, byId, mods = {}, opts = DEFAULT_OPTS, columnSize =
     def: def * m('def'),
     brk: brk * m('brk'),
     pier: (pierSum / n) * m('pier'),
+    // HOI4 organization is the arithmetic average across all line battalions and support companies.
     org: (orgSum / avgN) * m('org'),
     rec: recSum / avgN,
     hp: hp * m('hp'),

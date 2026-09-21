@@ -11,9 +11,13 @@
 .tp-tabcount { opacity: .7; font-size: .8em; margin-left: .25rem; }
 .tp-hint { padding: 0 1rem; margin: .5rem 0; }
 .tp-scroll { overflow: auto; padding: .5rem 1rem 1rem; flex: 1; }
-.tp-grid { display: grid; gap: .5rem; align-items: start; }
+.tp-tree-wrap { position: relative; min-width: max(100%, calc(var(--tp-cols) * 9.5rem)); min-height: calc(var(--tp-rows) * 11rem); padding: .25rem; background: linear-gradient(180deg, rgba(31,78,121,.04), transparent 18%); }
+.tp-lines { position: absolute; inset: .25rem; width: calc(100% - .5rem); height: calc(100% - .5rem); overflow: visible; pointer-events: none; }
+.tp-lines path { fill: none; stroke: var(--accent, #1f4e79); stroke-width: .035; stroke-linecap: square; opacity: .55; vector-effect: non-scaling-stroke; }
+.tp-grid { position: relative; z-index: 1; display: grid; gap: .5rem; align-items: stretch; }
+.tp-cell { min-width: 0; }
 .tp-loose { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: .5rem; margin-top: 1rem; }
-.tp-card { border: 1px solid var(--line, #c9c9c9); border-radius: 4px; padding: .4rem; font-size: .8rem; background: var(--paper, #fff); }
+.tp-card { border: 1px solid var(--line, #c9c9c9); border-radius: 4px; padding: .4rem; font-size: .8rem; background: var(--paper, #fff); min-height: 9.5rem; box-sizing: border-box; }
 .tp-card.on { border-color: var(--accent, #1f4e79); box-shadow: inset 0 0 0 1px var(--accent, #1f4e79); background: color-mix(in srgb, var(--accent, #1f4e79) 10%, var(--paper, #fff)); }
 .tp-card.locked { opacity: .6; }
 .tp-card.blocked { opacity: .4; }
