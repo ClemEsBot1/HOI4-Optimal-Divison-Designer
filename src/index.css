@@ -73,6 +73,23 @@ select, input[type='number'], input[type='search'] { background: var(--panel); b
 .doctrine-rec strong { display: block; color: var(--ink); font-family: var(--head); font-size: 1.05rem; }
 .doctrine-rec p { margin: .2rem 0 0; color: var(--muted); font-size: .84rem; }
 .rec-kicker { color: var(--accent); text-transform: uppercase; letter-spacing: .08em; font-size: .68rem; font-weight: 700; margin-bottom: .15rem; }
+.section-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
+.manual-tools { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .6rem; margin: .75rem 0; }
+.manual-tools label { display: grid; gap: .25rem; font-size: .85rem; }
+.manual-tools select { width: 100%; }
+.manual-lists { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; border-block: 1px solid var(--line); padding: .65rem 0; }
+.manual-lists ul { list-style: none; margin: .3rem 0 0; padding: 0; }
+.manual-lists li { font-size: .86rem; margin: .18rem 0; }
+.mini-remove { border: 0; background: transparent; color: var(--bad); padding: 0 .25rem; font-weight: 700; }
+.manual-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: .8rem; }
+.manual-compare h3 { margin-top: 0; }
+.manual-summary { color: var(--muted); font-size: .85rem; }
+.manual-table { border-collapse: collapse; width: 100%; font-size: .86rem; font-variant-numeric: tabular-nums; }
+.manual-table th, .manual-table td { padding: .35rem .5rem; border-bottom: 1px solid var(--line); text-align: right; }
+.manual-table th:first-child { text-align: left; }
+.manual-table .better { color: #8dbb78; }
+.manual-table .worse { color: var(--bad); }
+@media (max-width: 42rem) { .manual-tools, .manual-lists, .manual-compare { grid-template-columns: 1fr; } .section-heading { align-items: stretch; flex-direction: column; } }
 
 /* result */
 .banner { border: 1px solid color-mix(in srgb, var(--warn) 50%, var(--line)); background: linear-gradient(90deg, var(--warn-bg), transparent); color: var(--ink); border-radius: 6px; padding: .7rem .9rem; font-size: .9rem; }

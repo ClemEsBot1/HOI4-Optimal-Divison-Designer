@@ -4,6 +4,7 @@ import Pareto from './components/Pareto.jsx';
 import TechPicker from './components/TechPicker.jsx';
 import DoctrinePicker from './components/DoctrinePicker.jsx';
 import UnitPool from './components/UnitPool.jsx';
+import ManualDesigner from './components/ManualDesigner.jsx';
 import raw from './data/game.json';
 import { buildGame, EMPTY_DOCTRINE } from './lib/game.js';
 import { STATS, MOD_KEYS, DEFAULT_OPTS, evaluate, fmt } from './lib/stats.js';
@@ -224,11 +225,11 @@ export default function App() {
             <h2>Limits</h2>
             <div className="fields">
               <label>Combat width, from
-                <input type="number" min="1" max="60" value={constraints.wmin}
-                  onChange={(e) => setCons('wmin', Math.max(1, Number(e.target.value) || 1))} /></label>
+                <input type="number" min="0" max="45" value={constraints.wmin}
+                  onChange={(e) => setCons('wmin', Math.max(0, Math.min(45, Number(e.target.value) || 0)))} /></label>
               <label>to
-                <input type="number" min="1" max="60" value={constraints.wmax}
-                  onChange={(e) => setCons('wmax', Math.max(1, Number(e.target.value) || 1))} /></label>
+                <input type="number" min="0" max="45" value={constraints.wmax}
+                  onChange={(e) => setCons('wmax', Math.max(0, Math.min(45, Number(e.target.value) || 0)))} /></label>
               <label>Organization at least
                 <input type="number" min="0" max="100" value={constraints.minOrg}
                   onChange={(e) => setCons('minOrg', Math.max(0, Number(e.target.value) || 0))} /></label>
@@ -343,6 +344,10 @@ export default function App() {
               </div>
             )}
           </section>
+
+          {res?.units && byId && (
+            <ManualDesigner units={res.units} columnSize={res.columnSize} mods={result.mods} opts={result.opts} best={res.top?.[0]} />
+          )}
 
           {res?.top && byId && (
             <section className="block wide-block">

@@ -8,7 +8,7 @@
 import { resolve, MAX_COLUMNS, MAX_SUPPORT } from './game.js';
 import { evaluate, columnsNeeded, planColumns, supportConflict, regFitsColumn, STATS, DEFAULT_OPTS, COLUMN_TYPES } from './stats.js';
 
-export const DEFAULT_CONSTRAINTS = { wmin: 20, wmax: 20, minOrg: 0, minArm: 0, maxIc: 0, perWidth: false };
+export const DEFAULT_CONSTRAINTS = { wmin: 0, wmax: 45, minOrg: 0, minArm: 0, maxIc: 0, perWidth: false };
 
 // ---- keys (used for de-duplication, the URL and the trade-off chart) ----
 export const templateKey = (t) => `${[...t.items].sort().join(',')}|${[...t.support].sort().join(',')}|${[...(t.reg || [])].sort().join(',')}`;
