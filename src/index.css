@@ -134,8 +134,8 @@ select, input[type='number'], input[type='search'] { background: var(--panel); b
 .manual-table .better { color: #8dbb78; }
 .manual-table .worse { color: var(--bad); }
 @media (max-width: 42rem) { .manual-tools, .manual-lists, .manual-compare { grid-template-columns: 1fr; } .section-heading { align-items: stretch; flex-direction: column; } }
-@media (max-width: 58rem) { .game-bar { grid-template-columns: 1fr auto; } .game-nav { grid-column: 1 / -1; grid-row: 2; border-top: 1px solid var(--line); overflow-x: auto; } .game-actions { grid-column: 2; grid-row: 1; } .brand-lockup { border-right: 0; } .summary-kpis { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 38rem) { .app { padding: .6rem; } .game-actions { display: none; } .masthead-main { align-items: flex-start; } .masthead-seal { display: none; } .summary-kpis { grid-template-columns: repeat(2, 1fr); } .summary-stamp { border-right: 0; border-bottom: 1px solid var(--line); padding: 0 0 .6rem; } .result-summary { grid-template-columns: 1fr; } .strip-right { margin-left: 0; } }
+@media (max-width: 58rem) { .game-bar { grid-template-columns: 1fr auto; } .game-nav { grid-column: 1 / -1; grid-row: 2; border-top: 1px solid var(--line); overflow-x: auto; } .game-actions { grid-column: 2; grid-row: 1; } .brand-lockup { border-right: 0; } }
+@media (max-width: 38rem) { .app { padding: .6rem; } .game-actions { display: none; } .masthead-main { align-items: flex-start; } .masthead-seal { display: none; } .strip-right { margin-left: 0; } }
 
 /* result */
 .banner { border: 1px solid color-mix(in srgb, var(--warn) 50%, var(--line)); background: linear-gradient(90deg, var(--warn-bg), transparent); color: var(--ink); border-radius: 6px; padding: .7rem .9rem; font-size: .9rem; }
@@ -199,3 +199,12 @@ table.rank { border-collapse: collapse; width: 100%; font-size: .88rem; font-var
 .p-front { fill: none; stroke: var(--accent); stroke-width: 1.6; }
 .p-top { fill: var(--panel); stroke: var(--accent); stroke-width: 2.4; }
 .p-sel { fill: var(--accent); stroke: var(--ink); stroke-width: 2; }
+
+/* Narrow screens: these have to come after the base rules above, or the five-column KPI row would keep forcing
+   the page wider than the phone and the whole layout would scroll sideways. */
+@media (max-width: 58rem) { .summary-kpis { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 38rem) {
+  .result-summary { grid-template-columns: 1fr; }
+  .summary-stamp { border-right: 0; border-bottom: 1px solid var(--line); padding: 0 0 .6rem; }
+  .summary-kpis { grid-template-columns: repeat(2, 1fr); }
+}

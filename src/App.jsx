@@ -7,7 +7,7 @@ import UnitPool from './components/UnitPool.jsx';
 import ManualDesigner from './components/ManualDesigner.jsx';
 import raw from './data/game.json';
 import { buildGame, EMPTY_DOCTRINE } from './lib/game.js';
-import { STATS, MOD_KEYS, DEFAULT_OPTS, evaluate, fmt } from './lib/stats.js';
+import { STATS, MOD_KEYS, DEFAULT_OPTS, AXIS_STATS, evaluate, fmt } from './lib/stats.js';
 import { parseKey, DEFAULT_CONSTRAINTS } from './lib/optimizer.js';
 import { ROLES, ZERO_WEIGHTS, defaultTech, defaultExclude, doctrineRecommendations } from './lib/presets.js';
 import { describeTemplate, countBy, encodeState, decodeState } from './lib/format.js';
@@ -23,11 +23,13 @@ const SHOW_ADVANCED_PRIORITIES = false; // Keep the optimizer controls implement
 
 const COST_LABEL = { ic: 'Cheaper to build', mp: 'Uses less manpower', sup: 'Uses less supply', trucks: 'Needs fewer trucks' };
 const NAV_ITEMS = [
-  { href: '#results', icon: 'category_all_infantry', label: 'Designer' },
-  { href: '#technology', icon: 'category_artillery', label: 'Research' },
-  { href: '#doctrine', icon: 'category_all_armor', label: 'Doctrine' },
-  { href: '#equipment', icon: 'category_artillery', label: 'Equipment' },
+  { id: 'results', icon: 'category_all_infantry', label: 'Designer' },
+  { id: 'technology', icon: 'category_artillery', label: 'Research' },
+  { id: 'doctrine', icon: 'category_all_armor', label: 'Doctrine' },
+  { id: 'equipment', icon: 'category_artillery', label: 'Equipment' },
 ];
+const plural = (n, singular, many) => `${n} ${n === 1 ? singular : many}`;
+const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const ROLE_ICONS = {
   line: 'category_all_infantry',
   offensive_infantry: 'category_artillery',
@@ -60,6 +62,8 @@ function loadInitial() {
     const m = /#s=(.+)$/.exec(window.location.hash);
     const s = m && decodeState(m[1], game);
     if (s && s.w && s.c) {
+      // Only accept a chart axis pair that is two known stats, so a hand-edited link cannot break the chart.
+      const ax = Array.isArray(s.ax) && s.ax.length === 2 && s.ax.every((k) => AXIS_STATS.includes(k)) ? s.ax : base.axes;
       return {
         roleId: s.r || 'custom',
         weights: { ...ZERO_WEIGHTS, ...s.w },
@@ -69,7 +73,7 @@ function loadInitial() {
         exclude: Array.isArray(s.x) ? s.x : base.exclude,
         mods: s.m || {},
         opts: { ...DEFAULT_OPTS, ...(s.o || {}) },
-        axes: s.ax || base.axes,
+        axes: ax,
       };
     }
   } catch { /* ignore malformed links */ }
@@ -93,6 +97,7 @@ export default function App() {
   const [running, setRunning] = useState(false);
   const [selected, setSelected] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [activeNav, setActiveNav] = useState(NAV_ITEMS[0].id);
 
   const workerRef = useRef(null);
   const runId = useRef(0);
@@ -136,6 +141,46 @@ export default function App() {
     const s = encodeState({ r: roleId, w: weights, c: constraints, t: [...techs], d: doctrine, x: exclude, m: mods, o: opts, ax: [axisX, axisY] }, game);
     if (s) window.history.replaceState(null, '', '#s=' + s);
   }, [roleId, weights, constraints, techs, doctrine, exclude, mods, opts, axisX, axisY]);
+
+  // ---- section navigation ----
+  // The setup lives in the URL hash, so the nav links must scroll instead of following their anchor: a plain
+  // `#technology` jump would throw away the share link. The active tab follows whichever section is in view.
+  const goToSection = (event, id) => {
+    event.preventDefault();
+    if (NAV_ITEMS.some((n) => n.id === id)) setActiveNav(id);
+    document.getElementById(id)?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+  };
+
+  useEffect(() => {
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      // The sections sit in two columns and can be only a few hundred pixels apart, so pick the one whose top is
+      // closest to the top of the viewport out of those that have reached it. Before the first one does, the
+      // first tab stays lit.
+      const line = Math.min(180, window.innerHeight * 0.2);
+      let best = NAV_ITEMS[0].id;
+      let bestDistance = Infinity;
+      for (const item of NAV_ITEMS) {
+        const el = document.getElementById(item.id);
+        if (!el) continue;
+        const top = el.getBoundingClientRect().top;
+        if (top > line) continue;
+        const distance = Math.abs(top);
+        if (distance < bestDistance) { bestDistance = distance; best = item.id; }
+      }
+      setActiveNav(best);
+    };
+    const onScroll = () => { if (!frame) frame = window.requestAnimationFrame(update); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    update();
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, []);
 
   // ---- derived display data ----
   const res = result?.res;
@@ -194,13 +239,14 @@ export default function App() {
   return (
     <div className="app">
       <header className="game-bar">
-        <a className="brand-lockup" href="#results" aria-label="Division Desk home">
+        <a className="brand-lockup" href="#results" aria-label="Division Desk home" onClick={(e) => goToSection(e, 'results')}>
           <span className="brand-crest"><img src="/hoi4/icons/category_all_infantry.png" alt="" /></span>
           <span className="brand-copy"><small>HOI4 // FIELD COMMAND</small><strong>DIVISION DESK</strong></span>
         </a>
         <nav className="game-nav" aria-label="Designer sections">
-          {NAV_ITEMS.map((item, i) => (
-            <a key={item.href} className={'nav-tab' + (i === 0 ? ' active' : '')} href={item.href}>
+          {NAV_ITEMS.map((item) => (
+            <a key={item.id} className={'nav-tab' + (activeNav === item.id ? ' active' : '')} href={`#${item.id}`}
+              aria-current={activeNav === item.id ? 'true' : undefined} onClick={(e) => goToSection(e, item.id)}>
               <img src={`/hoi4/icons/${item.icon}.png`} alt="" />
               <span>{item.label}</span>
             </a>
@@ -340,7 +386,7 @@ export default function App() {
 
         <main className="main">
           <div className="banner" role="note">
-            <strong>Numbers come from the game files</strong>{version ? ` (version ${version})` : ''}, with every DLC and no mods. A few rules are still assumptions, including how many regimental companies a column takes and how tank modules are chosen. Check a result in game before you trust it. See <a href="#data">data and assumptions</a>.
+            <strong>Numbers come from the game files</strong>{version ? ` (version ${version})` : ''}, with every DLC and no mods. A few rules are still assumptions, including how many regimental companies a column takes and how tank modules are chosen. Check a result in game before you trust it. See <a href="#data" onClick={(e) => goToSection(e, 'data')}>data and assumptions</a>.
           </div>
 
           <section className="result" id="results" aria-live="polite">
@@ -355,7 +401,7 @@ export default function App() {
 
             {shown && byId && (
               <div className="result-summary">
-                <div className="summary-stamp"><span>RECOMMENDED FORMATION</span><strong>{role ? role.name : 'Custom priorities'}</strong><small>{selected?.items.length || 0} battalions // {selected?.support.length || 0} support companies</small></div>
+                <div className="summary-stamp"><span>RECOMMENDED FORMATION</span><strong>{role ? role.name : 'Custom priorities'}</strong><small>{plural(selected?.items.length || 0, 'battalion', 'battalions')} // {plural(selected?.support.length || 0, 'support company', 'support companies')}</small></div>
                 <div className="summary-kpis">
                   <div><span>COMBAT WIDTH</span><b>{fmt(shown.width, 'width')}</b></div>
                   <div><span>ORGANIZATION</span><b>{fmt(shown.org, 'org')}</b></div>

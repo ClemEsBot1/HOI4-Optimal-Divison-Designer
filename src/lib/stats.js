@@ -178,6 +178,16 @@ export function evaluate(tpl, byId, mods = {}, opts = DEFAULT_OPTS, columnSize =
   const armorRegs = reg.filter((id) => byId.get(id).tank).length;
   const layout = planColumns(cnt, columnSize, armorRegs, reg.length - armorRegs);
   const cols = COLUMN_TYPES.reduce((sum, type) => sum + (layout[type] || 0), 0);
+  // Apply the same support rules the search enforces, so a template built by hand (or read from a link) is
+  // never reported as valid when the game would reject it: at most five companies, no two of a kind, and no
+  // two companies that share a support type.
+  let supportOk = support.length <= MAX_SUPPORT;
+  for (let i = 0; supportOk && i < support.length; i++) {
+    for (let j = i + 1; j < support.length; j++) {
+      if (supportConflict(byId.get(support[i]), byId.get(support[j]))) { supportOk = false; break; }
+    }
+  }
+  const regOk = new Set(reg).size === reg.length;
   return {
     sa: sa * m('sa'),
     ha: ha * m('ha'),
@@ -199,7 +209,7 @@ export function evaluate(tpl, byId, mods = {}, opts = DEFAULT_OPTS, columnSize =
     cols,
     cnt,
     layout,
-    valid: layout.ok && support.length <= MAX_SUPPORT,
+    valid: layout.ok && supportOk && regOk,
   };
 }
 

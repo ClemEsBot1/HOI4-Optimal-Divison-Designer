@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { evaluate, fmt } from '../lib/stats.js';
+import React, { useEffect, useMemo, useState } from 'react';
+import { evaluate, fmt, STAT_BY_KEY } from '../lib/stats.js';
 
 const COMPARE = [
   ['width', 'Width'], ['sa', 'Soft attack'], ['ha', 'Hard attack'], ['brk', 'Breakthrough'],
@@ -24,6 +24,15 @@ export default function ManualDesigner({ units, columnSize, mods, opts, best }) 
   const [unitChoice, setUnitChoice] = useState('');
   const [supportChoice, setSupportChoice] = useState('');
   const [regChoice, setRegChoice] = useState('');
+
+  // A new search can drop units the player just un-researched. Keep the design to the units that still exist
+  // so the lists do not end up with nameless entries.
+  useEffect(() => {
+    const alive = (id) => byId.has(id);
+    setItems((x) => x.filter(alive));
+    setDivSupport((x) => x.filter(alive));
+    setRegSupport((x) => x.filter(alive));
+  }, [byId]);
 
   const stats = items.length ? evaluate({ items, support: divSupport, reg: regSupport }, byId, mods, opts, columnSize) : null;
   const names = (ids) => ids.map((id) => byId.get(id)?.name || id);
@@ -65,13 +74,19 @@ export default function ManualDesigner({ units, columnSize, mods, opts, best }) 
       </div>
       {!stats && <p className="note">Add at least one line battalion to evaluate your design.</p>}
       {stats && <>
-        {!stats.valid && <p className="error">This template is not valid under the current column or regimental-support rules.</p>}
+        {!stats.valid && <p className="error">This template is not valid under the current column, support-company or regimental-support rules.</p>}
         <div className="manual-compare">
           <div><h3>Your design</h3><p className="manual-summary">{names(items).join(', ')}</p></div>
           <div><h3>Best result</h3><p className="manual-summary">{best ? best.items.map((id) => byId.get(id)?.name || id).join(', ') : 'Run a search first.'}</p></div>
         </div>
         {bestStats && <div className="table-scroll"><table className="manual-table"><thead><tr><th>Stat</th><th>Your design</th><th>Best result</th><th>Difference</th></tr></thead><tbody>
-          {COMPARE.map(([key, label]) => { const diff = stats[key] - bestStats[key]; return <tr key={key}><th>{label}</th><td>{fmt(stats[key], key)}</td><td>{fmt(bestStats[key], key)}</td><td className={diff >= 0 ? 'better' : 'worse'}>{diff >= 0 ? '+' : ''}{fmt(diff, key)}</td></tr>; })}
+          {COMPARE.map(([key, label]) => {
+            // The difference only reads as good or bad against the stat's own direction (cheaper cost is better).
+            const diff = stats[key] - bestStats[key];
+            const dir = STAT_BY_KEY[key]?.dir ?? 1;
+            const judge = Math.abs(diff) < 1e-9 ? '' : (diff > 0) === (dir > 0) ? 'better' : 'worse';
+            return <tr key={key}><th>{label}</th><td>{fmt(stats[key], key)}</td><td>{fmt(bestStats[key], key)}</td><td className={judge}>{diff > 0 ? '+' : ''}{fmt(diff, key)}</td></tr>;
+          })}
         </tbody></table></div>}
       </>}
     </section>

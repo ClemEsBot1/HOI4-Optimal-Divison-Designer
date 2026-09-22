@@ -52,6 +52,13 @@ if (r.top) {
 }
 const orgPair = evaluate({ items: ['infantry', 'artillery_brigade'], support: [], reg: [] }, before.byId, {}, undefined, before.columnSize);
 ok(orgPair && Math.abs(orgPair.org - 30) < 1e-9, 'organization averages line-battalion organization instead of summing it');
+const threeLine = ['infantry', 'infantry', 'infantry'];
+const oneSupport = evaluate({ items: threeLine, support: ['engineer'], reg: [] }, before.byId, {}, undefined, before.columnSize);
+ok(oneSupport && oneSupport.valid, 'one support company keeps a template valid');
+const dupSupport = evaluate({ items: threeLine, support: ['engineer', 'engineer'], reg: [] }, before.byId, {}, undefined, before.columnSize);
+ok(dupSupport && !dupSupport.valid, 'the same support company cannot be taken twice');
+const dupReg = evaluate({ items: threeLine, support: [], reg: ['fire_support', 'fire_support'] }, before.byId, {}, undefined, before.columnSize);
+ok(dupReg && !dupReg.valid, 'the same regimental company cannot be taken twice');
 // regimental support needs three battalions in a column
 ok(!planColumns({ infantry: 2, mobile: 0, armor: 0 }, 5, 0, 1).ok, 'two battalions cannot take a regimental company');
 ok(planColumns({ infantry: 3, mobile: 0, armor: 0 }, 5, 0, 1).ok, 'three battalions can take one');

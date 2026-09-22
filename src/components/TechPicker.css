@@ -11,7 +11,9 @@
 .tp-tabcount { opacity: .7; font-size: .8em; margin-left: .25rem; }
 .tp-hint { padding: 0 1rem; margin: .5rem 0; }
 .tp-scroll { overflow: auto; padding: .5rem 1rem 1rem; flex: 1; }
-.tp-tree-wrap { position: relative; min-width: max(100%, calc(var(--tp-cols) * 5.2rem)); min-height: calc(var(--tp-rows) * 6rem + 1.5rem); padding: .35rem; background-color: #182124; background-repeat: no-repeat; background-position: center top; background-size: cover; overflow: visible; }
+/* The tree is very tall, so `cover` magnified the backdrop to a blurry fragment. Fit it to the width instead
+   and keep it anchored to the top: one readable backdrop behind the first rows, plain dark below. */
+.tp-tree-wrap { position: relative; min-width: max(100%, calc(var(--tp-cols) * 5.2rem)); min-height: calc(var(--tp-rows) * 6rem + 1.5rem); padding: .35rem; background-color: #182124; background-repeat: no-repeat; background-position: center top; background-size: 100% auto; overflow: visible; }
 .tp-folder-infantry_folder { background-image: linear-gradient(rgba(24,33,36,.3), rgba(24,33,36,.72)), url('/hoi4/techtree/infantry_techtree_bg.png'); }
 .tp-folder-support_folder { background-image: linear-gradient(rgba(24,33,36,.3), rgba(24,33,36,.72)), url('/hoi4/techtree/support_techtree_bg.png'); }
 .tp-folder-artillery_folder { background-image: linear-gradient(rgba(24,33,36,.3), rgba(24,33,36,.72)), url('/hoi4/techtree/artillery_techtree_bg.png'); }
