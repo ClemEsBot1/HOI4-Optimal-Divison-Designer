@@ -131,6 +131,9 @@ export function evaluate(tpl, byId, mods = {}, opts = DEFAULT_OPTS, columnSize =
 
   const line = items.map((id) => byId.get(id));
   const comps = [...support, ...reg].map((id) => byId.get(id));
+  // Shared links and hand-built templates can contain stale unit ids after the game data changes.
+  // Treat those templates as invalid instead of crashing the search or the results panel.
+  if (line.some((u) => !u) || comps.some((u) => !u)) return null;
 
   // support companies can lift the stats of whole categories of battalions (e.g. recon boosts artillery)
   const boost = new Map();

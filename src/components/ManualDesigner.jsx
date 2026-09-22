@@ -40,19 +40,19 @@ export default function ManualDesigner({ units, columnSize, mods, opts, best }) 
       </div>
       <div className="manual-tools">
         <label>Line battalion
-          <select value={unitChoice} onChange={(e) => { setUnitChoice(e.target.value); setItems((x) => addOne(x, e.target.value)); }}>
+          <select value={unitChoice} onChange={(e) => { const id = e.target.value; setItems((x) => addOne(x, id)); setUnitChoice(''); }}>
             <option value="">Add battalion…</option>
             {line.map((u) => <option key={u.id} value={u.id}>{u.name} ({u.width} width)</option>)}
           </select>
         </label>
         <label>Regimental company
-          <select value={regChoice} onChange={(e) => { const id = e.target.value; setRegChoice(id); if (id && !regSupport.includes(id)) setRegSupport((x) => x.concat(id)); }}>
+          <select value={regChoice} onChange={(e) => { const id = e.target.value; if (id && !regSupport.includes(id)) setRegSupport((x) => x.concat(id)); setRegChoice(''); }}>
             <option value="">Add regimental…</option>
             {reg.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
           </select>
         </label>
         <label>Divisional support
-          <select value={supportChoice} onChange={(e) => { const id = e.target.value; setSupportChoice(id); if (id) toggleSupport(id); }}>
+          <select value={supportChoice} onChange={(e) => { const id = e.target.value; if (id) toggleSupport(id); setSupportChoice(''); }}>
             <option value="">Toggle support…</option>
             {support.map((u) => <option key={u.id} value={u.id}>{u.name}{divSupport.includes(u.id) ? ' ✓' : ''}</option>)}
           </select>

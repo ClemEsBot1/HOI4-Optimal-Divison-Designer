@@ -120,6 +120,7 @@ export default function App() {
         setRunning(false);
       };
       w.onerror = () => {
+        if (runId.current !== id) return;
         setResult({ res: { error: 'The search worker failed to start.' }, mods, opts, roleId });
         setRunning(false);
       };
