@@ -22,6 +22,19 @@ const ROLE_AXES = {
 const SHOW_ADVANCED_PRIORITIES = false; // Keep the optimizer controls implemented, but present role presets for now.
 
 const COST_LABEL = { ic: 'Cheaper to build', mp: 'Uses less manpower', sup: 'Uses less supply', trucks: 'Needs fewer trucks' };
+const NAV_ITEMS = [
+  { href: '#results', icon: 'category_all_infantry', label: 'Designer' },
+  { href: '#technology', icon: 'category_artillery', label: 'Research' },
+  { href: '#doctrine', icon: 'category_all_armor', label: 'Doctrine' },
+  { href: '#equipment', icon: 'category_artillery', label: 'Equipment' },
+];
+const ROLE_ICONS = {
+  line: 'category_all_infantry',
+  offensive_infantry: 'category_artillery',
+  armor: 'category_all_armor',
+  hunter: 'category_artillery',
+  space_marines: 'category_all_armor',
+};
 const GROUP_ORDER = ['Offense', 'Staying power', 'Mobility', 'Cost', 'Utility'];
 
 const RESULT_STATS = ['width', 'sa', 'ha', 'brk', 'def', 'org', 'rec', 'hp', 'arm', 'pier', 'hard', 'spd', 'air', 'recon', 'ic', 'mp', 'sup', 'trucks'];
@@ -179,9 +192,42 @@ export default function App() {
 
   return (
     <div className="app">
+      <header className="game-bar">
+        <a className="brand-lockup" href="#results" aria-label="Division Desk home">
+          <span className="brand-crest"><img src="/hoi4/icons/category_all_infantry.png" alt="" /></span>
+          <span className="brand-copy"><small>HOI4 // FIELD COMMAND</small><strong>DIVISION DESK</strong></span>
+        </a>
+        <nav className="game-nav" aria-label="Designer sections">
+          {NAV_ITEMS.map((item, i) => (
+            <a key={item.href} className={'nav-tab' + (i === 0 ? ' active' : '')} href={item.href}>
+              <img src={`/hoi4/icons/${item.icon}.png`} alt="" />
+              <span>{item.label}</span>
+            </a>
+          ))}
+        </nav>
+        <div className="game-actions">
+          <span className="connection"><i /> LOCAL DATA</span>
+          <span className="patch">{version ? `PATCH ${version}` : 'PATCH // UNKNOWN'}</span>
+        </div>
+      </header>
+
+      <div className="command-strip" aria-label="Current setup summary">
+        <span><b>THEATRE</b> GERMANY</span>
+        <span><b>YEAR</b> 1936—1945</span>
+        <span><b>MODE</b> OPTIMAL TEMPLATE SEARCH</span>
+        <span className="strip-right">ALL DLC // NO MODS</span>
+      </div>
+
       <header className="masthead">
-        <h1>Division Desk</h1>
-        <p>Say what the division is for. Division Desk searches thousands of templates, shows the best ones, and shows what each gives up.</p>
+        <div className="masthead-topline"><span>STRATEGIC COMMAND // RESEARCH &amp; DEVELOPMENT</span><span>DESIGN BUREAU 01</span></div>
+        <div className="masthead-main">
+          <div>
+            <div className="eyebrow">DIVISION OPTIMIZATION SYSTEM</div>
+            <h1>Division Desk</h1>
+            <p>Say what the division is for. The bureau searches thousands of templates, ranks the strongest formations, and records what each design gives up.</p>
+          </div>
+          <div className="masthead-seal" aria-hidden="true"><span>R&amp;D</span><b>★</b><small>FIELD<br />READY</small></div>
+        </div>
       </header>
 
       <div className="layout">
@@ -192,8 +238,12 @@ export default function App() {
               {ROLES.map((r) => (
                 <button key={r.id} type="button" role="radio" aria-checked={roleId === r.id}
                   className={'role' + (roleId === r.id ? ' on' : '')} onClick={() => applyRole(r)}>
-                  <strong>{r.name}</strong>
-                  <span>{r.blurb}</span>
+                  <span className="role-title">
+                    <img src={`/hoi4/icons/${ROLE_ICONS[r.id] || 'category_all_infantry'}.png`} alt="" />
+                    <strong>{r.name}</strong>
+                    <em>{roleId === r.id ? 'ACTIVE' : 'SELECT'}</em>
+                  </span>
+                  <span className="role-blurb">{r.blurb}</span>
                 </button>
               ))}
             </div>
@@ -246,12 +296,12 @@ export default function App() {
             </label>
           </section>
 
-          <section className="block">
+          <section className="block" id="technology">
             <h2>Technology</h2>
             <TechPicker game={game} techs={techs} setTechs={setTechs} />
           </section>
 
-          <section className="block">
+          <section className="block" id="doctrine">
             <h2>Recommended doctrines</h2>
             <DoctrineRecommendations recommendations={recommendations} />
           </section>
@@ -292,7 +342,7 @@ export default function App() {
             <strong>Numbers come from the game files</strong>{version ? ` (version ${version})` : ''}, with every DLC and no mods. A few rules are still assumptions, including how many regimental companies a column takes and how tank modules are chosen. Check a result in game before you trust it. See <a href="#data">data and assumptions</a>.
           </div>
 
-          <section className="result" aria-live="polite">
+          <section className="result" id="results" aria-live="polite">
             <div className="result-head">
               <h2>{role ? role.name : 'Custom priorities'}</h2>
               <div className="status">
@@ -301,6 +351,19 @@ export default function App() {
                 <button type="button" className="ghost" onClick={copyLink}>{copied ? 'Link copied' : 'Copy link to this setup'}</button>
               </div>
             </div>
+
+            {shown && byId && (
+              <div className="result-summary">
+                <div className="summary-stamp"><span>RECOMMENDED FORMATION</span><strong>{role ? role.name : 'Custom priorities'}</strong><small>{selected?.items.length || 0} battalions // {selected?.support.length || 0} support companies</small></div>
+                <div className="summary-kpis">
+                  <div><span>COMBAT WIDTH</span><b>{fmt(shown.width, 'width')}</b></div>
+                  <div><span>ORGANIZATION</span><b>{fmt(shown.org, 'org')}</b></div>
+                  <div><span>SOFT ATTACK</span><b>{fmt(shown.sa, 'sa')}</b></div>
+                  <div><span>BREAKTHROUGH</span><b>{fmt(shown.brk, 'brk')}</b></div>
+                  <div><span>PRODUCTION COST</span><b>{fmt(shown.ic, 'ic')}</b></div>
+                </div>
+              </div>
+            )}
 
             {res?.error && <p className="error" role="alert">{res.error}</p>}
 
@@ -411,7 +474,7 @@ export default function App() {
 function DesignSection({ designs }) {
   const tankDesigns = Object.values(designs).filter(Boolean);
   return (
-    <section className="block wide-block designs-panel">
+    <section className="block wide-block designs-panel" id="equipment">
       <h2>Optimal equipment designs</h2>
       <p className="note">Tank designs are selected from researched modules, then applied automatically to every matching tank or self-propelled battalion in the divisions above.</p>
       <div className="design-grid">
