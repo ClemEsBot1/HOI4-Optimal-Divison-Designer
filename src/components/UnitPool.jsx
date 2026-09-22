@@ -19,7 +19,7 @@ export default function UnitPool({ game, exclude, setExclude }) {
   const units = [...game.units.values()];
   return (
     <div className="up">
-      <p className="note">Special forces (marines, paratroopers, mountaineers, rangers, amtracs) and cavalry are off by default because they only make sense in particular situations. Switch on anything you want the search to consider.</p>
+      <p className="note">Special forces (marines, paratroopers, mountaineers, rangers, amtracs), cavalry, and the super-heavy-chassis support and regimental companies (an entire extra vehicle design squeezed into one company slot, for a few thousand IC) are off by default because they only pay off in particular situations. Switch on anything you want the search to consider.</p>
       <div className="seg">
         <button type="button" className="ghost" onClick={() => setExclude(defaultExclude(game))}>Standard</button>
         <button type="button" className="ghost" onClick={() => setExclude([])}>Allow everything</button>

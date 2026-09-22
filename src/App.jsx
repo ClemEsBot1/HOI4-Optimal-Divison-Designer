@@ -26,7 +26,7 @@ const NAV_ITEMS = [
   { id: 'results', icon: 'category_all_infantry', label: 'Designer' },
   { id: 'technology', icon: 'category_artillery', label: 'Research' },
   { id: 'doctrine', icon: 'category_all_armor', label: 'Doctrine' },
-  { id: 'equipment', icon: 'category_artillery', label: 'Equipment' },
+  { id: 'equipment', icon: 'gwtank', label: 'Equipment' },
 ];
 const plural = (n, singular, many) => `${n} ${n === 1 ? singular : many}`;
 const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;

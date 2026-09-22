@@ -17,8 +17,11 @@ export const ROLES = [
   },
   {
     id: 'offensive_infantry', name: 'Offensive Infantry', blurb: 'Infantry with enough soft attack to push when tanks are scarce.',
-    weights: { sa: 9, def: 6, brk: 5, org: 8, hp: 6, ic: 4, engineer: 7, logistics: 2, recon: 2 },
-    constraints: { wmin: 18, wmax: 27, minOrg: 40, minArm: 0, orgTarget: 45, orgCeiling: 60, maxIc: 9000, perWidth: false },
+    weights: { sa: 9, def: 6, brk: 5, org: 8, hp: 6, ic: 8, engineer: 7, logistics: 2, recon: 2 },
+    // Capped at a mass-producible infantry cost and a minority mobile share so the search stays with an
+    // infantry-plus-support-artillery build (the classic "7 infantry + 2 artillery" shape) instead of drifting
+    // into an all-mechanized division that is really the Armoured or Space marines role wearing an infantry label.
+    constraints: { wmin: 18, wmax: 27, minOrg: 40, minArm: 0, orgTarget: 45, orgCeiling: 60, maxMobileShare: 0.35, maxIc: 3200, perWidth: false },
   },
   {
     id: 'armor', name: 'Armoured division', blurb: 'More than half armoured battalions, with the soft attack to break a line.',
@@ -86,10 +89,21 @@ export function defaultTech(game) {
 }
 export const sameSet = (a, b) => a.size === b.size && [...a].every((x) => b.has(x));
 
+// Support and regimental companies built on the super-heavy tank chassis (a whole extra vehicle design squeezed
+// into one company slot) cost several thousand IC apiece for a one-off stat add, with none of the width-scaling
+// a normal battalion gets. Community tier lists rank them F ("often useless or just really bad") for exactly that
+// reason, next to Motorized Military Police, so the optimizer should not reach for them unless asked to.
+// https://stratemgames.space/en/hearts-of-iron-iv/clusters/everything-about-divisions/complete-division-guide/battalions-companies-and-support-regiments/support-company-tier-list-2026
+const EXPENSIVE_SUPPORT = new Set(['motorized_military_police']);
+
 /**
  * Units left out of templates unless the player switches them on: the special forces units (marines, paratroopers,
- * mountaineers, rangers, amtracs, amphibious tanks) need specific conditions to be useful, and cavalry is obsolete.
+ * mountaineers, rangers, amtracs, amphibious tanks) need specific conditions to be useful, cavalry is obsolete, and
+ * the super-heavy-chassis support/regimental companies are F-tier picks that are rarely worth their IC.
  */
 export function defaultExclude(game) {
-  return [...game.units.values()].filter((u) => u.special || u.id === 'cavalry').map((u) => u.id);
+  return [...game.units.values()]
+    .filter((u) => u.special || u.id === 'cavalry' || EXPENSIVE_SUPPORT.has(u.id)
+      || ((u.role === 'div' || u.role === 'reg') && u.tank && u.tank.chassis === 'super_heavy_tank_chassis'))
+    .map((u) => u.id);
 }
