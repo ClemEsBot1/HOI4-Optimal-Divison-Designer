@@ -304,6 +304,10 @@ export function designStats(game, chassis, variant, chosen, techSet) {
   }
   for (const k of Object.keys(s)) s[k] *= 1 + num(mul[k]);
   s.hard = Math.max(0, Math.min(1, s.hard));
+  // Reliability is a 0-100% figure in the game's own designer (see Av. Reliability). Upgrade-level bonuses add
+  // together with no synergy penalty here, which can push the raw total past 100% for a well-upgraded chassis;
+  // clamp it the same way hardness is clamped so the UI never shows something like "139% reliable".
+  s.rel = Math.max(0, Math.min(1, s.rel));
   return s;
 }
 

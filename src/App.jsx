@@ -39,12 +39,17 @@ const ROLE_ICONS = {
 };
 const GROUP_ORDER = ['Offense', 'Staying power', 'Mobility', 'Cost', 'Utility'];
 
-const RESULT_STATS = ['width', 'sa', 'ha', 'brk', 'def', 'org', 'rec', 'hp', 'arm', 'pier', 'hard', 'spd', 'air', 'recon', 'ic', 'mp', 'sup', 'trucks'];
 const RESULT_LABEL = {
   width: 'Combat width', sa: 'Soft attack', ha: 'Hard attack', brk: 'Breakthrough', def: 'Defense', org: 'Organization',
   rec: 'Recovery rate', hp: 'Hit points', arm: 'Armor', pier: 'Piercing', hard: 'Hardness %', spd: 'Speed (km/h)',
   air: 'Air attack', recon: 'Recon', ic: 'Production cost', mp: 'Manpower', sup: 'Supply use', trucks: 'Trucks needed',
 };
+// Grouped the same way the in-game Division Designer lays out its Base Stats / Combat Stats / Equipment Cost panels.
+const RESULT_PANELS = [
+  { title: 'Base Stats', keys: ['spd', 'hp', 'org', 'rec', 'recon', 'width'] },
+  { title: 'Combat Stats', keys: ['sa', 'ha', 'air', 'def', 'brk', 'arm', 'pier', 'hard'] },
+  { title: 'Equipment Cost', keys: ['mp', 'ic', 'sup', 'trucks'] },
+];
 
 function loadInitial() {
   const base = {
@@ -431,11 +436,15 @@ export default function App() {
                     )}
                   </ul>
                   <h3>Stats</h3>
-                  <dl className="stats">
-                    {RESULT_STATS.filter((k) => !((k === 'air' || k === 'trucks' || k === 'recon') && !shown[k])).map((k) => (
-                      <div key={k}><dt>{RESULT_LABEL[k]}</dt><dd>{fmt(shown[k], k)}</dd></div>
-                    ))}
-                  </dl>
+                  <div className="td-stats result-stats">
+                    {RESULT_PANELS.map((panel) => {
+                      const keys = panel.keys.filter((k) => !((k === 'air' || k === 'trucks' || k === 'recon') && !shown[k]));
+                      return (
+                        <TdPanel key={panel.title} title={panel.title}
+                          rows={keys.map((k) => [RESULT_LABEL[k], fmt(shown[k], k)])} />
+                      );
+                    })}
+                  </div>
                   {designsUsed.length > 0 && (
                     <>
                       <h3>Tank designs used</h3>
@@ -518,31 +527,97 @@ export default function App() {
   );
 }
 
+const ROLE_LABEL = { armor: 'Standard armor', anti_tank: 'Tank destroyer', anti_air: 'Anti-air', artillery: 'Self-propelled artillery' };
+const CHASSIS_ICON = {
+  light_tank_chassis: 'basic_light_tank_chassis', medium_tank_chassis: 'basic_medium_tank_chassis',
+  heavy_tank_chassis: 'basic_heavy_tank_chassis', super_heavy_tank_chassis: 'super_heavy_tank_chassis',
+  modern_tank_chassis: 'main_battle_tank_chassis', amphibious_tank_chassis: 'amphibious_tank',
+};
+const SLOT_ABBR = {
+  turret_type_slot: 'TUR', main_armament_slot: 'GUN', suspension_type_slot: 'SUS', armor_type_slot: 'ARM',
+  engine_type_slot: 'ENG', radio_type_slot: 'RAD', fuel_type_slot: 'FUEL',
+};
+
+/** One HOI4-style "Tank Designer" panel per chassis+role combination the search actually used. */
 function DesignSection({ designs }) {
   const tankDesigns = Object.values(designs).filter(Boolean);
   return (
     <section className="block wide-block designs-panel" id="equipment">
-      <h2>Optimal equipment designs</h2>
-      <p className="note">Tank designs are selected from researched modules, then applied automatically to every matching tank or self-propelled battalion in the divisions above.</p>
-      <div className="design-grid">
-        {tankDesigns.length > 0 ? tankDesigns.map((d) => (
-          <article className="design-card" key={`${d.chassis}|${d.role}`}>
-            <div className="rec-kicker">{d.role.replaceAll('_', ' ')}</div>
-            <h3>{d.chassis.replaceAll('_', ' ')}</h3>
-            <dl className="design-stats">
-              {['sa', 'ha', 'brk', 'arm', 'pier', 'spd', 'ic', 'rel'].filter((k) => d.stats && d.stats[k] != null).map((k) => (
-                <div key={k}><dt>{k.toUpperCase()}</dt><dd>{fmt(d.stats[k], k === 'spd' ? 'spd' : k)}</dd></div>
-              ))}
-            </dl>
-            <p className="note">{Object.entries(d.modules || {}).filter(([, id]) => id).map(([slot, id]) => `${slot.replaceAll('_', ' ')}: ${id.replaceAll('_', ' ')}`).join(' · ')}</p>
-          </article>
-        )) : <p className="note">No researched tank chassis are available.</p>}
-      </div>
+      <h2>Equipment designer</h2>
+      <p className="note">Every tank design the search relied on, picked automatically from your researched modules and applied to the matching battalions above.</p>
+      {tankDesigns.length > 0 ? tankDesigns.map((d) => <TankDesignerCard key={`${d.chassis}|${d.role}`} d={d} />)
+        : <p className="note">No researched tank chassis are available.</p>}
       <article className="air-design-note">
         <strong>Air designs</strong>
         <p>The current game extraction contains no aircraft designer chassis, aircraft modules, or aircraft equipment definitions—only land equipment is available to the optimizer. The section is reserved for air designs and will populate when aircraft designer data is added to the extractor.</p>
       </article>
     </section>
+  );
+}
+
+function TankDesignerCard({ d }) {
+  const chassisName = game.units.get(d.chassis)?.name || d.chassis.replaceAll('_', ' ');
+  const icon = `/hoi4/technologies/${CHASSIS_ICON[d.chassis] || d.chassis}.png`;
+  const slots = Object.entries(d.modules || {}).filter(([, id]) => id);
+  const s = d.stats || {};
+  return (
+    <article className="td-card">
+      <header className="td-titlebar">
+        <span>Tank Designer</span>
+        <span className="td-role">{ROLE_LABEL[d.role] || d.role.replaceAll('_', ' ')}</span>
+      </header>
+      <div className="td-name-row">
+        <h3>{chassisName}</h3>
+      </div>
+      {slots.length > 0 && (
+        <div className="td-slots" role="list">
+          {slots.map(([slot, id]) => (
+            <div className="td-slot" role="listitem" key={slot} title={game.raw.modules[id]?.name || id.replaceAll('_', ' ')}>
+              <span className="td-slot-abbr">{SLOT_ABBR[slot] || slot.replace(/_slot(_\d)?$/, '').slice(0, 3).toUpperCase()}</span>
+              <span className="td-slot-name">{game.raw.modules[id]?.name || id.replaceAll('_', ' ')}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="td-body">
+        <div className="td-blueprint">
+          <img src={icon} alt="" onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} />
+        </div>
+        <div className="td-stats">
+          <TdPanel title="Base Stats" rows={[
+            ['Max Speed', s.spd != null ? `${fmt(s.spd, 'spd')} km/h` : null],
+            ['Reliability', s.rel != null ? `${(s.rel * 100).toFixed(1)}%` : null],
+            ['Supply Use', s.sup != null ? fmt(s.sup, 'sup') : null],
+          ]} />
+          <TdPanel title="Combat Stats" rows={[
+            ['Soft Attack', fmt(s.sa, 'sa')],
+            ['Hard Attack', fmt(s.ha, 'ha')],
+            ['Piercing', fmt(s.pier, 'pier')],
+            ['Hardness', `${((s.hard || 0) * 100).toFixed(0)}%`],
+            ['Armor', fmt(s.arm, 'arm')],
+            ['Breakthrough', fmt(s.brk, 'brk')],
+            ['Defense', fmt(s.def, 'def')],
+            s.air ? ['Air Attack', fmt(s.air, 'air')] : null,
+          ].filter(Boolean)} />
+          <TdPanel title="Misc Stats" rows={[
+            ['Production Cost', `${fmt(s.ic, 'ic')} IC`],
+          ]} />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function TdPanel({ title, rows }) {
+  return (
+    <div className="td-panel">
+      <h4>{title}</h4>
+      <dl>
+        {rows.filter((r) => r && r[1] != null).map(([label, value]) => (
+          <div key={label}><dt>{label}</dt><dd>{value}</dd></div>
+        ))}
+      </dl>
+    </div>
   );
 }
 

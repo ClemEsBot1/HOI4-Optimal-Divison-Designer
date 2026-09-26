@@ -106,13 +106,31 @@ select, input[type='number'], input[type='search'] { background: var(--panel); b
 .doctrine-icon { width: 2.5rem; height: 2.5rem; object-fit: cover; float: left; margin: 0 .55rem .25rem 0; border: 1px solid var(--accent); }
 .doctrine-rec p { margin: .2rem 0 0; color: var(--muted); font-size: .84rem; }
 .designs-panel { overflow: hidden; }
-.design-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: .75rem; }
-.design-card { border: 1px solid var(--line); border-top: 2px solid var(--accent); border-radius: 5px; padding: .7rem; background: rgba(17,23,26,.3); }
-.design-card h3 { margin: .1rem 0 .45rem; text-transform: capitalize; }
-.design-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: .2rem .45rem; margin: 0 0 .5rem; }
-.design-stats div { border-bottom: 1px dotted var(--line); }
-.design-stats dt { color: var(--muted); font-size: .65rem; }
-.design-stats dd { margin: 0; font-size: .82rem; font-weight: 700; }
+
+/* Tank Designer card, styled after the in-game Tank Designer window: a dark olive frame, a gold title bar
+   reading "Tank Designer", a row of module slots, then Base/Combat/Misc stat panels with dotted leader rows. */
+.td-card { border: 1px solid var(--line); border-radius: 5px; overflow: hidden; background: var(--panel); margin: 0 0 1rem; }
+.td-titlebar { display: flex; justify-content: space-between; align-items: baseline; padding: .4rem .8rem; background: linear-gradient(180deg, #2c2013, #1a140c); border-bottom: 1px solid var(--accent); }
+.td-titlebar span:first-child { font-family: var(--head); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); font-size: .95rem; }
+.td-role { color: var(--muted); font-size: .8rem; text-transform: capitalize; }
+.td-name-row { padding: .5rem .8rem 0; }
+.td-name-row h3 { margin: 0; text-transform: capitalize; }
+.td-slots { display: flex; flex-wrap: wrap; gap: .4rem; padding: .5rem .8rem; }
+.td-slot { display: flex; align-items: center; gap: .35rem; border: 1px solid var(--line); border-radius: 3px; background: rgba(17,23,26,.5); padding: .2rem .5rem; font-size: .74rem; }
+.td-slot-abbr { display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.3rem; background: var(--accent); color: var(--accent-ink); border-radius: 2px; font-weight: 800; font-size: .62rem; letter-spacing: .02em; }
+.td-slot-name { color: var(--ink); white-space: nowrap; }
+.td-body { display: grid; grid-template-columns: minmax(10rem, 14rem) 1fr; gap: 1rem; padding: .5rem .8rem .8rem; align-items: start; }
+@media (max-width: 40rem) { .td-body { grid-template-columns: 1fr; } }
+.td-blueprint { display: flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 4px; background: radial-gradient(circle at 50% 40%, #1c3a4a, #0e1a20); padding: 1rem; min-height: 6rem; }
+.td-blueprint img { width: 100%; max-width: 12rem; image-rendering: pixelated; filter: grayscale(1) brightness(1.4) drop-shadow(0 0 .3rem rgba(120,190,220,.5)); mix-blend-mode: screen; }
+.td-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: .6rem; }
+.td-panel { background: rgba(17,23,26,.4); border: 1px solid var(--line); border-radius: 4px; padding: .4rem .6rem; }
+.td-panel h4 { margin: 0 0 .3rem; font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); }
+.td-panel dl { display: grid; gap: .15rem; margin: 0; }
+.td-panel dl div { display: flex; justify-content: space-between; gap: .5rem; border-bottom: 1px dotted var(--line); padding: .1rem 0; }
+.td-panel dt { color: var(--muted); font-size: .78rem; }
+.td-panel dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; font-size: .85rem; }
+
 .air-design-note { margin-top: .75rem; padding: .7rem; border-left: 3px solid var(--olive); background: rgba(104,118,76,.12); color: var(--muted); }
 .air-design-note strong { color: var(--ink); font-family: var(--head); }
 .air-design-note p { margin: .2rem 0 0; }
@@ -161,10 +179,7 @@ select, input[type='number'], input[type='search'] { background: var(--panel); b
 .compo li { padding: .12rem 0; }
 .compo b { display: inline-block; min-width: 1.6rem; font-variant-numeric: tabular-nums; }
 .compo-sup { color: var(--muted); font-size: .9rem; }
-.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: .3rem .9rem; margin: 0; }
-.stats div { display: flex; justify-content: space-between; gap: .5rem; border-bottom: 1px dotted var(--line); padding: .15rem 0; }
-.stats dt { color: var(--muted); font-size: .88rem; }
-.stats dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.result-stats { margin-top: .3rem; }
 
 /* tables */
 .table-scroll { overflow-x: auto; }
