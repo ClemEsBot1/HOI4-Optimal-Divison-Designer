@@ -106,13 +106,41 @@ function TreeDialog({ game, techs, setTechs, onClose }) {
 function TreeGrid({ game, list, folder, techs, toggle, matches }) {
   const positioned = list.filter((t) => t.x && !t.subOf);
   const loose = list.filter((t) => (!t.x && !t.subOf));
+
+  // Some techs (most visibly the four Special Forces branches in the Infantry tab: paratroopers, marines,
+  // mountaineers, rangers) come out of the extractor sharing the exact same cell, because the source file
+  // carries more than one folder/position block for them and only the first was kept. Real placement has each
+  // on its own row. Rather than guess the game's true layout, deterministically spread same-cell techs onto
+  // free rows below their shared column, in stable (id) order, so nothing silently overlaps.
+  const posOf = useMemo(() => {
+    const map = new Map();
+    const taken = new Set(positioned.map((t) => `${t.x.x},${t.x.y}`));
+    const groups = new Map();
+    for (const t of [...positioned].sort((a, b) => a.id.localeCompare(b.id))) {
+      const key = `${t.x.x},${t.x.y}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(t);
+    }
+    for (const group of groups.values()) {
+      const { x, y: y0 } = group[0].x;
+      map.set(group[0].id, { x, y: y0 });
+      let y = y0;
+      for (let i = 1; i < group.length; i++) {
+        do { y += 2; } while (taken.has(`${x},${y}`));
+        taken.add(`${x},${y}`);
+        map.set(group[i].id, { x, y });
+      }
+    }
+    return map;
+  }, [positioned]);
+
   const layout = useMemo(() => {
     if (!positioned.length) return null;
-    const xs = positioned.map((t) => t.x.x);
-    const minX = Math.min(...xs);
-    const minY = Math.min(...positioned.map((t) => t.x.y));
-    return { minX, minY, cols: Math.max(...xs) - minX + 1, rows: Math.max(...positioned.map((t) => t.x.y)) - minY + 1 };
-  }, [positioned]);
+    const pts = positioned.map((t) => posOf.get(t.id));
+    const minX = Math.min(...pts.map((p) => p.x));
+    const minY = Math.min(...pts.map((p) => p.y));
+    return { minX, minY, cols: Math.max(...pts.map((p) => p.x)) - minX + 1, rows: Math.max(...pts.map((p) => p.y)) - minY + 1 };
+  }, [positioned, posOf]);
 
   const positionedIds = new Set(positioned.map((t) => t.id));
   const edges = positioned.flatMap((t) => t.parents
@@ -120,7 +148,12 @@ function TreeGrid({ game, list, folder, techs, toggle, matches }) {
     .filter((p) => p && positionedIds.has(p.id))
     .map((p) => ({ from: p, to: t })));
   const rows = layout ? layout.rows : 0;
-  const rowYears = layout ? [...new Set(positioned.map((t) => t.x.y))].map((y) => ({ row: y - layout.minY + 1, year: Math.min(...positioned.filter((t) => t.x.y === y).map((t) => t.year || 0).filter(Boolean)) })) : [];
+  const rowYears = layout
+    ? [...new Set(positioned.map((t) => posOf.get(t.id).y))].map((y) => ({
+        row: y - layout.minY + 1,
+        year: Math.min(...positioned.filter((t) => posOf.get(t.id).y === y).map((t) => t.year || 0).filter(Boolean)),
+      }))
+    : [];
   return (
     <>
       {layout && (
@@ -128,16 +161,20 @@ function TreeGrid({ game, list, folder, techs, toggle, matches }) {
           <div className="tp-years tp-years-left" aria-hidden="true">{rowYears.map((x) => <span key={x.row} style={{ top: `${(x.row - 1) * 6 + 1.4}rem` }}>{x.year}</span>)}</div>
           <div className="tp-years tp-years-right" aria-hidden="true">{rowYears.map((x) => <span key={x.row} style={{ top: `${(x.row - 1) * 6 + 1.4}rem` }}>{x.year}</span>)}</div>
           <svg className="tp-lines" viewBox={`0 0 ${layout.cols} ${rows}`} preserveAspectRatio="none" aria-hidden="true">
-            {edges.map(({ from, to }) => (
-              <path key={`${from.id}-${to.id}`} d={`M ${from.x.x - layout.minX + .5} ${from.x.y - layout.minY + .5} H ${to.x.x - layout.minX + .5} V ${to.x.y - layout.minY + .5}`} />
-            ))}
+            {edges.map(({ from, to }) => {
+              const fp = posOf.get(from.id); const tp = posOf.get(to.id);
+              return <path key={`${from.id}-${to.id}`} d={`M ${fp.x - layout.minX + .5} ${fp.y - layout.minY + .5} H ${tp.x - layout.minX + .5} V ${tp.y - layout.minY + .5}`} />;
+            })}
           </svg>
           <div className="tp-grid" style={{ gridTemplateColumns: `repeat(${layout.cols}, 5.2rem)`, gridTemplateRows: `repeat(${rows}, 6rem)`, paddingTop: '1.5rem' }}>
-            {positioned.map((t) => (
-              <div key={t.id} className="tp-cell" style={{ gridColumn: t.x.x - layout.minX + 1, gridRow: t.x.y - layout.minY + 1 }}>
-                <TechCard game={game} tech={t} techs={techs} toggle={toggle} dim={!matches(t)} />
-              </div>
-            ))}
+            {positioned.map((t) => {
+              const p = posOf.get(t.id);
+              return (
+                <div key={t.id} className="tp-cell" style={{ gridColumn: p.x - layout.minX + 1, gridRow: p.y - layout.minY + 1 }}>
+                  <TechCard game={game} tech={t} techs={techs} toggle={toggle} dim={!matches(t)} />
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

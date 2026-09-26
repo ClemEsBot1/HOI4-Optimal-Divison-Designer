@@ -20,7 +20,10 @@
 .tp-folder-armour_folder { background-image: linear-gradient(rgba(24,33,36,.25), rgba(24,33,36,.72)), url('/hoi4/techtree/engineering_techtree_bg.png'); }
 .tp-folder-nsb_armour_folder { background-image: linear-gradient(rgba(24,33,36,.25), rgba(24,33,36,.72)), url('/hoi4/techtree/techtree_stripes.png'); }
 .tp-folder-electronics_folder { background-image: linear-gradient(rgba(24,33,36,.25), rgba(24,33,36,.72)), url('/hoi4/techtree/industry_techtree_bg.png'); }
-.tp-lines { position: absolute; inset: .25rem; width: calc(100% - .5rem); height: calc(100% - .5rem); overflow: visible; pointer-events: none; }
+/* Must line up exactly with .tp-grid's own box, not the wrap's padding box: the grid reserves 1.5rem of
+   top padding for the year rail, so the viewBox (one unit per cell) has to start below that same 1.5rem,
+   or every connector line lands about a row too high and never visually touches the cards it links. */
+.tp-lines { position: absolute; left: 0; right: 0; top: 1.5rem; bottom: 0; overflow: visible; pointer-events: none; }
 .tp-years { position: absolute; top: 0; bottom: 0; width: 2.5rem; color: #e1d6b8; font-family: var(--head); font-size: .82rem; pointer-events: none; }
 .tp-years-left { left: -2.5rem; text-align: right; }
 .tp-years-right { right: -2.5rem; text-align: left; }
