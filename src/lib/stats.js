@@ -24,18 +24,24 @@ export const STATS = [
   { key: 'hp', label: 'Hit points', group: 'Staying power', dir: 1, dp: 1 },
   { key: 'arm', label: 'Armor', group: 'Staying power', dir: 1, dp: 1 },
   { key: 'hard', label: 'Hardness %', group: 'Staying power', dir: 1, dp: 0, signed: true },
+  { key: 'rel', label: 'Reliability %', group: 'Staying power', dir: 1, dp: 1 },
   { key: 'spd', label: 'Speed (km/h)', group: 'Mobility', dir: 1, dp: 1 },
   { key: 'ic', label: 'Production cost', group: 'Cost', dir: -1, dp: 0 },
   { key: 'mp', label: 'Manpower', group: 'Cost', dir: -1, dp: 0 },
   { key: 'sup', label: 'Supply use', group: 'Cost', dir: -1, dp: 2 },
   { key: 'trucks', label: 'Trucks needed', group: 'Cost', dir: -1, dp: 0 },
   { key: 'recon', label: 'Recon', group: 'Utility', dir: 1, dp: 1 },
+  { key: 'regs', label: 'Regimental companies', group: 'Utility', dir: 1, dp: 0, count: true },
   { key: 'engineer', label: 'Engineer company', group: 'Utility', dir: 1, dp: 0, perk: true },
   { key: 'hospital', label: 'Field hospital', group: 'Utility', dir: 1, dp: 0, perk: true },
   { key: 'logistics', label: 'Logistics company', group: 'Utility', dir: 1, dp: 0, perk: true },
   { key: 'maintenance', label: 'Maintenance company', group: 'Utility', dir: 1, dp: 0, perk: true },
   { key: 'signal', label: 'Signal company', group: 'Utility', dir: 1, dp: 0, perk: true },
   { key: 'police', label: 'Military police', group: 'Utility', dir: 1, dp: 0, perk: true },
+  // Only scored when an opponent is set (see combat.js): how fast this division breaks the opponent compared with
+  // how fast the opponent breaks it, when attacking and when defending.
+  { key: 'mAtk', label: 'Attacking the opponent', group: 'Matchup', dir: 1, dp: 2, matchup: true },
+  { key: 'mDef', label: 'Holding against the opponent', group: 'Matchup', dir: 1, dp: 2, matchup: true },
 ];
 
 export const STAT_KEYS = STATS.map((s) => s.key);
@@ -43,7 +49,7 @@ export const STAT_INDEX = Object.fromEntries(STAT_KEYS.map((k, i) => [k, i]));
 export const STAT_BY_KEY = Object.fromEntries(STATS.map((s) => [s.key, s]));
 
 // stats that can be chosen as chart axes
-export const AXIS_STATS = ['sa', 'ha', 'brk', 'def', 'org', 'hp', 'arm', 'pier', 'spd', 'ic', 'mp', 'width'];
+export const AXIS_STATS = ['sa', 'ha', 'brk', 'def', 'org', 'hp', 'arm', 'pier', 'spd', 'rel', 'ic', 'mp', 'sup', 'width'];
 export const AXIS_LABEL = { ...Object.fromEntries(STATS.map((s) => [s.key, s.label])), width: 'Combat width' };
 export const AXIS_DIR = { ...Object.fromEntries(STATS.map((s) => [s.key, s.dir])), width: -1 };
 
@@ -64,6 +70,7 @@ export const DEFAULT_OPTS = {
 };
 
 export const MAX_COLUMNS = 5;
+export const ARMOR_MAX_SHARE = 0.3;
 export const MAX_SUPPORT = 5;
 
 // Column families mirror the game's designer: artillery is not an infantry column.
@@ -214,8 +221,13 @@ export function evaluate(tpl, byId, mods = {}, opts = DEFAULT_OPTS, columnSize =
   for (const assignment of regAssignments.values()) addBoost(byId.get(assignment.id), assignment.battalions);
 
   let sa = 0, ha = 0, air = 0, def = 0, brk = 0, hp = 0, ic = 0, mp = 0, sup = 0, trucks = 0, width = 0, recon = 0;
-  let orgSum = 0, recSum = 0, hardSum = 0, armSum = 0, pierSum = 0;
+  let orgSum = 0, recSum = 0, hardSum = 0, armSum = 0, pierSum = 0, relSum = 0;
+  let armMax = 0, pierMax = 0;
   let spd = Infinity;
+  const equipment = {};
+  const addEquipment = (u, multiplier = 1) => {
+    for (const [k, v] of Object.entries(u.equipment || {})) equipment[k] = (equipment[k] || 0) + v * multiplier;
+  };
   for (const u of line) {
     let bsa = u.sa, bha = u.ha, bdef = u.def, bbrk = u.brk, bpier = u.pier, bair = u.air;
     if (boost.size) {
@@ -228,7 +240,10 @@ export function evaluate(tpl, byId, mods = {}, opts = DEFAULT_OPTS, columnSize =
     }
     sa += bsa; ha += bha; air += bair; def += bdef; brk += bbrk; hp += u.hp;
     ic += u.ic; mp += u.mp; sup += u.sup; trucks += u.trucks; width += u.width;
-    orgSum += u.org; recSum += u.rec; hardSum += u.hard; armSum += u.arm; pierSum += bpier;
+    orgSum += u.org; recSum += u.rec; hardSum += u.hard; armSum += u.arm; pierSum += bpier; relSum += u.rel ?? 1;
+    if (u.arm > armMax) armMax = u.arm;
+    if (bpier > pierMax) pierMax = bpier;
+    addEquipment(u);
     if (u.affectsSpeed && u.spd > 0 && u.spd < spd) spd = u.spd;
   }
   const perks = { engineer: 0, hospital: 0, logistics: 0, maintenance: 0, signal: 0, police: 0 };
@@ -243,6 +258,7 @@ export function evaluate(tpl, byId, mods = {}, opts = DEFAULT_OPTS, columnSize =
       orgSum += u.org * multiplier; recSum += u.rec * multiplier; avgN += multiplier;
     }
     for (const k in u.perks) if (k in perks) perks[k] += u.perks[k] * multiplier;
+    addEquipment(u, multiplier);
   };
   for (const id of support) addCompanyStats(byId.get(id));
   for (const assignment of regAssignments.values()) addCompanyStats(byId.get(assignment.id), assignment.battalions);
@@ -264,13 +280,15 @@ export function evaluate(tpl, byId, mods = {}, opts = DEFAULT_OPTS, columnSize =
     air,
     def: def * m('def'),
     brk: brk * m('brk'),
-    pier: (pierSum / n) * m('pier'),
+    // HOI4 takes 30% of the best battalion's piercing and armor plus 70% of the average.
+    pier: (ARMOR_MAX_SHARE * pierMax + (1 - ARMOR_MAX_SHARE) * (pierSum / n)) * m('pier'),
     // HOI4 organization is the arithmetic average across all line battalions and support companies.
     org: (orgSum / avgN) * m('org'),
     rec: recSum / avgN,
     hp: hp * m('hp'),
-    arm: (armSum / n) * m('arm'),
+    arm: (ARMOR_MAX_SHARE * armMax + (1 - ARMOR_MAX_SHARE) * (armSum / n)) * m('arm'),
     hard: hardSum / n,
+    rel: (relSum / n) * 100,
     spd: spd === Infinity ? 0 : spd,
     ic, mp, sup, trucks, recon,
     ...perks,
@@ -280,6 +298,8 @@ export function evaluate(tpl, byId, mods = {}, opts = DEFAULT_OPTS, columnSize =
     cnt,
     layout,
     regCount: regAssignments.size,
+    regs: regAssignments.size,
+    equipment,
     valid: layout.ok && supportOk && regOk,
   };
 }

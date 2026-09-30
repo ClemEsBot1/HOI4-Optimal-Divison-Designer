@@ -1,8 +1,8 @@
 # HOI4 Optimal Division Designer
 
 **Division Desk** finds the best Hearts of Iron IV division template for whatever you want the division to do.
-Say what matters (breakthrough, cheap defense, tank killing, soft attack per IC), set your limits, and it searches
-hundreds of thousands of templates, shows the best few, and shows what each one gives up.
+Say what matters (breakthrough, cheap defense, tank killing, soft attack per IC), set your limits, and it finds the
+provably best template, explains why it wins, shows how stable that pick is, and shows what the alternatives give up.
 
 Live site: https://hoi-4-optimal-divison-designer.vercel.app/
 
@@ -14,6 +14,8 @@ can compare designs on the trade-offs that matter to you instead of copying a te
 
 ## Features
 
+- **Exact search.** Branch and bound over every legal template, with the limits as hard constraints. The same setup
+  always gives the same answer, and the page says whether the winner is proven best (to within 0.5%).
 - **Goal-driven search.** Pick a role preset (line infantry, defensive wall, breakthrough spearhead, attrition grinder,
   armored punch, tank hunter, cheap mass) or set your own priority sliders, including production cost, manpower, supply and speed.
 - **Limits.** Combat width range, minimum organization, minimum armor and a production cost ceiling. An option compares designs
@@ -29,10 +31,19 @@ can compare designs on the trade-offs that matter to you instead of copying a te
   artillery, for example). The search spreads battalions over spare columns when that unlocks more regimental slots.
 - **Allowed units.** Special forces (marines, paratroopers, mountaineers, rangers, amtracs) and cavalry are off by default.
   Switch any unit type on or off before searching.
-- **Tank designer.** Tank battalions and self-propelled support use designs built from the modules you have researched, at the
-  highest engine and armor upgrade levels your research allows.
-- **Ranked alternatives.** The top designs are genuinely different from each other, each with its full stats.
-- **Trade-off chart.** Plot any two stats to see what improving one costs in the other, and click a point to open that template.
+- **Tank designs chosen with the template.** Every chassis and role gets an exhaustive module search, valued by what
+  each stat is worth to the winning division, repeated until the designs and the template stop changing. The highest
+  engine and armor upgrade levels your research allows are applied.
+- **Opponent matchup.** Optionally score against an opponent (a preset built from your own research, or numbers typed in):
+  soft and hard attack against its hardness, defense or breakthrough blocking, armor against piercing, organization damage.
+- **Explanations and stability.** Each stat's contribution to the winner's lead over the runner-up, and whether moving any
+  priority by 1 or 2 changes the winner.
+- **Equipment and scale.** Equipment per division, reliability, supply and trucks, and what fielding N divisions costs and
+  how long it takes with your factories.
+- **Ranked alternatives.** The best template of each archetype (which column types it uses and its lead battalion), so the
+  list shows different kinds of division rather than tweaks of one.
+- **Trade-off chart and Pareto front.** Plot any two stats to see what improving one costs in the other; templates on the
+  Pareto front of all your priorities are highlighted. Click a point to open that template.
 - **Shareable setups.** The whole setup (goal, limits, research, doctrine) is stored in the link.
 - **Manual bonuses.** Type in percentage bonuses for leaders, national spirits and anything else the data does not model.
 
@@ -41,11 +52,20 @@ can compare designs on the trade-offs that matter to you instead of copying a te
 - A unit's stats are the sum of the equipment it needs (best researched variant of each) multiplied by one plus the unit, tech
   and doctrine bonuses. Organization, hit points, recovery and combat width take flat bonuses.
 - Attack, defense, breakthrough, hit points, cost, manpower and supply are summed over the template. Organization and recovery are
-  averaged. Armor, piercing and hardness are averaged over line battalions. Speed is the slowest line battalion.
-- The search compares stats by percentage change, so a weight of 6 on soft attack and 3 on cost means a 10% gain in soft attack is
-  worth a 20% saving in cost.
-- The search is heuristic (seeded hill climbing from many starting points). It finds very good templates but does not prove that a
-  result is the single best possible.
+  averaged. Armor and piercing are 30% of the best line battalion plus 70% of the average; hardness and reliability are averaged
+  over line battalions. Speed is the slowest line battalion.
+- The score is the sum of priority × ln(stat + a small fixed floor), minus that for costs, so a weight of 6 on soft attack and
+  3 on cost means a 10% gain in soft attack is worth a 20% saving in cost. Nothing is calibrated from random samples.
+- Limits are hard: a template that breaks one is never a candidate.
+- The search is branch and bound (see `src/lib/optimizer.js`). It proves the winner is best to within a 0.5% gain on every
+  priority, or says so when its node budget runs out first. `npm run check` compares it with brute force on a small unit set.
+
+## Golden tests
+
+`tests/golden.json` holds division stats read off in-game screenshots; `npm run golden` (also part of `npm run check`) rebuilds
+each template with the engine and compares every number. The 18-width infantry template (9 infantry, engineers, support artillery,
+1936 research without Interwar Artillery) reproduces the game's soft attack 70, defense 227.7, breakthrough 36.5, organization 50.9
+and 910 infantry equipment. A case for the Panzer screenshot is in the file, waiting for its numbers.
 
 ## Known limits
 
@@ -55,8 +75,9 @@ Check a result in game before you rely on it. These rules are assumptions, and t
 - Whether support companies count in the organization average (there is a switch).
 - Whether doctrine supply bonuses are fractions of a unit's supply.
 - Tank modules are chosen automatically. There is no hand editor yet.
+- The matchup model ignores terrain, entrenchment, planning, air support and width penalties.
 
-Not modelled: national focus techs, leaders, terrain, equipment stockpiles, the land cruiser, flame tanks and amphibious tank roles.
+Not modelled: national focus techs, leaders, terrain, the land cruiser, flame tanks and amphibious tank roles.
 
 ## Run it locally
 
@@ -82,9 +103,12 @@ Vite preset (build command `npm run build`, output directory `dist`) and leave t
 
 ## Project layout
 
-- `scripts/`: `paradox.mjs` and `extract.mjs` (game files to JSON), `selfcheck.mjs`.
+- `scripts/`: `paradox.mjs` and `extract.mjs` (game files to JSON), `selfcheck.mjs`, `golden.mjs`.
 - `src/data/game.json`: the extracted game data.
-- `src/lib/`: the engine (`game.js`, `stats.js`, `optimizer.js`), the search worker, presets, share links and text helpers.
+- `src/lib/`: the engine (`game.js` units and exhaustive tank designs, `stats.js` template stats, `score.js` the score,
+  `optimizer.js` branch and bound, `design.js` designs tuned to the division, `combat.js` the matchup model), the search
+  worker, presets, share links and text helpers.
+- `tests/golden.json` and `scripts/golden.mjs`: numbers from in-game screenshots.
 - `src/components/`: template view, trade-off chart, tech tree and doctrine pickers.
 - `src/App.jsx`: the page.
 

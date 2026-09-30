@@ -2,8 +2,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildGame, techsUpTo, researchTech, unresearchTech, canResearch, resolve, collectModifiers } from '../src/lib/game.js';
-import { assignRegimentalColumns, evaluate, planColumns } from '../src/lib/stats.js';
+import { buildGame, techsUpTo, researchTech, unresearchTech, canResearch, resolve, collectModifiers, unlocks, designSearch, designStats } from '../src/lib/game.js';
+import { assignRegimentalColumns, evaluate, planColumns, supportConflict } from '../src/lib/stats.js';
+import { objectiveTerms, utility } from '../src/lib/score.js';
+import { matchup } from '../src/lib/combat.js';
+import { runGolden } from './golden.mjs';
 import { defaultExclude, ROLES } from '../src/lib/presets.js';
 import { search } from '../src/lib/optimizer.js';
 import { encodeState, decodeState } from '../src/lib/format.js';
@@ -42,7 +45,7 @@ const back = decodeState(encodeState(st, game), game);
 ok(back.t && back.t.size === T.size && [...T].every((x) => back.t.has(x)), 'share link keeps every researched tech');
 
 // search result matches a fresh evaluation
-const r = search(game, { techs: [...T], weights: { sa: 5, def: 8, org: 6, ic: 4 }, constraints: { wmin: 20, wmax: 20 }, ms: 800, topN: 3 });
+const r = search(game, { techs: [...T], weights: { sa: 5, def: 8, org: 6, ic: 4 }, constraints: { wmin: 20, wmax: 20 }, topN: 3 });
 ok(!!r.top && r.top.length > 0, `search found ${r.top ? r.top.length : 0} designs (${r.explored} tried)`);
 if (r.top) {
   const byId = new Map(r.units.map((u) => [u.id, u]));
@@ -80,20 +83,137 @@ ok(planColumns({ infantry: 9, mobile: 0, armor: 3 }, 5, 1, 3).ok, 'nine infantry
 // special forces stay out by default
 const ex = defaultExclude(game);
 ok(['paratrooper', 'marine', 'amphibious_mechanized', 'mountaineers', 'ranger_battalion', 'cavalry'].every((id) => ex.includes(id)), 'special forces and cavalry are excluded by default');
-const r2 = search(game, { techs: [...T], exclude: ex, weights: { sa: 5, def: 8, org: 6, hp: 5, ic: 4 }, constraints: { wmin: 20, wmax: 20 }, ms: 800, topN: 5 });
+const r2 = search(game, { techs: [...T], exclude: ex, weights: { sa: 5, def: 8, org: 6, hp: 5, ic: 4 }, constraints: { wmin: 20, wmax: 20 }, topN: 5 });
 const used = new Set(r2.top.flatMap((t) => [...t.items, ...t.support, ...t.reg]));
 ok(![...used].some((id) => ex.includes(id)), 'search results never use excluded units');
 ok(r2.top.every((t) => { const c = { infantry: 0, mobile: 0, armor: 0 }; t.items.forEach((id) => c[r2.units.find((u) => u.id === id).cat]++); const p = planColumns(c, r2.columnSize, t.reg.filter((id) => r2.units.find((u) => u.id === id).tank).length, t.reg.filter((id) => !r2.units.find((u) => u.id === id).tank).length); return p.ok; }), 'every result respects the regimental rule');
 const nonInfantry = [...game.units.values()].filter((u) => u.role === 'line' && u.id !== 'infantry').map((u) => u.id);
-const r3 = search(game, { techs: [...T], exclude: nonInfantry, weights: { def: 1 }, constraints: { wmin: 20, wmax: 20 }, ms: 600, topN: 1 });
+const r3 = search(game, { techs: [...T], exclude: nonInfantry, weights: { def: 1 }, constraints: { wmin: 20, wmax: 20 }, topN: 1 });
 ok(r3.top?.[0]?.stats.layout.sizes.infantry.join('-') === '3-3-3-1', 'optimizer output for a 20-width pure-infantry template uses 3-3-3-1');
 const armorRole = ROLES.find((x) => x.id === 'armor');
-const ra = search(game, { techs: [...T], exclude: ex, weights: armorRole.weights, constraints: armorRole.constraints, ms: 500, topN: 2 });
+const ra = search(game, { techs: [...T], exclude: ex, weights: armorRole.weights, constraints: armorRole.constraints, topN: 2 });
 ok(ra.top?.every((t) => { const n = t.items.length; return t.items.filter((id) => ra.units.find((u) => u.id === id).cat === 'armor').length / n > 0.5; }), 'armoured role keeps more than half its line battalions armoured');
 ok(ra.top?.every((t) => t.stats.org >= armorRole.constraints.minOrg && t.stats.ic <= armorRole.constraints.maxIc && t.stats.width >= 30 && t.stats.width <= 36 && (t.stats.cnt.mobile / t.stats.n) >= armorRole.constraints.minMobileShare), 'armoured role uses a usable width, organization, cost and mechanized mix');
 ok(ROLES.find((x) => x.id === 'line').constraints.wmax < armorRole.constraints.wmax, 'infantry role is narrower than armoured role');
 const spaceRole = ROLES.find((x) => x.id === 'space_marines');
-const rs = search(game, { techs: [...T], exclude: ex, weights: spaceRole.weights, constraints: spaceRole.constraints, ms: 500, topN: 2 });
+const rs = search(game, { techs: [...T], exclude: ex, weights: spaceRole.weights, constraints: spaceRole.constraints, topN: 2 });
 ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id) => rs.units.find((u) => u.id === id).cat === 'armor').length; return a >= 1 && a <= 2 && a / n <= 0.5; }), 'space marine role uses a small armoured component');
+
+// ---- the search is exact: compare with brute force on a small unit set ----
+{
+  const keep = new Set(['infantry', 'artillery_brigade', 'anti_tank_brigade', 'motorized', 'engineer', 'artillery', 'recon', 'mot_recon', 'fire_support', 'field_guns']);
+  const exclude = [...game.units.keys()].filter((id) => !keep.has(id));
+  const weights = { sa: 5, def: 8, org: 6, ic: 4, engineer: 3, regs: 2 };
+  const constraints = { wmin: 14, wmax: 20, minOrg: 40 };
+  const params = { techs: [...T], exclude, weights, constraints, topN: 3, coDesign: false };
+  const res = resolve(game, { techs: T, exclude });
+  const terms = objectiveTerms(weights, constraints, null);
+  const line = res.combat; const sups = res.support; const regs = res.regimental;
+  const supSets = [[]];
+  for (let i = 0; i < sups.length; i++) for (const set of supSets.slice()) if (set.length < 5 && set.every((j) => !supportConflict(sups[j], sups[i]))) supSets.push([...set, i]);
+  const regLists = [[]];
+  const perm = (cur) => { for (let j = 0; j < regs.length; j++) if (!cur.includes(j)) { const n = [...cur, j]; regLists.push(n); if (n.length < 5) perm(n); } };
+  perm([]);
+  let bruteBest = -Infinity; let bruteKey = null; let count = 0;
+  const counts = new Array(line.length).fill(0);
+  const rec = (i, width, n) => {
+    if (i === line.length) {
+      if (!n || width < constraints.wmin) return;
+      const items = counts.flatMap((c, k) => Array(c).fill(line[k].id));
+      for (const set of supSets) for (const rl of regLists) {
+        const tpl = { items, support: set.map((j) => sups[j].id), reg: rl.map((j) => regs[j].id) };
+        const st = evaluate(tpl, res.byId, {}, undefined, res.columnSize);
+        if (!st || !st.valid || st.org < constraints.minOrg) continue;
+        count++;
+        const sc = utility(st, terms, null);
+        if (sc > bruteBest) { bruteBest = sc; bruteKey = tpl; }
+      }
+      return;
+    }
+    for (let x = 0; width + x * line[i].width <= constraints.wmax && n + x <= 25; x++) { counts[i] = x; rec(i + 1, width + x * line[i].width, n + x); }
+    counts[i] = 0;
+  };
+  rec(0, 0, 0);
+  const rb = search(game, params);
+  const gap = bruteBest - rb.top[0].score;
+  ok(rb.proven && gap <= 0.005 * terms.reduce((a, t) => a + t.w, 0) + 1e-9, `branch and bound matches brute force over ${count.toLocaleString('en-GB')} templates (gap ${gap.toFixed(4)})`);
+  const again = search(game, params);
+  ok(again.top[0].key === rb.top[0].key, 'the same setup gives the same answer');
+  ok(rb.top.every((t) => Math.abs(utility(evaluate(t, res.byId, {}, undefined, res.columnSize), terms, null) - t.score) < 1e-9), 'every listed score matches a fresh evaluation');
+  ok(rb.sensitivity && rb.sensitivity.rows.length === terms.length, 'stability check covers every priority');
+  ok(rb.top[0].explain && rb.top[0].explain.length === terms.length, 'the winner comes with a stat-by-stat explanation');
+}
+
+// ---- armor and piercing: 30% of the best battalion plus 70% of the average ----
+{
+  const tanks = before.combat.filter((u) => u.arm > 0).sort((a, b) => b.arm - a.arm);
+  if (tanks.length >= 2) {
+    const a = tanks[0]; const b = tanks[tanks.length - 1];
+    const st = evaluate({ items: [a.id, b.id], support: [], reg: [] }, before.byId, {}, undefined, before.columnSize);
+    ok(Math.abs(st.arm - (0.3 * a.arm + 0.7 * (a.arm + b.arm) / 2)) < 1e-9, 'division armor is 30% of the best plus 70% of the average');
+  }
+}
+
+// ---- exhaustive tank design: matches brute force over every legal module combination ----
+{
+  const T36 = techsUpTo(game, 1936);
+  const open = unlocks(game, T36);
+  const linear = { sa: 0.3, ha: 0.2, brk: 0.4, def: 0.1, arm: 0.5, spd: 0.6, ic: -1, rel: 2 };
+  const dirs = Object.fromEntries(Object.entries(linear).map(([k, v]) => [k, Math.sign(v)]));
+  const d = designSearch(game, T36, 'light_tank_chassis', 'armor', open, { linear }, dirs);
+  const chassis = game.raw.designers.light_tank_chassis;
+  const variant = chassis.variants.filter((v) => !v.by.length || v.by.some((t) => T36.has(t))).sort((x, y) => y.year - x.year)[0];
+  const slots = Object.keys(chassis.slots);
+  const mods = Object.values(game.raw.modules).filter((m) => open.mods.has(m.id));
+  const turret = slots.find((n) => /turret/.test(n)); const main = slots.find((n) => /main_armament/.test(n));
+  const special = slots.filter((n) => /special/.test(n));
+  const opts = (sn) => {
+    const cats = new Set(chassis.slots[sn].cats);
+    if (sn === main) for (const m of mods) if (chassis.slots[turret].cats.includes(m.cat) && m.allowsMain) m.allowsMain.forEach((c) => cats.add(c));
+    const ids = mods.filter((m) => cats.has(m.cat) && !m.forbidArmor).map((m) => m.id);
+    return chassis.slots[sn].required && ids.length ? ids : [...ids, null];
+  };
+  const limitsOk = (ids) => chassis.limits.every((l) => ids.filter((id) => id && (id === l.module || game.raw.modules[id].cat === l.category)).length < l.lt);
+  const val = (st) => Object.entries(linear).reduce((a, [k, v]) => a + v * st[k], 0);
+  let best = -Infinity; let n = 0;
+  const core = slots.filter((s2) => !special.includes(s2));
+  const specOpts = [...new Set(special.flatMap(opts))].filter(Boolean);
+  const specSets = [[]];
+  for (const id of specOpts) for (const set of specSets.slice()) if (set.length < special.length) specSets.push([...set, id]);
+  const walk = (i, chosen) => {
+    if (i === core.length) {
+      for (const set of specSets) {
+        const all = { ...chosen }; special.forEach((sn, k) => { all[sn] = set[k] || null; });
+        if (!limitsOk(Object.values(all))) continue;
+        n++; best = Math.max(best, val(designStats(game, chassis, variant, all, T36)));
+      }
+      return;
+    }
+    for (const id of opts(core[i])) {
+      if (core[i] === main) {
+        const t = game.raw.modules[chosen[turret]]; const m = game.raw.modules[id];
+        if (!m || !(chassis.slots[main].cats.includes(m.cat) || (t && t.allowsMain && t.allowsMain.includes(m.cat)))) continue;
+        if (t && t.forbidMainOnArmor.includes(m.cat)) continue;
+      }
+      walk(i + 1, { ...chosen, [core[i]]: id });
+    }
+  };
+  walk(0, {});
+  ok(d && Math.abs(d.score - best) < 1e-9, `exhaustive tank design matches brute force over ${n.toLocaleString('en-GB')} designs`);
+}
+
+// ---- matchup: more attack beats the same opponent faster ----
+{
+  const us = { sa: 300, ha: 40, def: 400, brk: 80, org: 50, arm: 0, pier: 40, hard: 0, width: 20 };
+  const them = { sa: 250, ha: 30, def: 350, brk: 70, org: 50, arm: 0, pier: 30, hard: 0, width: 20 };
+  const a = matchup(us, them); const b = matchup({ ...us, sa: 450 }, them);
+  ok(b.mAtk > a.mAtk && b.mDef > a.mDef, 'more soft attack improves both matchups');
+  const armored = matchup({ ...us, arm: 60 }, them);
+  ok(armored.mAtk > a.mAtk, 'armor above the opponent\'s piercing halves the damage taken');
+}
+
+// ---- golden numbers from in-game screenshots ----
+fails += runGolden((m) => console.log(m));
+
 console.log(fails ? `\n${fails} check(s) failed` : '\nAll checks passed');
 process.exit(fails ? 1 : 0);
