@@ -4,7 +4,7 @@ import { AXIS_STATS, AXIS_LABEL, AXIS_DIR, fmt } from '../lib/stats.js';
 const W = 640; const H = 340; const PAD = { l: 54, r: 14, t: 12, b: 40 };
 
 /** Scatter of every feasible template the search kept, with the efficient frontier for the two chosen stats. */
-export default function Pareto({ pool, poolKeys, axisX, axisY, setAxisX, setAxisY, topKeys, selectedKey, onPick }) {
+export default function Pareto({ pool, poolKeys, poolFront = [], axisX, axisY, setAxisX, setAxisY, topKeys, selectedKey, onPick }) {
   const view = useMemo(() => {
     const xs = pool.map((p) => p[axisX]); const ys = pool.map((p) => p[axisY]);
     const min = (a) => Math.min(...a); const max = (a) => Math.max(...a);
@@ -55,12 +55,12 @@ export default function Pareto({ pool, poolKeys, axisX, axisY, setAxisX, setAxis
         ))}
         <text x={(W + PAD.l) / 2} y={H - 6} textAnchor="middle" className="p-label">{AXIS_LABEL[axisX]}{AXIS_DIR[axisX] < 0 ? ' (lower is better)' : ''}</text>
         <text transform={`translate(12 ${(H - PAD.b) / 2}) rotate(-90)`} textAnchor="middle" className="p-label">{AXIS_LABEL[axisY]}{AXIS_DIR[axisY] < 0 ? ' (lower is better)' : ''}</text>
-        {pool.map((p, i) => (poolKeys[i] === selectedKey || topSet.has(poolKeys[i]) ? null : <circle key={i} cx={view.sx(p[axisX])} cy={view.sy(p[axisY])} r="2.6" className="p-dot" />))}
+        {pool.map((p, i) => (poolKeys[i] === selectedKey || topSet.has(poolKeys[i]) ? null : <circle key={i} cx={view.sx(p[axisX])} cy={view.sy(p[axisY])} r={poolFront[i] ? 3.4 : 2.6} className={poolFront[i] ? 'p-dot p-pf' : 'p-dot'} />))}
         <polyline points={view.front.map((i) => `${view.sx(pool[i][axisX])},${view.sy(pool[i][axisY])}`).join(' ')} className="p-front" />
         {pool.map((p, i) => (topSet.has(poolKeys[i]) && poolKeys[i] !== selectedKey ? <circle key={`t${i}`} cx={view.sx(p[axisX])} cy={view.sy(p[axisY])} r="5" className="p-top" /> : null))}
         {pool.map((p, i) => (poolKeys[i] === selectedKey ? <circle key={`s${i}`} cx={view.sx(p[axisX])} cy={view.sy(p[axisY])} r="7" className="p-sel" /> : null))}
       </svg>
-      <p className="note">Click a point to view that template. Filled rings are the ranked results, the line is the frontier: no template does better on both stats.</p>
+      <p className="note">Click a point to view that template. Filled rings are the ranked results, the line is the frontier: no template does better on both stats. Brighter dots are on the Pareto front over all your priorities: no other template is at least as good on every one of them.</p>
     </div>
   );
 }

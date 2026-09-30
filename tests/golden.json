@@ -1,0 +1,24 @@
+{
+  "about": "Division stats read off in-game screenshots. `npm run golden` rebuilds each template with the engine and checks every listed number (to the precision the game displays). A case with `pending` set is skipped until its numbers are filled in.",
+  "cases": [
+    {
+      "name": "18-width infantry: 9 infantry, engineers, support artillery (1936 research without Interwar Artillery)",
+      "research": { "preset": 1936, "remove": ["interwar_artillery"], "add": [] },
+      "doctrine": null,
+      "template": { "items": { "infantry": 9 }, "support": ["engineer", "artillery"], "reg": [] },
+      "expect": { "width": 18, "sa": 70, "def": 227.7, "brk": 36.5, "org": 50.9 },
+      "equipment": { "infantry_equipment": 910 },
+      "tolerance": 0.06
+    },
+    {
+      "name": "Panzer division (screenshot pending)",
+      "pending": "Add the template, research and the numbers from the Panzer screenshot here.",
+      "research": { "preset": 1939, "remove": [], "add": [] },
+      "doctrine": null,
+      "template": { "items": { "medium_armor": 10, "motorized": 8 }, "support": ["engineer", "recon"], "reg": [] },
+      "expect": {},
+      "equipment": {},
+      "tolerance": 0.06
+    }
+  ]
+}

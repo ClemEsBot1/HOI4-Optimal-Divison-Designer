@@ -5,10 +5,12 @@ import TechPicker from './components/TechPicker.jsx';
 import DoctrinePicker from './components/DoctrinePicker.jsx';
 import UnitPool from './components/UnitPool.jsx';
 import ManualDesigner from './components/ManualDesigner.jsx';
+import { ScoreExplain, Sensitivity, Logistics, OpponentPicker, MatchupSummary } from './components/Insights.jsx';
 import raw from './data/game.json';
 import { buildGame, EMPTY_DOCTRINE } from './lib/game.js';
 import { STATS, MOD_KEYS, DEFAULT_OPTS, AXIS_STATS, evaluate, fmt } from './lib/stats.js';
-import { parseKey, DEFAULT_CONSTRAINTS } from './lib/optimizer.js';
+import { parseKey, DEFAULT_CONSTRAINTS, GAP_SHARE } from './lib/optimizer.js';
+import { explain } from './lib/score.js';
 import { ROLES, ZERO_WEIGHTS, defaultTech, defaultExclude, doctrineRecommendations } from './lib/presets.js';
 import { describeTemplate, countBy, encodeState, decodeState } from './lib/format.js';
 import { describeDesign } from './lib/describe.js';
@@ -41,15 +43,25 @@ const GROUP_ORDER = ['Offense', 'Staying power', 'Mobility', 'Cost', 'Utility'];
 
 const RESULT_LABEL = {
   width: 'Combat width', sa: 'Soft attack', ha: 'Hard attack', brk: 'Breakthrough', def: 'Defense', org: 'Organization',
-  rec: 'Recovery rate', hp: 'Hit points', arm: 'Armor', pier: 'Piercing', hard: 'Hardness %', spd: 'Speed (km/h)',
+  rec: 'Recovery rate', hp: 'Hit points', arm: 'Armor', pier: 'Piercing', hard: 'Hardness %', spd: 'Speed (km/h)', rel: 'Reliability %',
   air: 'Air attack', recon: 'Recon', ic: 'Production cost', mp: 'Manpower', sup: 'Supply use', trucks: 'Trucks needed',
 };
 // Grouped the same way the in-game Division Designer lays out its Base Stats / Combat Stats / Equipment Cost panels.
 const RESULT_PANELS = [
-  { title: 'Base Stats', keys: ['spd', 'hp', 'org', 'rec', 'recon', 'width'] },
+  { title: 'Base Stats', keys: ['spd', 'hp', 'org', 'rec', 'rel', 'recon', 'width'] },
   { title: 'Combat Stats', keys: ['sa', 'ha', 'air', 'def', 'brk', 'arm', 'pier', 'hard'] },
   { title: 'Equipment Cost', keys: ['mp', 'ic', 'sup', 'trucks'] },
 ];
+
+const DEFAULT_ENEMY = { id: 'none', focus: 'both', weight: 8 };
+const DEFAULT_SCALE = { divisions: 24, factories: 60, efficiency: 70 };
+
+/** The opponent setting turns into the two matchup priorities. */
+function withMatchup(weights, enemy) {
+  const on = enemy && enemy.id && enemy.id !== 'none';
+  const w = on ? Number(enemy.weight) || 8 : 0;
+  return { ...weights, mAtk: on && enemy.focus !== 'defend' ? w : 0, mDef: on && enemy.focus !== 'attack' ? w : 0 };
+}
 
 function loadInitial() {
   const base = {
@@ -62,6 +74,8 @@ function loadInitial() {
     mods: {},
     opts: { ...DEFAULT_OPTS },
     axes: ROLE_AXES[ROLES[0].id],
+    enemy: { ...DEFAULT_ENEMY },
+    scale: { ...DEFAULT_SCALE },
   };
   try {
     const m = /#s=(.+)$/.exec(window.location.hash);
@@ -79,6 +93,8 @@ function loadInitial() {
         mods: s.m || {},
         opts: { ...DEFAULT_OPTS, ...(s.o || {}) },
         axes: ax,
+        enemy: { ...DEFAULT_ENEMY, ...(s.e && typeof s.e === 'object' ? s.e : {}) },
+        scale: { ...DEFAULT_SCALE, ...(s.k && typeof s.k === 'object' ? s.k : {}) },
       };
     }
   } catch { /* ignore malformed links */ }
@@ -97,6 +113,8 @@ export default function App() {
   const [opts, setOpts] = useState(initial.opts);
   const [axisX, setAxisX] = useState(initial.axes[0]);
   const [axisY, setAxisY] = useState(initial.axes[1]);
+  const [enemy, setEnemy] = useState(initial.enemy);
+  const [scale, setScale] = useState(initial.scale);
 
   const [result, setResult] = useState(null); // { res, mods, opts, roleId }
   const [running, setRunning] = useState(false);
@@ -127,25 +145,27 @@ export default function App() {
         setResult({ res: r, mods, opts, roleId });
         if (r.top) setSelected({ items: r.top[0].items, support: r.top[0].support, reg: r.top[0].reg, key: r.top[0].key });
         else setSelected(null);
-        setRunning(false);
+        // a provisional answer arrives first; the search keeps going until the proof is done
+        if (!e.data.partial) setRunning(false);
       };
       w.onerror = () => {
         if (runId.current !== id) return;
         setResult({ res: { error: 'The search worker failed to start.' }, mods, opts, roleId });
         setRunning(false);
       };
-      w.postMessage({ id, params: { techs: [...techs], doctrine, exclude, weights, constraints, mods, opts, topN: 10 } });
+      const enemyParam = enemy.id && enemy.id !== 'none' ? enemy : null;
+      w.postMessage({ id, params: { techs: [...techs], doctrine, exclude, weights: withMatchup(weights, enemy), constraints, mods, opts, enemy: enemyParam, topN: 10 } });
     }, 400);
     return () => clearTimeout(timer);
-  }, [weights, constraints, techs, doctrine, exclude, mods, opts]); // roleId only labels the result
+  }, [weights, constraints, techs, doctrine, exclude, mods, opts, enemy]); // roleId only labels the result
 
   useEffect(() => () => workerRef.current && workerRef.current.terminate(), []);
 
   // ---- keep the URL in sync so a setup can be shared ----
   useEffect(() => {
-    const s = encodeState({ r: roleId, w: weights, c: constraints, t: [...techs], d: doctrine, x: exclude, m: mods, o: opts, ax: [axisX, axisY] }, game);
+    const s = encodeState({ r: roleId, w: weights, c: constraints, t: [...techs], d: doctrine, x: exclude, m: mods, o: opts, ax: [axisX, axisY], e: enemy, k: scale }, game);
     if (s) window.history.replaceState(null, '', '#s=' + s);
-  }, [roleId, weights, constraints, techs, doctrine, exclude, mods, opts, axisX, axisY]);
+  }, [roleId, weights, constraints, techs, doctrine, exclude, mods, opts, axisX, axisY, enemy, scale]);
 
   // ---- section navigation ----
   // The setup lives in the URL hash, so the nav links must scroll instead of following their anchor: a plain
@@ -200,6 +220,14 @@ export default function App() {
   const role = ROLES.find((r) => r.id === result?.roleId);
   const recommendations = doctrineRecommendations(game, result?.roleId);
   const bestScore = res?.top?.[0]?.score;
+  // why the selected template scores what it does: against the runner-up for the winner, else against the winner
+  const why = useMemo(() => {
+    if (!shown || !res?.top || !res.terms) return null;
+    const isWinner = selected?.key === res.top[0].key;
+    const ref = isWinner ? res.top[1]?.stats : res.top[0].stats;
+    return { rows: explain(shown, ref || null, res.terms, res.enemy), isWinner, hasRef: !!ref };
+  }, [shown, res, selected]);
+  const pickTemplate = (t) => setSelected({ items: t.items, support: t.support, reg: t.reg, key: t.key });
 
   const designsUsed = useMemo(() => {
     if (!selected || !byId) return [];
@@ -276,7 +304,7 @@ export default function App() {
           <div>
             <div className="eyebrow">DIVISION OPTIMIZATION SYSTEM</div>
             <h1>Division Desk</h1>
-            <p>Say what the division is for. The bureau searches thousands of templates, ranks the strongest formations, and records what each design gives up.</p>
+            <p>Say what the division is for. The bureau searches every legal template, proves the strongest formation, and records what each alternative gives up.</p>
           </div>
           <div className="masthead-seal" aria-hidden="true"><span>R&amp;D</span><b>★</b><small>FIELD<br />READY</small></div>
         </div>
@@ -369,6 +397,11 @@ export default function App() {
           </section>
 
           <section className="block">
+            <h2>Opponent</h2>
+            <OpponentPicker enemy={enemy} setEnemy={setEnemy} />
+          </section>
+
+          <section className="block">
             <h2>Other bonuses</h2>
             <details className="group">
               <summary>Bonus modifiers (percent)</summary>
@@ -391,15 +424,22 @@ export default function App() {
 
         <main className="main">
           <div className="banner" role="note">
-            <strong>Numbers come from the game files</strong>{version ? ` (version ${version})` : ''}, with every DLC and no mods. A few rules are still assumptions, including how many regimental companies a column takes and how tank modules are chosen. Check a result in game before you trust it. See <a href="#data" onClick={(e) => goToSection(e, 'data')}>data and assumptions</a>.
+            <strong>Numbers come from the game files</strong>{version ? ` (version ${version})` : ''}, with every DLC and no mods. A few rules are still assumptions, including how many regimental companies a column takes. Check a result in game before you trust it. See <a href="#data" onClick={(e) => goToSection(e, 'data')}>data and assumptions</a>.
           </div>
 
           <section className="result" id="results" aria-live="polite">
             <div className="result-head">
               <h2>{role ? role.name : 'Custom priorities'}</h2>
               <div className="status">
-                {running && <span className="busy">Searching</span>}
-                {!running && res?.explored && <span>{res.explored.toLocaleString('en-GB')} valid templates tried in {(res.ms / 1000).toFixed(1)} s</span>}
+                {running && <span className="busy">{res?.provisional ? 'Proving it is the best' : 'Searching'}</span>}
+                {!running && res?.explored != null && (
+                  <span>
+                    {res.proven
+                      ? <>Proven best (to within {(GAP_SHARE * 100).toFixed(1)}%) · </>
+                      : <>Best found; the proof stopped at its node limit · </>}
+                    {res.nodes.toLocaleString('en-GB')} branches, {res.explored.toLocaleString('en-GB')} complete templates in {(res.ms / 1000).toFixed(1)} s
+                  </span>
+                )}
                 <button type="button" className="ghost" onClick={copyLink}>{copied ? 'Link copied' : 'Copy link to this setup'}</button>
               </div>
             </div>
@@ -445,10 +485,11 @@ export default function App() {
                       );
                     })}
                   </div>
+                  {res.enemy && <MatchupSummary stats={shown} enemy={res.enemy} />}
                   {designsUsed.length > 0 && (
                     <>
                       <h3>Tank designs used</h3>
-                      <p className="note">Picked automatically from the modules you have researched, weighted by your priorities.</p>
+                      <p className="note">Chosen together with the template: an exhaustive search over your researched modules, valued by what each stat is worth to this division.</p>
                       <dl className="designs">
                         {designsUsed.map((d) => (
                           <React.Fragment key={d.key}>
@@ -464,6 +505,19 @@ export default function App() {
             )}
           </section>
 
+          {shown && byId && why && (
+            <section className="block wide-block insights">
+              <h2>Explanation</h2>
+              <ScoreExplain explain={why.rows} hasRef={why.hasRef} />
+              {!why.isWinner && <p className="note">Compared with the top result: bars to the left are where the top result is ahead.</p>}
+              {res.sensitivity && (
+                <Sensitivity sensitivity={res.sensitivity} winnerKey={res.top[0].key}
+                  describe={(c) => describeTemplate(c, byId).combat} onPick={(c) => pickTemplate({ ...c, key: c.key })} />
+              )}
+              <Logistics game={game} stats={shown} scale={scale} setScale={setScale} />
+            </section>
+          )}
+
           {res?.units && byId && (
             <ManualDesigner units={res.units} columnSize={res.columnSize} mods={result.mods} opts={result.opts} best={res.top?.[0]} />
           )}
@@ -473,14 +527,14 @@ export default function App() {
           {res?.top && byId && (
             <section className="block wide-block">
               <h2>Ranked alternatives</h2>
-              <p className="note">Different designs, not tweaks of one. Fit is scored against the best result at 100.</p>
+              <p className="note">The proven best, then the best template the search found for each other kind of division (which column types it uses and its lead battalion). Gap is how far each is behind the best, in score points: 1 point is about a 10% loss on a stat with priority 10.</p>
               <div className="table-scroll">
                 <table className="rank">
                   <thead>
                     <tr>
-                      <th scope="col">Rank</th><th scope="col">Battalions</th><th scope="col">Support</th><th scope="col">Regimental</th>
+                      <th scope="col">Rank</th><th scope="col">Kind</th><th scope="col">Battalions</th><th scope="col">Support</th><th scope="col">Regimental</th>
                       <th scope="col">Width</th><th scope="col">Soft atk</th><th scope="col">Hard atk</th><th scope="col">Brk</th>
-                      <th scope="col">Def</th><th scope="col">Org</th><th scope="col">Cost</th><th scope="col">Fit</th>
+                      <th scope="col">Def</th><th scope="col">Org</th><th scope="col">Cost</th><th scope="col">Gap</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -491,6 +545,7 @@ export default function App() {
                         <tr key={t.key} className={on ? 'on' : ''}>
                           <td><button type="button" className="rowbtn" aria-pressed={on}
                             onClick={() => setSelected({ items: t.items, support: t.support, reg: t.reg, key: t.key })}>{i + 1}</button></td>
+                          <td className="txt">{t.archetypeLabel || ''}</td>
                           <td className="txt">{d.combat}</td>
                           <td className="txt">{d.support || 'none'}</td>
                           <td className="txt">{d.reg || 'none'}</td>
@@ -501,7 +556,7 @@ export default function App() {
                           <td>{fmt(t.stats.def, 'def')}</td>
                           <td>{fmt(t.stats.org, 'org')}</td>
                           <td>{fmt(t.stats.ic, 'ic')}</td>
-                          <td>{bestScore > 0 ? Math.round((t.score / bestScore) * 100) : '–'}</td>
+                          <td>{i === 0 ? 'best' : (t.score - bestScore).toFixed(2)}</td>
                         </tr>
                       );
                     })}
@@ -514,8 +569,8 @@ export default function App() {
           {res?.pool && (
             <section className="block wide-block">
               <h2>Trade-offs</h2>
-              <p className="note">Pick any two stats to see what improving one costs in the other.</p>
-              <Pareto pool={res.pool} poolKeys={res.poolKeys} axisX={axisX} axisY={axisY} setAxisX={setAxisX} setAxisY={setAxisY}
+              <p className="note">Pick any two stats to see what improving one costs in the other. {res.frontSize ? `${res.frontSize.toLocaleString('en-GB')} of these templates are on the Pareto front of your priorities; the priorities pick the winner among them.` : ''}</p>
+              <Pareto pool={res.pool} poolKeys={res.poolKeys} poolFront={res.poolFront} axisX={axisX} axisY={axisY} setAxisX={setAxisX} setAxisY={setAxisY}
                 topKeys={topKeys} selectedKey={selected?.key} onPick={pickKey} />
             </section>
           )}
@@ -649,17 +704,19 @@ function DataSection({ version, meta }) {
       <h3>Rules as implemented</h3>
       <ul className="rules">
         <li>A template has up to five columns. Infantry, artillery, mobile, mobile-artillery and armor battalions use separate columns, with five battalions per column or more if a doctrine milestone raises the column size.</li>
-        <li>A column needs at least three battalions before it can take a regimental support company. The search rewards regimental slots and companies, and plans the displayed battalion groups explicitly (so ten infantry battalions can be shown as 3-3-3-1 rather than 5-5).</li>
+        <li>A column needs at least three battalions before it can take a regimental support company. The battalion groups are planned explicitly (so ten infantry battalions can be shown as 3-3-3-1 rather than 5-5) to unlock regimental slots.</li>
+        <li>The search is exact. For each battalion count it branches over how many of each unit to take, then over support sets and regimental fills, and drops a branch only when an upper bound proves it cannot win by more than {(GAP_SHARE * 100).toFixed(1)}%. Limits are hard: a template that breaks one is never a candidate. The same setup always gives the same answer.</li>
+        <li>The score is the sum of priority × ln(stat) (minus that for costs), so priorities trade percentage changes. The Pareto front of everything the search completed is shown on the trade-off chart; the priorities pick the winner on it.</li>
         <li>Special forces units (marines, paratroopers, mountaineers, rangers, amtracs, amphibious tanks) and cavalry are left out unless you switch them on under Allowed units.</li>
         <li>Attack, defense, breakthrough, air attack, hit points, cost, manpower and supply are summed over battalions and support companies; regimental companies scale with their regiment's battalion count.</li>
-        <li>Organization and recovery are averaged over battalions and support companies; regimental-company stats and equipment are modelled per battalion in their regiment. The exact scaling for every stat remains an assumption; the sidebar switch compares alternate averaging rules.</li>
-        <li>Armor, piercing and hardness are averaged over line battalions only. Speed is the slowest line battalion.</li>
+        <li>Organization and recovery are averaged over battalions and support companies. Armor and piercing are 30% of the best battalion plus 70% of the average over line battalions; hardness and reliability are averaged over line battalions. Speed is the slowest line battalion.</li>
         <li>Unit stats are the sum of the equipment each unit needs (best researched variant) times one plus the unit, tech and doctrine bonuses. Organization, hit points, recovery and combat width take flat bonuses.</li>
         <li>Support companies can lift whole categories of battalions (a recon company boosts artillery, for example). Divisional support allows one company per type, up to five.</li>
-        <li>Tank battalions and self-propelled support use a design built from the tank modules you have researched, at the highest No Step Back engine and armor upgrade levels your research allows.</li>
+        <li>Tank designs are chosen with the template: every chassis and role gets an exhaustive module search against what each stat is worth to the winning division, repeated until the designs and the template stop changing. The highest No Step Back engine and armor upgrade levels your research allows are applied.</li>
+        <li>With an opponent set, a simple combat model scores how fast each side breaks the other on the same frontage: attacks against hardness, defense or breakthrough blocking, and half damage when armor beats piercing.</li>
         <li>Not verified against the game: the exact regimental-company scaling for every stat and unit type, which column types each company can attach to, and whether doctrine supply bonuses are fractions of a unit's supply.</li>
         <li>Space marines are modelled as mostly infantry with one or two armoured battalions to raise armor and resist ordinary piercing; they remain especially matchup- and multiplayer-dependent.</li>
-        <li>Not modelled: national focus techs, leaders, terrain, equipment stockpiles, the land cruiser, flame tanks, amphibious tank roles, and hand-editing a tank design.</li>
+        <li>Not modelled: national focus techs, leaders, terrain, entrenchment, the land cruiser, flame tanks, amphibious tank roles, and hand-editing a tank design.</li>
       </ul>
     </section>
   );

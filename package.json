@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "extract": "node scripts/extract.mjs",
-    "check": "node scripts/selfcheck.mjs"
+    "check": "node scripts/selfcheck.mjs",
+    "golden": "node scripts/golden.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
