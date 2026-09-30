@@ -11,8 +11,7 @@
 .tp-tabcount { opacity: .7; font-size: .8em; margin-left: .25rem; }
 .tp-hint { padding: 0 1rem; margin: .5rem 0; }
 .tp-scroll { overflow: auto; padding: .5rem 1rem 1rem; flex: 1; }
-/* The tree is very tall, so `cover` magnified the backdrop to a blurry fragment. Fit it to the width instead
-   and keep it anchored to the top: one readable backdrop behind the first rows, plain dark below. */
+/* Keep the tree backdrop anchored and scaled with the horizontally scrollable tree. */
 .tp-tree-wrap { position: relative; min-width: max(100%, calc(var(--tp-cols) * 5.2rem)); min-height: calc(var(--tp-rows) * 6rem + 1.5rem); padding: .35rem; background-color: #182124; background-repeat: no-repeat; background-position: center top; background-size: 100% auto; overflow: visible; }
 .tp-folder-infantry_folder { background-image: linear-gradient(rgba(24,33,36,.3), rgba(24,33,36,.72)), url('/hoi4/techtree/infantry_techtree_bg.png'); }
 .tp-folder-support_folder { background-image: linear-gradient(rgba(24,33,36,.3), rgba(24,33,36,.72)), url('/hoi4/techtree/support_techtree_bg.png'); }
@@ -20,20 +19,22 @@
 .tp-folder-armour_folder { background-image: linear-gradient(rgba(24,33,36,.25), rgba(24,33,36,.72)), url('/hoi4/techtree/engineering_techtree_bg.png'); }
 .tp-folder-nsb_armour_folder { background-image: linear-gradient(rgba(24,33,36,.25), rgba(24,33,36,.72)), url('/hoi4/techtree/techtree_stripes.png'); }
 .tp-folder-electronics_folder { background-image: linear-gradient(rgba(24,33,36,.25), rgba(24,33,36,.72)), url('/hoi4/techtree/industry_techtree_bg.png'); }
-/* Must line up exactly with .tp-grid's own box, not the wrap's padding box: the grid reserves 1.5rem of
-   top padding for the year rail, so the viewBox (one unit per cell) has to start below that same 1.5rem,
-   or every connector line lands about a row too high and never visually touches the cards it links. */
-.tp-lines { position: absolute; left: 0; right: 0; top: 1.5rem; bottom: 0; overflow: visible; pointer-events: none; }
+/* Align the SVG's one-cell viewBox to the grid content area below the reserved year rail. */
+.tp-lines { position: absolute; left: 0; right: 0; top: 1.5rem; bottom: 0; overflow: visible; pointer-events: none; z-index: 0; }
 .tp-years { position: absolute; top: 0; bottom: 0; width: 2.5rem; color: #e1d6b8; font-family: var(--head); font-size: .82rem; pointer-events: none; }
 .tp-years-left { left: -2.5rem; text-align: right; }
-.tp-years-right { right: -2.5rem; text-align: left; }
-.tp-years span { position: absolute; display: block; width: 100%; }
+.tp-years-right { left: calc(var(--tp-cols) * 5.2rem + .7rem); right: auto; text-align: left; }
+.tp-years span { position: absolute; display: block; width: 100%; transform: translateY(-50%); }
 .tp-lines path { fill: none; stroke: #b9b8ae; stroke-width: .085; stroke-linecap: square; opacity: .92; vector-effect: non-scaling-stroke; }
 .tp-lines path:hover { stroke: var(--accent); }
 .tp-grid { position: relative; z-index: 1; display: grid; gap: 0; align-items: center; }
+.tp-grid > .tp-lines { position: absolute; left: 0; top: 1.5rem; width: calc(var(--tp-cols) * 5.2rem); height: calc(var(--tp-rows) * 6rem); }
+.tp-grid > .tp-cell { z-index: 1; }
+.tp-match-count, .tp-research-status { padding: .4rem .65rem; border-left: 2px solid var(--accent); background: rgba(196,154,74,.08); }
+.tp-research-status { position: sticky; top: 0; z-index: 2; margin: 0 0 .5rem; }
 .tp-branch-labels { position: absolute; z-index: 0; inset: .2rem 0 auto; display: grid; grid-template-columns: repeat(var(--tp-cols), 5.2rem); height: 1.15rem; pointer-events: none; }
 .tp-branch-labels span { color: rgba(225,214,184,.72); font: 700 .62rem var(--head); letter-spacing: .07em; text-align: center; white-space: nowrap; transform: translateX(-.8rem); }
-.tp-cell { min-width: 0; display: flex; justify-content: center; }
+.tp-cell { min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; z-index: 1; }
 .tp-loose { display: grid; grid-template-columns: repeat(auto-fill, 4.6rem); gap: .9rem; margin-top: 1rem; }
 .tp-tooltip { position: absolute; z-index: 30; left: 50%; top: calc(100% + .35rem); transform: translateX(-50%); width: min(18rem, 34vw); max-height: 17rem; overflow: auto; padding: .65rem .75rem; border: 1px solid var(--accent); border-radius: 4px; background: rgba(25,33,36,.98); color: var(--ink); box-shadow: 0 .5rem 1.2rem rgba(0,0,0,.7); opacity: 0; pointer-events: none; transition: opacity .12s; }
 .tp-tooltip strong, .tp-tooltip small { display: block; }
@@ -41,7 +42,7 @@
 .tp-tooltip ul { margin: .35rem 0 0; padding-left: 1rem; font-size: .78rem; }
 .tp-card:hover .tp-tooltip, .tp-card:focus-within .tp-tooltip { opacity: 1; }
 .tp-card { position: relative; }
-.tp-card { border: 0; border-radius: 3px; padding: .12rem; font-size: .8rem; background-color: transparent; min-height: 4.55rem; width: 4.6rem; box-sizing: border-box; }
+.tp-card { border: 0; border-radius: 3px; padding: .12rem; font-size: .8rem; background-color: transparent; min-height: 5.35rem; width: 4.6rem; box-sizing: border-box; }
 .tp-card.open { background-image: url('/hoi4/techtree/technology_available_item_bg.png'); }
 .tp-card.locked, .tp-card.blocked { background-image: url('/hoi4/techtree/technology_unavailable_item_bg.png'); }
 .tp-card.on { background-image: url('/hoi4/techtree/technology_researched_item_bg.png'); }
@@ -63,7 +64,20 @@
 .tp-main:disabled { cursor: not-allowed; }
 .tp-main:focus-visible, .tp-sub:focus-visible { outline: 2px solid var(--accent, #1f4e79); outline-offset: 2px; }
 .tp-year { opacity: .65; white-space: nowrap; font-size: .75rem; }
+.tp-sub.dim { opacity: .22; }
+.tp-no-matches { padding: 1rem; border: 1px dashed var(--line); border-radius: 4px; }
 .tp-effects { display: none; }
+@media (max-width: 640px) {
+  .tp-overlay { padding: .5rem; }
+  .tp-head { gap: .35rem; padding: .55rem; }
+  .tp-head h2 { flex: 1 0 7rem; }
+  .tp-search { min-width: 0; flex: 1 1 10rem; }
+  .tp-head button { padding: .35rem .5rem; }
+  .tp-tabs { flex-wrap: nowrap; overflow-x: auto; padding: .4rem .55rem 0; }
+  .tp-tabs button { flex: 0 0 auto; }
+  .tp-hint { padding: 0 .6rem; }
+  .tp-scroll { padding: .5rem .6rem 1rem; }
+}
 @media (prefers-reduced-motion: no-preference) { .tp-card { transition: background-color .15s; } }
 
 .dp-field, .dp-progress { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin: .4rem 0; }

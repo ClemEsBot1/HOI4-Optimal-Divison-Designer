@@ -26,7 +26,7 @@ const NAV_ITEMS = [
   { id: 'results', icon: 'category_all_infantry', label: 'Designer' },
   { id: 'technology', icon: 'category_artillery', label: 'Research' },
   { id: 'doctrine', icon: 'category_all_armor', label: 'Doctrine' },
-  { id: 'equipment', icon: 'gwtank', label: 'Equipment' },
+  { id: 'equipment', icon: 'basic_medium_tank_chassis', label: 'Equipment', iconFolder: 'technologies' },
 ];
 const plural = (n, singular, many) => `${n} ${n === 1 ? singular : many}`;
 const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -252,7 +252,7 @@ export default function App() {
           {NAV_ITEMS.map((item) => (
             <a key={item.id} className={'nav-tab' + (activeNav === item.id ? ' active' : '')} href={`#${item.id}`}
               aria-current={activeNav === item.id ? 'true' : undefined} onClick={(e) => goToSection(e, item.id)}>
-              <img src={`/hoi4/icons/${item.icon}.png`} alt="" />
+              <img src={`/hoi4/${item.iconFolder || 'icons'}/${item.icon}.png`} alt="" />
               <span>{item.label}</span>
             </a>
           ))}
