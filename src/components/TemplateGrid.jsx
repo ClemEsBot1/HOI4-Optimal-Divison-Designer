@@ -1,4 +1,5 @@
 import React from 'react';
+import { assignRegimentalColumns } from '../lib/stats.js';
 
 const COLS = [
   { id: 'infantry', label: 'Infantry' },
@@ -20,7 +21,17 @@ function Counter({ unit }) {
   );
 }
 
-/** Split ids over `n` columns as evenly as possible. */
+/** Split ids into planned column sizes. */
+function splitBySizes(ids, sizes) {
+  let offset = 0;
+  return sizes.map((size) => {
+    const part = ids.slice(offset, offset + size);
+    offset += size;
+    return part;
+  });
+}
+
+/** Split ids over `n` columns as evenly as possible when no planned sizes are available. */
 function spread(ids, n) {
   const out = Array.from({ length: n }, () => []);
   ids.forEach((id, i) => out[i % n].push(id));
@@ -51,16 +62,14 @@ export default function TemplateGrid({ items, support = [], reg = [], byId, colu
     const ids = items.filter((id) => byId.get(id).cat === c.id);
     if (!ids.length) continue;
     const n = layout ? layout[c.id] : Math.ceil(ids.length / columnSize);
-    for (const part of spread(ids, Math.max(1, n))) columns.push({ type: c.id, label: c.label, ids: part, reg: null });
+    const sizes = layout?.sizes?.[c.id];
+    const parts = sizes?.length === n
+      ? splitBySizes(ids, sizes)
+      : spread(ids, Math.max(1, n));
+    for (let i = 0; i < parts.length; i++) columns.push({ type: c.id, index: i, label: c.label, ids: parts[i], reg: null });
   }
-  // attach regimental companies: vehicle companies to armor columns, the rest to non-armor columns
-  const tankRegs = reg.filter((id) => byId.get(id).tank);
-  const footRegs = reg.filter((id) => !byId.get(id).tank);
-  for (const c of columns) {
-    if (c.ids.length < MIN_FOR_REG) continue;
-    const pool = c.type === 'armor' ? tankRegs : footRegs;
-    if (pool.length) c.reg = pool.shift();
-  }
+  const assignments = assignRegimentalColumns(reg, layout, byId);
+  for (const c of columns) c.reg = assignments.get(`${c.type}:${c.index}`)?.id || null;
   return (
     <div className="tg" role="img" aria-label={`Template with ${items.length} battalions in ${columns.length} columns`}>
       <div className="tg-cols">

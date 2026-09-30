@@ -649,15 +649,15 @@ function DataSection({ version, meta }) {
       <h3>Rules as implemented</h3>
       <ul className="rules">
         <li>A template has up to five columns. Infantry, artillery, mobile, mobile-artillery and armor battalions use separate columns, with five battalions per column or more if a doctrine milestone raises the column size.</li>
-        <li>A column needs at least three battalions before it can take a regimental support company. The search spreads battalions over spare columns when that unlocks more regimental slots.</li>
+        <li>A column needs at least three battalions before it can take a regimental support company. The search rewards regimental slots and companies, and plans the displayed battalion groups explicitly (so ten infantry battalions can be shown as 3-3-3-1 rather than 5-5).</li>
         <li>Special forces units (marines, paratroopers, mountaineers, rangers, amtracs, amphibious tanks) and cavalry are left out unless you switch them on under Allowed units.</li>
-        <li>Attack, defense, breakthrough, air attack, hit points, cost, manpower and supply are summed over battalions and support companies.</li>
-        <li>Organization and recovery are averaged over battalions and support companies, matching the current HOI4 reference formula. The sidebar switch remains for comparing alternate assumptions.</li>
+        <li>Attack, defense, breakthrough, air attack, hit points, cost, manpower and supply are summed over battalions and support companies; regimental companies scale with their regiment's battalion count.</li>
+        <li>Organization and recovery are averaged over battalions and support companies; regimental-company stats and equipment are modelled per battalion in their regiment. The exact scaling for every stat remains an assumption; the sidebar switch compares alternate averaging rules.</li>
         <li>Armor, piercing and hardness are averaged over line battalions only. Speed is the slowest line battalion.</li>
         <li>Unit stats are the sum of the equipment each unit needs (best researched variant) times one plus the unit, tech and doctrine bonuses. Organization, hit points, recovery and combat width take flat bonuses.</li>
         <li>Support companies can lift whole categories of battalions (a recon company boosts artillery, for example). Divisional support allows one company per type, up to five.</li>
         <li>Tank battalions and self-propelled support use a design built from the tank modules you have researched, at the highest No Step Back engine and armor upgrade levels your research allows.</li>
-        <li>Not verified against the game: one regimental support company per column, which column types each regimental company can attach to, and whether doctrine supply bonuses are fractions of a unit's supply.</li>
+        <li>Not verified against the game: the exact regimental-company scaling for every stat and unit type, which column types each company can attach to, and whether doctrine supply bonuses are fractions of a unit's supply.</li>
         <li>Space marines are modelled as mostly infantry with one or two armoured battalions to raise armor and resist ordinary piercing; they remain especially matchup- and multiplayer-dependent.</li>
         <li>Not modelled: national focus techs, leaders, terrain, equipment stockpiles, the land cruiser, flame tanks, amphibious tank roles, and hand-editing a tank design.</li>
       </ul>

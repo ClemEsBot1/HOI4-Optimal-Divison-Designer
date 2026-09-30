@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildGame, techsUpTo, researchTech, unresearchTech, canResearch, resolve, collectModifiers } from '../src/lib/game.js';
-import { evaluate, planColumns } from '../src/lib/stats.js';
+import { assignRegimentalColumns, evaluate, planColumns } from '../src/lib/stats.js';
 import { defaultExclude, ROLES } from '../src/lib/presets.js';
 import { search } from '../src/lib/optimizer.js';
 import { encodeState, decodeState } from '../src/lib/format.js';
@@ -63,8 +63,17 @@ ok(dupReg && !dupReg.valid, 'the same regimental company cannot be taken twice')
 ok(!planColumns({ infantry: 2, mobile: 0, armor: 0 }, 5, 0, 1).ok, 'two battalions cannot take a regimental company');
 ok(planColumns({ infantry: 3, mobile: 0, armor: 0 }, 5, 0, 1).ok, 'three battalions can take one');
 const p6 = planColumns({ infantry: 6, mobile: 0, armor: 0 }, 5, 0, 2);
-ok(p6.ok && p6.infantry === 2, 'six battalions spread over two columns take two companies');
+ok(p6.ok && p6.infantry === 2 && p6.sizes.infantry.join('-') === '3-3', 'six battalions spread over two columns take two companies');
 ok(!planColumns({ infantry: 6, mobile: 0, armor: 0 }, 5, 0, 3).ok, 'six battalions cannot take three companies');
+const p10 = planColumns({ infantry: 10, mobile: 0, armor: 0 }, 5);
+ok(p10.infantry === 4 && p10.slots === 3 && p10.sizes.infantry.join('-') === '3-3-3-1', 'ten infantry battalions use four columns (3-3-3-1) to unlock three regimental slots');
+const infantryTen = evaluate({ items: Array(10).fill('infantry'), support: [], reg: [] }, before.byId, {}, undefined, before.columnSize);
+ok(infantryTen?.layout.sizes.infantry.join('-') === '3-3-3-1' && infantryTen.layout.slots === 3, '20-width ten-infantry evaluation preserves the 3-3-3-1 support layout');
+const companyLayout = planColumns({ infantry: 10, mobile: 0, armor: 0 }, before.columnSize, 0, 1);
+const companySlot = assignRegimentalColumns(['fire_support'], companyLayout, before.byId);
+ok(companySlot.size === 1 && companySlot.values().next().value.battalions === 3, 'regimental company is assigned to a concrete eligible column');
+const tenWithReg = evaluate({ items: Array(10).fill('infantry'), support: [], reg: ['fire_support'] }, before.byId, {}, undefined, before.columnSize);
+ok(tenWithReg?.valid && Math.abs((tenWithReg.ic - infantryTen.ic) - 3 * before.byId.get('fire_support').ic) < 1e-6, 'regimental equipment and stats scale with the assigned regiment');
 ok(!planColumns({ infantry: 9, mobile: 0, armor: 0 }, 5, 1, 0).ok, 'an SP company needs an armor column');
 ok(planColumns({ infantry: 9, mobile: 0, armor: 3 }, 5, 1, 3).ok, 'nine infantry and three tanks take one SP and three other companies');
 
@@ -75,6 +84,9 @@ const r2 = search(game, { techs: [...T], exclude: ex, weights: { sa: 5, def: 8, 
 const used = new Set(r2.top.flatMap((t) => [...t.items, ...t.support, ...t.reg]));
 ok(![...used].some((id) => ex.includes(id)), 'search results never use excluded units');
 ok(r2.top.every((t) => { const c = { infantry: 0, mobile: 0, armor: 0 }; t.items.forEach((id) => c[r2.units.find((u) => u.id === id).cat]++); const p = planColumns(c, r2.columnSize, t.reg.filter((id) => r2.units.find((u) => u.id === id).tank).length, t.reg.filter((id) => !r2.units.find((u) => u.id === id).tank).length); return p.ok; }), 'every result respects the regimental rule');
+const nonInfantry = [...game.units.values()].filter((u) => u.role === 'line' && u.id !== 'infantry').map((u) => u.id);
+const r3 = search(game, { techs: [...T], exclude: nonInfantry, weights: { def: 1 }, constraints: { wmin: 20, wmax: 20 }, ms: 600, topN: 1 });
+ok(r3.top?.[0]?.stats.layout.sizes.infantry.join('-') === '3-3-3-1', 'optimizer output for a 20-width pure-infantry template uses 3-3-3-1');
 const armorRole = ROLES.find((x) => x.id === 'armor');
 const ra = search(game, { techs: [...T], exclude: ex, weights: armorRole.weights, constraints: armorRole.constraints, ms: 500, topN: 2 });
 ok(ra.top?.every((t) => { const n = t.items.length; return t.items.filter((id) => ra.units.find((u) => u.id === id).cat === 'armor').length / n > 0.5; }), 'armoured role keeps more than half its line battalions armoured');

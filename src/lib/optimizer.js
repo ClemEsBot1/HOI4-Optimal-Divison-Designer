@@ -6,7 +6,7 @@
  * feasible template it evaluates, and returns the best ones that differ meaningfully from each other.
  */
 import { resolve, MAX_COLUMNS, MAX_SUPPORT } from './game.js';
-import { evaluate, columnsNeeded, planColumns, supportConflict, regFitsColumn, STATS, DEFAULT_OPTS, COLUMN_TYPES } from './stats.js';
+import { assignRegimentalColumns, evaluate, columnsNeeded, planColumns, supportConflict, regFitsColumn, STATS, DEFAULT_OPTS, COLUMN_TYPES } from './stats.js';
 
 export const DEFAULT_CONSTRAINTS = { wmin: 0, wmax: 45, minOrg: 0, minArm: 0, maxIc: 0, perWidth: false };
 
@@ -77,7 +77,9 @@ export function search(game, params) {
     const counts = countOf(tpl.items);
     const armorRegs = tpl.reg.filter((id) => byId.get(id).tank).length;
     const otherRegs = tpl.reg.length - armorRegs;
-    return planColumns(counts, columnSize, armorRegs, otherRegs).ok;
+    const layout = planColumns(counts, columnSize, armorRegs, otherRegs);
+    const assignments = assignRegimentalColumns(tpl.reg, layout, byId);
+    return layout.ok && assignments.size === tpl.reg.length;
   };
 
   let explored = 0;
@@ -87,6 +89,14 @@ export function search(game, params) {
   // Every stat is scored by its percentage change: weight * ln(1 + value / s), so +10% attack counts the same on
   // a 100-attack division as on a 1000-attack one and cost, attack and organization can share one scale.
   const PERK_VALUE = 0.3;
+  // Regimental access is strategically valuable in the current game rules. Give a modest bonus to usable slots
+  // and equipped companies; stat priorities still decide which regiment is worth taking.
+  const REGIMENTAL_SLOT_VALUE = 1.5;
+  const REGIMENTAL_COMPANY_VALUE = 1.5;
+  const availableArmorRegs = regSupport.filter((u) => u.tank).length;
+  const availableOtherRegs = regSupport.length - availableArmorRegs;
+  const usableRegimentalSlots = (st) => Math.min(st.layout.armorSlots || 0, availableArmorRegs)
+    + Math.min(st.layout.otherSlots || 0, availableOtherRegs);
   let scale = {};
   const valueOf = (st, key) => {
     const v = st[key] || 0;
@@ -98,6 +108,8 @@ export function search(game, params) {
       if (a.perk) { s += weights[a.key] * PERK_VALUE * (st[a.key] > 0 ? 1 : 0); continue; }
       s += weights[a.key] * a.dir * Math.log1p(Math.max(0, valueOf(st, a.key)) / scale[a.key]);
     }
+    s += REGIMENTAL_SLOT_VALUE * usableRegimentalSlots(st);
+    s += REGIMENTAL_COMPANY_VALUE * (st.regCount || 0);
     // Very low organization is not a practical division even when its attack looks attractive.
     // The role target is a soft lower bound: it rewards usable formations without making every role identical.
     if (C.orgTarget) {
@@ -173,18 +185,40 @@ export function search(game, params) {
       if (support.every((id) => !supportConflict(byId.get(id), u))) support.push(u.id);
     }
     const reg = [];
-    // a column needs three battalions before it can take a regimental company
-    const nReg = Math.floor(R() * (Math.min(MAX_COLUMNS, Math.floor(items.length / 3)) + 1));
-    for (let i = 0; i < nReg && regSupport.length; i++) reg.push(pick(regSupport).id);
+    // Seed every eligible slot with a unique compatible regiment; random extra subsets are still reached via climbing.
+    const counts = countOf(items);
+    const maxLayout = planColumns(counts, columnSize);
+    const regSlots = COLUMN_TYPES.flatMap((type) => (maxLayout.sizes[type] || []).filter((n) => n >= 3).map(() => type));
+    const availableRegs = regSupport.slice();
+    for (const type of regSlots) {
+      const choices = availableRegs.filter((u) => regFitsColumn(u, type));
+      if (!choices.length) continue;
+      const chosenReg = pick(choices);
+      reg.push(chosenReg.id);
+      availableRegs.splice(availableRegs.indexOf(chosenReg), 1);
+    }
     return { items, support, reg };
   };
 
-  // hand-built seeds: a full division of one unit type, in each column type
+  // Hand-built seeds: full single-type formations, plus a regimented version so search does not rely on
+  // random initialization to discover the currently high-value regimental companies.
   const seeds = [];
   for (const col of cols) for (const u of lineByCol[col]) {
     const items = [];
     while (widthOf(items) + u.width <= C.wmax + 0.001 && canAdd(items, u.id) && items.length < 25) items.push(u.id);
-    if (items.length) seeds.push({ items, support: [], reg: [] });
+    if (items.length) {
+      seeds.push({ items, support: [], reg: [] });
+      const counts = countOf(items);
+      const layout = planColumns(counts, columnSize);
+      const types = COLUMN_TYPES.flatMap((type) => (layout.sizes[type] || []).filter((n) => n >= 3).map(() => type));
+      const availableRegs = regSupport.slice();
+      const reg = [];
+      for (const type of types) {
+        const company = availableRegs.find((candidate) => regFitsColumn(candidate, type));
+        if (company) { reg.push(company.id); availableRegs.splice(availableRegs.indexOf(company), 1); }
+      }
+      if (reg.length) seeds.push({ items, support: [], reg });
+    }
   }
 
   // ---------- neighbourhood ----------
@@ -212,7 +246,9 @@ export function search(game, params) {
       out.push({ ...tpl, reg: without });
       for (const b of regSupport) if (b.id !== tpl.reg[i]) out.push({ ...tpl, reg: without.concat(b.id) });
     }
-    for (const b of regSupport) out.push({ ...tpl, reg: tpl.reg.concat(b.id) });
+    if (tpl.reg.length < MAX_COLUMNS) {
+      for (const b of regSupport) if (!tpl.reg.includes(b.id)) out.push({ ...tpl, reg: tpl.reg.concat(b.id) });
+    }
     return out;
   };
 

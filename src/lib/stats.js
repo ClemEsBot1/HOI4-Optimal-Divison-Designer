@@ -76,37 +76,78 @@ export const REG_MIN_BATTALIONS = 3;
 const COL_TYPES = COLUMN_TYPES;
 
 /**
- * Decide how many columns each type is spread over. Every type needs enough columns to hold its battalions.
- * Spare columns (up to five in all) can be used to spread battalions out so more columns reach three battalions,
- * which is what unlocks a regimental support slot. Vehicle (SP) regimental companies need an armor column,
- * the rest need an infantry or mobile column. Returns { ok, infantry, mobile, armor, slots } where slots is the
- * number of regimental companies the layout can take.
+ * Plan actual column sizes, spreading battalions to unlock every possible regimental slot. Vehicle regimental
+ * companies need armor columns; other companies need non-armor columns. Returns per-type column counts and
+ * `sizes`, the battalion count in each displayed column.
  */
 export function planColumns(cnt, size, armorRegs = 0, otherRegs = 0) {
   const min = Object.fromEntries(COL_TYPES.map((t) => [t, Math.ceil((cnt[t] || 0) / size)]));
   const base = COL_TYPES.reduce((n, t) => n + min[t], 0);
-  if (base > MAX_COLUMNS) return { ok: false, ...min, slots: 0 };
-  const spare = MAX_COLUMNS - base;
-  const room = (t) => Math.max(0, (cnt[t] || 0) - min[t]); // a column cannot be empty
+  if (base > MAX_COLUMNS) return { ok: false, ...min, slots: 0, armorSlots: 0, otherSlots: 0, sizes: {} };
+
+  const target = Object.fromEntries(COL_TYPES.map((t) => {
+    const count = cnt[t] || 0;
+    const regimentColumns = size >= REG_MIN_BATTALIONS ? Math.ceil(count / REG_MIN_BATTALIONS) : 0;
+    return [t, Math.min(count, Math.max(min[t], regimentColumns))];
+  }));
+  const room = (t) => Math.max(0, target[t] - min[t]);
+  const columnSizes = (t, columns) => {
+    const count = cnt[t] || 0;
+    if (!columns) return [];
+    const sizes = Array(columns).fill(0);
+    const eligible = size >= REG_MIN_BATTALIONS
+      ? Math.min(columns, Math.floor(count / REG_MIN_BATTALIONS))
+      : 0;
+    for (let i = 0; i < eligible; i++) sizes[i] = REG_MIN_BATTALIONS;
+    let remaining = count - eligible * REG_MIN_BATTALIONS;
+    // Keep leftovers in their own column when there is room: ten battalions across four columns = 3-3-3-1.
+    for (let i = eligible; i < columns && remaining > 0; i++) {
+      const placed = Math.min(size, remaining);
+      sizes[i] = placed;
+      remaining -= placed;
+    }
+    // If the five-column cap forces fewer columns, fill eligible columns up to their capacity.
+    for (let i = 0; i < eligible && remaining > 0; i++) {
+      const placed = Math.min(size - sizes[i], remaining);
+      sizes[i] += placed;
+      remaining -= placed;
+    }
+    return sizes;
+  };
+
   let best = null;
   const visit = (index, left, cols) => {
     if (index === COL_TYPES.length) {
-      const elig = (t) => Math.min(cols[t], Math.floor((cnt[t] || 0) / REG_MIN_BATTALIONS));
+      const elig = (t) => size >= REG_MIN_BATTALIONS
+        ? Math.min(cols[t], Math.floor((cnt[t] || 0) / REG_MIN_BATTALIONS))
+        : 0;
       const armorSlots = elig('armor');
       const otherSlots = COL_TYPES.filter((t) => t !== 'armor').reduce((n, t) => n + elig(t), 0);
-      const candidate = { ...cols, slots: armorSlots + otherSlots };
-      if (!best || candidate.slots > best.slots) best = candidate;
-      if (armorRegs <= armorSlots && otherRegs <= otherSlots) best = { ...candidate, ok: true };
+      const columnCount = COL_TYPES.reduce((n, t) => n + cols[t], 0);
+      const candidate = {
+        ...cols,
+        slots: armorSlots + otherSlots,
+        armorSlots,
+        otherSlots,
+        sizes: Object.fromEntries(COL_TYPES.map((t) => [t, columnSizes(t, cols[t])])),
+        ok: armorRegs <= armorSlots && otherRegs <= otherSlots,
+      };
+      const bestColumnCount = best && COL_TYPES.reduce((n, t) => n + best[t], 0);
+      if (!best
+        || Number(candidate.ok) > Number(best.ok)
+        || (candidate.ok === best.ok && candidate.slots > best.slots)
+        || (candidate.ok === best.ok && candidate.slots === best.slots && columnCount > bestColumnCount)) {
+        best = candidate;
+      }
       return;
     }
     const t = COL_TYPES[index];
     for (let extra = 0; extra <= Math.min(left, room(t)); extra++) {
       visit(index + 1, left - extra, { ...cols, [t]: min[t] + extra });
-      if (best?.ok) return;
     }
   };
-  visit(0, spare, {});
-  return best ? { ...best, ok: !!best.ok || (armorRegs === 0 && otherRegs === 0) } : { ok: false, ...min, slots: 0 };
+  visit(0, MAX_COLUMNS - base, {});
+  return best || { ok: false, ...min, slots: 0, armorSlots: 0, otherSlots: 0, sizes: {} };
 }
 
 /** Do two support companies exclude each other? (same id, or they share a "same support type" tag) */
@@ -118,6 +159,25 @@ export function supportConflict(a, b) {
 export function regFitsColumn(u, col) {
   if (u.tank) return col === 'armor';
   return col !== 'armor';
+}
+
+/** Assign each regimental company to one eligible compatible column, in template order. */
+export function assignRegimentalColumns(reg, layout, byId) {
+  const slots = COLUMN_TYPES.flatMap((type) => (layout?.sizes?.[type] || []).flatMap((battalions, index) => (
+    battalions >= REG_MIN_BATTALIONS ? [{ type, index, battalions, key: `${type}:${index}` }] : []
+  )));
+  const used = new Set();
+  const assignments = new Map();
+  for (const id of reg) {
+    const unit = byId.get(id);
+    if (!unit) continue;
+    const slot = slots.find((candidate) => !used.has(candidate.key) && regFitsColumn(unit, candidate.type));
+    if (slot) {
+      used.add(slot.key);
+      assignments.set(slot.key, { id, ...slot });
+    }
+  }
+  return assignments;
 }
 
 /**
@@ -135,20 +195,27 @@ export function evaluate(tpl, byId, mods = {}, opts = DEFAULT_OPTS, columnSize =
   // Treat those templates as invalid instead of crashing the search or the results panel.
   if (line.some((u) => !u) || comps.some((u) => !u)) return null;
 
-  // support companies can lift the stats of whole categories of battalions (e.g. recon boosts artillery)
+  const cnt = Object.fromEntries(COLUMN_TYPES.map((t) => [t, 0]));
+  for (const u of line) cnt[u.cat]++;
+  const armorRegs = reg.filter((id) => byId.get(id).tank).length;
+  const layout = planColumns(cnt, columnSize, armorRegs, reg.length - armorRegs);
+  const regAssignments = assignRegimentalColumns(reg, layout, byId);
+
+  // Support companies lift whole categories; regimental bonuses scale with the battalion count in their column.
   const boost = new Map();
-  for (const c of comps) {
-    for (const bm of c.battalionMult) {
+  const addBoost = (company, multiplier = 1) => {
+    for (const bm of company.battalionMult) {
       const cur = boost.get(bm.category) || {};
-      for (const [k, v] of Object.entries(bm.stats)) cur[k] = (cur[k] || 0) + v;
+      for (const [k, v] of Object.entries(bm.stats)) cur[k] = (cur[k] || 0) + v * multiplier;
       boost.set(bm.category, cur);
     }
-  }
+  };
+  for (const id of support) addBoost(byId.get(id));
+  for (const assignment of regAssignments.values()) addBoost(byId.get(assignment.id), assignment.battalions);
 
   let sa = 0, ha = 0, air = 0, def = 0, brk = 0, hp = 0, ic = 0, mp = 0, sup = 0, trucks = 0, width = 0, recon = 0;
   let orgSum = 0, recSum = 0, hardSum = 0, armSum = 0, pierSum = 0;
   let spd = Infinity;
-  const cnt = Object.fromEntries(COLUMN_TYPES.map((t) => [t, 0]));
   for (const u of line) {
     let bsa = u.sa, bha = u.ha, bdef = u.def, bbrk = u.brk, bpier = u.pier, bair = u.air;
     if (boost.size) {
@@ -163,20 +230,23 @@ export function evaluate(tpl, byId, mods = {}, opts = DEFAULT_OPTS, columnSize =
     ic += u.ic; mp += u.mp; sup += u.sup; trucks += u.trucks; width += u.width;
     orgSum += u.org; recSum += u.rec; hardSum += u.hard; armSum += u.arm; pierSum += bpier;
     if (u.affectsSpeed && u.spd > 0 && u.spd < spd) spd = u.spd;
-    cnt[u.cat]++;
   }
   const perks = { engineer: 0, hospital: 0, logistics: 0, maintenance: 0, signal: 0, police: 0 };
   let avgN = n;
-  for (const u of comps) {
-    sa += u.sa; ha += u.ha; air += u.air; def += u.def; brk += u.brk; hp += u.hp;
-    ic += u.ic; mp += u.mp; sup += u.sup; trucks += u.trucks; recon += u.recon;
-    // support piercing, armor and hardness are not added to the combat averages
-    if (opts.supportDilutesOrg) { orgSum += u.org; recSum += u.rec; avgN++; }
-    for (const k in u.perks) if (k in perks) perks[k] += u.perks[k];
-  }
+  const addCompanyStats = (u, multiplier = 1) => {
+    sa += u.sa * multiplier; ha += u.ha * multiplier; air += u.air * multiplier;
+    def += u.def * multiplier; brk += u.brk * multiplier; hp += u.hp * multiplier;
+    ic += u.ic * multiplier; mp += u.mp * multiplier; sup += u.sup * multiplier;
+    trucks += u.trucks * multiplier; recon += u.recon * multiplier;
+    // A regimental company represents equipment/stats for each battalion in its regiment.
+    if (opts.supportDilutesOrg) {
+      orgSum += u.org * multiplier; recSum += u.rec * multiplier; avgN += multiplier;
+    }
+    for (const k in u.perks) if (k in perks) perks[k] += u.perks[k] * multiplier;
+  };
+  for (const id of support) addCompanyStats(byId.get(id));
+  for (const assignment of regAssignments.values()) addCompanyStats(byId.get(assignment.id), assignment.battalions);
   const m = (k) => 1 + (mods[k] || 0) / 100;
-  const armorRegs = reg.filter((id) => byId.get(id).tank).length;
-  const layout = planColumns(cnt, columnSize, armorRegs, reg.length - armorRegs);
   const cols = COLUMN_TYPES.reduce((sum, type) => sum + (layout[type] || 0), 0);
   // Apply the same support rules the search enforces, so a template built by hand (or read from a link) is
   // never reported as valid when the game would reject it: at most five companies, no two of a kind, and no
@@ -187,7 +257,7 @@ export function evaluate(tpl, byId, mods = {}, opts = DEFAULT_OPTS, columnSize =
       if (supportConflict(byId.get(support[i]), byId.get(support[j]))) { supportOk = false; break; }
     }
   }
-  const regOk = new Set(reg).size === reg.length;
+  const regOk = new Set(reg).size === reg.length && regAssignments.size === reg.length;
   return {
     sa: sa * m('sa'),
     ha: ha * m('ha'),
@@ -209,6 +279,7 @@ export function evaluate(tpl, byId, mods = {}, opts = DEFAULT_OPTS, columnSize =
     cols,
     cnt,
     layout,
+    regCount: regAssignments.size,
     valid: layout.ok && supportOk && regOk,
   };
 }
