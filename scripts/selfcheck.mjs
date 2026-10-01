@@ -603,6 +603,25 @@ ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id
   ok(n > fleet.scale.min && at(n) <= days && (n === fleet.scale.max || at(n + 1) > days), `fit fleet: ${n} carriers is the largest strike force 60 dockyards finish in 4 years`);
 }
 
+// ---- unit icons ----
+{
+  // Every unit shows its own in-game icon. In the game files only the regimental batteries reuse the texture of their
+  // divisional counterpart; any other identical pair is a stand-in borrowed from another unit.
+  const SHARED = new Set(['anti_air|anti_air_battery', 'anti_tank|anti_tank_battery', 'rocket_artillery|rocket_battery']);
+  const listed = new Set(JSON.parse(fs.readFileSync(path.join(here, '../src/data/icons.json'), 'utf8')).units);
+  const byBytes = new Map();
+  const missing = [];
+  for (const id of game.units.keys()) {
+    const file = path.join(here, '../public/hoi4/units', `${id}.png`);
+    if (!listed.has(id) || !fs.existsSync(file)) { missing.push(id); continue; }
+    const key = fs.readFileSync(file).toString('base64');
+    byBytes.set(key, [...(byBytes.get(key) || []), id]);
+  }
+  ok(!missing.length, `every unit has an icon${missing.length ? ` (missing: ${missing.join(', ')})` : ''}`);
+  const borrowed = [...byBytes.values()].filter((ids) => ids.length > 1 && !SHARED.has([...ids].sort().join('|')));
+  ok(!borrowed.length, `no unit borrows another unit's icon${borrowed.length ? ` (${borrowed.map((ids) => ids.join(' = ')).join('; ')})` : ''}`);
+}
+
 // ---- golden numbers from in-game screenshots ----
 fails += runGolden((m) => console.log(m));
 
