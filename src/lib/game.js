@@ -523,8 +523,12 @@ export function designSearch(game, techSet, chassisId, role, open, score, dirs =
   const linear = score.linear ? Float64Array.from(DESIGN_KEYS, (k) => score.linear[k] || 0) : null;
   const st = {};
   let bestScore = -Infinity; let bestChosen = null; let evaluated = 0;
+  // opts.keep > 1 also keeps the next best designs (ranked, best first) for the Equipment view's alternatives
+  const keep = Math.max(1, opts.keep || 1);
+  const top = [];
+  const bar = () => (top.length >= keep ? top[keep - 1].score : -Infinity);
   for (const core of coreSums) {
-    if (core.ub <= bestScore + 1e-12) break;
+    if (core.ub <= bar() + 1e-12) break;
     const cA = Float64Array.from(DESIGN_KEYS, (k) => core.A[k]);
     const cM = Float64Array.from(DESIGN_KEYS, (k) => core.M[k]);
     const coreIds = coreInLimits ? Object.values(core.c) : null;
@@ -548,26 +552,31 @@ export function designSearch(game, techSet, chassisId, role, open, score, dirs =
         sc = score(st);
       }
       evaluated++;
-      if (sc > bestScore + 1e-12) {
-        bestScore = sc;
-        bestChosen = { ...core.c };
-        specialSlots.forEach((sn, i) => { bestChosen[sn] = setSums[q].ids[i] || null; });
+      if (top.length < keep || sc > bar() + 1e-12) {
+        const chosen = { ...core.c };
+        specialSlots.forEach((sn, i) => { chosen[sn] = setSums[q].ids[i] || null; });
+        let at = top.length;
+        while (at > 0 && top[at - 1].score < sc) at--;
+        top.splice(at, 0, { score: sc, modules: chosen });
+        if (top.length > keep) top.pop();
+        bestScore = top[0].score; bestChosen = top[0].modules;
       }
     }
   }
   if (!bestChosen) return null;
   const stats = designStats(game, chassis, variant, bestChosen, techSet);
-  return { chassis: chassisId, role, variant: variant.id, modules: bestChosen, stats, score: bestScore, evaluated, minRel, candidates: { cores: cores.length, coreFront: coreFront.length, sets: sets.length, setFront: setFront.length } };
+  const ranked = keep > 1 ? top.map((t) => ({ ...t, stats: designStats(game, chassis, variant, t.modules, techSet) })) : undefined;
+  return { chassis: chassisId, role, variant: variant.id, modules: bestChosen, stats, score: bestScore, ranked, evaluated, minRel, candidates: { cores: cores.length, coreFront: coreFront.length, sets: sets.length, setFront: setFront.length } };
 }
 
 /** Pick modules for one chassis and role for a fixed per-role objective (used before the division is known). */
-export function autoDesign(game, techSet, chassisId, role, objective, open) {
+export function autoDesign(game, techSet, chassisId, role, objective, open, extra = {}) {
   const dirs = {};
   for (const k of DESIGN_KEYS) dirs[k] = objective[k] ? Math.sign(objective[k] * (DESIGN_DIR[k] || 1)) : 0;
   // designScore is linear in the design stats, which lets the search use its fast path
   const linear = {};
   for (const k of DESIGN_KEYS) linear[k] = objective[k] ? objective[k] * (DESIGN_DIR[k] || 1) / DESIGN_SCALE[k] : 0;
-  return reliableDesign((opts) => designSearch(game, techSet, chassisId, role, open, { linear }, dirs, opts));
+  return reliableDesign((opts) => designSearch(game, techSet, chassisId, role, open, { linear }, dirs, { ...opts, ...extra }));
 }
 
 /**

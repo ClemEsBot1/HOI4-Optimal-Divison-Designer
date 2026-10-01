@@ -21,13 +21,11 @@ everywhere: theatre, research year and designer mode. Every panel folds away, an
   against the best) and compare (up to four templates side by side, from the ranked list, your saved templates or the draft).
 - **Research**: research by year, plus the full tech tree inline.
 - **Doctrine**: recommended doctrines for the role and the full doctrine setup.
-- **Equipment**: three tabs. Tanks (the designs in your template, then the best design for every tank role: main battle,
-  breakthrough, light, infantry support, tank destroyer, self-propelled gun and anti-air), Aircraft (a role guide for
-  fighters, interceptors, heavy fighters, CAS, tactical, naval, torpedo, patrol, strategic, transport, carrier and jet roles,
-  by stage of the war, which becomes the proven-best design for every role once the aircraft designer files are extracted)
-  and Ships (the proven-best design for every ship role: screen, anti-submarine, torpedo, anti-air and
-  mine destroyers, light attack, anti-air, torpedo and minelaying cruisers, heavy cruiser, battleship, battlecruiser,
-  super-heavy battleship, fleet and armored carriers, and convoy-raider, minelaying and long-range submarines).
+- **Equipment**: three tabs (Tanks, Aircraft, Ships). Pick a type (a tank role such as main battle tank or tank
+  destroyer, an aircraft role, or a ship role such as heavy cruiser or convoy raider, or the tanks in your template),
+  and it works like the division designer: the proven-best design, priorities you can change, the next best designs
+  ranked with their gap, and a trade-off chart with the Pareto front. Aircraft are a role guide until the aircraft
+  designer files are extracted.
 - **Field manual**: where the numbers come from, how the searches work and what they leave out.
 
 ## Features
@@ -79,8 +77,8 @@ everywhere: theatre, research year and designer mode. Every panel folds away, an
   thrust must cover the weight of the airframe and modules, leftover thrust adds speed, and the main weapon decides the
   plane type. Roles cover fighters, interceptors, heavy fighters, CAS, tactical, naval and strategic bombers, maritime
   patrol, carrier planes and jet fighters. It runs as soon as `src/data/designers.json` holds aircraft designer data.
-- **Your own ship and aircraft goals.** Start from any role (it keeps the hull or airframe and what the design must
-  carry), set your own priority for every stat and search again.
+- **Your own equipment priorities.** For any tank, aircraft or ship type, change the priority of every stat; the type
+  keeps its chassis, hull or airframe and what the design must carry, and the search runs again.
 - **Reliable tanks.** Stacked reliability penalties can push a tank design to 0%; recommended designs keep at least 60%
   whenever any legal design can.
 - **Saved templates, copy as text.** Save any result or draft (kept in your browser) and copy a template as plain text.

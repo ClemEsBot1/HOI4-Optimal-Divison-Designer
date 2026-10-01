@@ -10,7 +10,7 @@ import { runGolden } from './golden.mjs';
 import { defaultExclude, roleExclude, ROLES } from '../src/lib/presets.js';
 import { search, DEFAULT_CONSTRAINTS } from '../src/lib/optimizer.js';
 import { encodeState, decodeState } from '../src/lib/format.js';
-import { metaTanks } from '../src/lib/tankRoles.js';
+import { metaTanks, roleTanks } from '../src/lib/tankRoles.js';
 import { MIN_DESIGN_RELIABILITY } from '../src/lib/game.js';
 import { SHIP_ROLES, bestShip, hullsFor, shipStats } from '../src/lib/naval.js';
 import { PLANE_ROLES, bestPlane, framesFor, planeStats, hasPlaneData, FLOOR as PLANE_FLOOR } from '../src/lib/air.js';
@@ -335,6 +335,19 @@ ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id
   } else {
     console.log('note designers.json has no aircraft designer data yet; the aircraft tab shows the role guide');
   }
+}
+
+// ---- ranked alternatives for the Equipment view ----
+{
+  const role = SHIP_ROLES.find((r) => r.id === 'cl_light_attack');
+  const one = bestShip(naval, role, 1942);
+  const many = bestShip(naval, role, 1942, { keep: 30 });
+  const sorted = many.ranked.every((d, i) => i === 0 || d.score <= many.ranked[i - 1].score + 1e-12);
+  const keys = new Set(many.ranked.map((d) => JSON.stringify([d.hull, d.modules])));
+  ok(Math.abs(many.score - one.score) < 1e-9 && many.ranked.length === 30 && sorted && keys.size === 30, 'ship search keeps 30 distinct ranked designs, the first being the proven best');
+  const tanks = roleTanks(game, techsUpTo(game, 1942), 'mbt');
+  const tankMeta = metaTanks(game, techsUpTo(game, 1942)).find((r) => r.id === 'mbt');
+  ok(tanks.ranked.length > 1 && Math.abs(tanks.ranked[0].score - tankMeta.options[0].score) < 1e-9, `tank role ranking starts with the same best design (${tanks.ranked.length} designs)`);
 }
 
 // ---- theatre frontage ----

@@ -1,7 +1,7 @@
 /**
  * Exact module search shared by the ship and aircraft designers.
  *
- *   exactDesign(spec) -> { score, hull, hullName, modules, stats, evaluated, nodes, truncated } or null
+ *   exactDesign(spec) -> { score, hull, hullName, modules, stats, ranked, evaluated, nodes, truncated } or null
  *
  * Stat model (both designers): stat = (hull + module additions + average of averaged stats) * (1 + module multipliers)
  *   * (1 + technology bonus for the design's type). The score is sum(weight * ln(stat + floor)); a negative weight
@@ -19,6 +19,7 @@
  *   accept(hull, chosenIds, type, stats?)  role requirements on a complete design
  *   atLeast                 [[a, b], ...]: a design is legal only when the summed additions of a reach those of b
  *                           (planes: thrust must cover weight); pruned slot by slot
+ *   keep                    how many of the best designs to return (ranked, best first; default 1)
  *   budget, gap
  *
  * Options in a slot that another option of the same category beats on every scored stat are dropped first (it can
@@ -30,6 +31,10 @@ export function exactDesign(spec) {
   const atLeast = spec.atLeast || [];
   const keys = Object.keys(weights);
   let best = null; let evaluated = 0; let truncated = false; let nodes = 0;
+  // the `keep` best designs found so far, best first; the search proves each of them against everything it rules out
+  const keep = Math.max(1, spec.keep || 1);
+  const top = [];
+  const bar = () => (top.length >= keep ? top[keep - 1].score : -Infinity);
   let bestX = null; // the incumbent's scored stats, where the relaxation takes its tangents
   // gap 0.005 would accept a design within a 0.5% gain on every scored stat of the best; 0 proves the exact best
   const tol = gap * keys.reduce((a, k) => a + Math.abs(weights[k]), 0);
@@ -205,14 +210,18 @@ export function exactDesign(spec) {
         const type = spec.typeOf(hull, chosen);
         if (!spec.accept(hull, chosen, type)) return;
         evaluated++;
-        if (best && leafScore(type) <= best.score + 1e-12) return;
+        if (top.length >= keep && leafScore(type) <= bar() + 1e-12) return;
         const mods = Object.fromEntries(slotNames.map((n, k) => [n, chosen[k]]));
         const st = spec.stats(hull, mods);
         if (spec.acceptStats && !spec.acceptStats(st)) return;
         const sc = scoreOf(st);
-        if (!best || sc > best.score + 1e-12) {
-          best = { score: sc, hull: hull.id, hullName: hull.name, modules: mods, stats: st };
-          bestX = keys.map((k) => Math.max(0, st[k] || 0));
+        if (top.length < keep || sc > bar() + 1e-12) {
+          const d = { score: sc, hull: hull.id, hullName: hull.name, modules: mods, stats: st };
+          let at = top.length;
+          while (at > 0 && top[at - 1].score < sc) at--;
+          top.splice(at, 0, d);
+          if (top.length > keep) top.pop();
+          if (at === 0) { best = d; bestX = keys.map((k) => Math.max(0, st[k] || 0)); }
         }
         return;
       }
@@ -230,7 +239,7 @@ export function exactDesign(spec) {
           }
           maxAt[j] = maxAt[j + 1] + mx;
         }
-        if (C + maxAt[i] <= best.score + tol) return;
+        if (C + maxAt[i] <= bar() + tol) return;
         // best-first: the module the relaxation likes most is tried first
         const vals = valAt[i];
         idx = order[i].slice().sort((x, y) => vals[y] - vals[x]);
@@ -241,7 +250,7 @@ export function exactDesign(spec) {
       const rest = best ? C + maxAt[i + 1] : 0;
       for (const k of idx) {
         if (sig[i] && k > prevIdx) continue;
-        if (childVal && best && rest + childVal[k] <= best.score + tol) continue;
+        if (childVal && best && rest + childVal[k] <= bar() + tol) continue;
         chosen[i] = options[i][k];
         if (!limitsOk(chosen, i + 1)) continue;
         apply(i, k, 1);
@@ -253,7 +262,7 @@ export function exactDesign(spec) {
     };
     rec(0);
   }
-  return best ? { ...best, evaluated, nodes, truncated } : null;
+  return best ? { ...best, ranked: top, evaluated, nodes, truncated } : null;
 }
 
 /** Stats of one design under the shared stat model (before any designer-specific rule). */

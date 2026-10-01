@@ -195,8 +195,9 @@ export default function App() {
     if (!tankCache.current.has(techsKey)) tankCache.current.set(techsKey, askEquip({ type: 'tanks', techs: [...techs] }));
     return tankCache.current.get(techsKey);
   }, [techsKey, techs, askEquip]);
-  const requestShip = useCallback((role, year, weights) => askEquip({ type: 'ship', role, year, weights }), [askEquip]);
-  const requestPlane = useCallback((role, year, weights) => askEquip({ type: 'plane', role, year, weights }), [askEquip]);
+  const requestShip = useCallback((role, year, weights, keep) => askEquip({ type: 'ship', role, year, weights, keep }), [askEquip]);
+  const requestPlane = useCallback((role, year, weights, keep) => askEquip({ type: 'plane', role, year, weights, keep }), [askEquip]);
+  const requestTankRole = useCallback((role, objective) => askEquip({ type: 'tankRole', techs: [...techs], role, objective }), [askEquip, techs]);
 
   // ---- share link ----
   useEffect(() => {
@@ -325,7 +326,7 @@ export default function App() {
         {shownView === 'designer' && <DesignerView {...ctx} />}
         {shownView === 'research' && <ResearchView game={game} techs={techs} setTechs={setTechs} />}
         {shownView === 'doctrine' && <DoctrineView game={game} doctrine={doctrine} setDoctrine={setDoctrine} recommendations={doctrineRecommendations(game, result?.roleId)} roleName={role?.name} />}
-        {shownView === 'equipment' && <EquipmentView game={game} tab={equipTab} setTab={setEquipTab} year={ry.year} techsKey={techsKey} designsUsed={designsUsed} requestTanks={requestTanks} requestShip={requestShip} requestPlane={requestPlane} />}
+        {shownView === 'equipment' && <EquipmentView game={game} tab={equipTab} setTab={setEquipTab} year={ry.year} techsKey={techsKey} designsUsed={designsUsed} requestTanks={requestTanks} requestShip={requestShip} requestPlane={requestPlane} requestTankRole={requestTankRole} />}
         {shownView === 'manual' && <FieldManualView version={version} meta={game.meta} />}
       </main>
       <div className={'veil ' + phase} aria-hidden="true"><span>{VIEWS.find((v) => v.id === view)?.label}</span></div>
