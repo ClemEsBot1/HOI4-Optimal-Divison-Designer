@@ -1,5 +1,6 @@
 import React from 'react';
 import { fmt } from '../lib/stats.js';
+import { equipmentIcon } from '../lib/icons.js';
 import { OPPONENTS, ENEMY_KEYS, matchup } from '../lib/combat.js';
 
 const signed = (x, dp = 2) => `${x > 0 ? '+' : ''}${x.toFixed(dp)}`;
@@ -103,7 +104,7 @@ export function Logistics({ game, stats, scale, setScale }) {
         <div className="td-panel">
           <h4>Equipment per division</h4>
           <dl>
-            {equipment.map(([k, v]) => <div key={k}><dt>{EQUIPMENT_NAME(game, k)}</dt><dd>{Math.round(v).toLocaleString('en-GB')}</dd></div>)}
+            {equipment.map(([k, v]) => <div key={k}><dt>{equipmentIcon(k) && <img className="eq-icon" src={equipmentIcon(k)} alt="" />}{EQUIPMENT_NAME(game, k)}</dt><dd>{Math.round(v).toLocaleString('en-GB')}</dd></div>)}
           </dl>
         </div>
         <div className="td-panel">

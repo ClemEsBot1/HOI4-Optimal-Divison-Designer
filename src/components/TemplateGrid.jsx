@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { assignRegimentalColumns, unitContribution, STAT_BY_KEY, fmt } from '../lib/stats.js';
+import { unitIcon, hideBroken } from '../lib/icons.js';
 
 const COLS = [
   { id: 'infantry', label: 'Infantry' },
@@ -42,15 +43,15 @@ function ContributionTip({ unit, ctx, list, index }) {
   );
 }
 
-/** HOI4-style unit counter using the game's branch icon instead of NATO symbols. Hover or focus shows what it adds. */
+/** HOI4-style unit counter using the game's own unit icon (branch icon as fallback). Hover or focus shows what it adds. */
 function Counter({ unit, ctx, list, index }) {
   const [open, setOpen] = useState(false);
-  const iconName = unit.cat === 'armor' ? 'category_all_armor' : unit.cat === 'artillery' || unit.cat === 'mobile_artillery' ? 'category_artillery' : 'category_all_infantry';
+  const branch = unit.cat === 'armor' ? 'category_all_armor' : unit.cat === 'artillery' || unit.cat === 'mobile_artillery' ? 'category_artillery' : 'category_all_infantry';
   const show = () => setOpen(true);
   const hide = () => setOpen(false);
   return (
     <div className="counter" tabIndex={0} aria-label={unit.name} onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}>
-      <img className="c-icon" src={`/hoi4/icons/${iconName}.png`} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+      <img className="c-icon" src={unitIcon(unit.id) || `/hoi4/icons/${branch}.png`} alt="" onError={hideBroken} />
       <span className="c-name">{unit.abbr || unit.name}</span>
       {open && <ContributionTip unit={unit} ctx={ctx} list={list} index={index} />}
     </div>
