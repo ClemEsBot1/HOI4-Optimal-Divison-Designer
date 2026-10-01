@@ -8,7 +8,7 @@ import { objectiveTerms, utility } from '../src/lib/score.js';
 import { matchup } from '../src/lib/combat.js';
 import { runGolden } from './golden.mjs';
 import { defaultExclude, roleExclude, ROLES } from '../src/lib/presets.js';
-import { search } from '../src/lib/optimizer.js';
+import { search, DEFAULT_CONSTRAINTS } from '../src/lib/optimizer.js';
 import { encodeState, decodeState } from '../src/lib/format.js';
 import { metaTanks } from '../src/lib/tankRoles.js';
 import { MIN_DESIGN_RELIABILITY } from '../src/lib/game.js';
@@ -112,7 +112,8 @@ ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id
   const constraints = { wmin: 14, wmax: 20, minOrg: 40 };
   const params = { techs: [...T], exclude, weights, constraints, topN: 3, coDesign: false };
   const res = resolve(game, { techs: T, exclude });
-  const terms = objectiveTerms(weights, constraints, null);
+  // the search fills in the default constraints (per-frontage scoring), so score the brute force the same way
+  const terms = objectiveTerms(weights, { ...DEFAULT_CONSTRAINTS, ...constraints }, null);
   const line = res.combat; const sups = res.support; const regs = res.regimental;
   const supSets = [[]];
   for (let i = 0; i < sups.length; i++) for (const set of supSets.slice()) if (set.length < 5 && set.every((j) => !supportConflict(sups[j], sups[i]))) supSets.push([...set, i]);
@@ -145,7 +146,7 @@ ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id
   const again = search(game, params);
   ok(again.top[0].key === rb.top[0].key, 'the same setup gives the same answer');
   ok(rb.top.every((t) => Math.abs(utility(evaluate(t, res.byId, {}, undefined, res.columnSize), terms, null) - t.score) < 1e-9), 'every listed score matches a fresh evaluation');
-  ok(rb.sensitivity && rb.sensitivity.rows.length === terms.length, 'stability check covers every priority');
+  ok(rb.sensitivity && rb.sensitivity.rows.length === terms.filter((t) => t.kind !== 'frontage' && t.kind !== 'meta').length, 'stability check covers every priority');
   ok(rb.top[0].explain && rb.top[0].explain.length === terms.length, 'the winner comes with a stat-by-stat explanation');
 }
 
