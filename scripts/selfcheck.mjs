@@ -308,7 +308,7 @@ ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id
           }
           const main = names.findIndex((x) => /main_weapon/.test(x));
           if (role.main && !(ch[main] && role.main.test(data.modules[ch[main]].cat))) return;
-          const st = planeStats(data, f, Object.fromEntries(names.map((nm, k) => [nm, ch[k]])), year);
+          const st = planeStats(data, f, Object.fromEntries(names.map((nm, k) => [nm, ch[k]])), year, role);
           if (!st.legal) return;
           n++;
           best = Math.max(best, scoreOf(st, role.weights));
@@ -329,6 +329,17 @@ ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id
   const heavy = bestPlane(fixture, PLANE_ROLES.find((r) => r.id === 'fighter'), 1940);
   ok(heavy.stats.thrust >= heavy.stats.weight, 'the best fighter\'s engines carry its weight');
   if (hasPlaneData(naval)) {
+    // the game's own airframes and modules (mission-dependent stats, excess thrust as agility), against brute force
+    for (const id of ['fighter', 'interceptor', 'cas', 'naval_bomber', 'cv_naval', 'cv_cas']) {
+      const role = PLANE_ROLES.find((r) => r.id === id);
+      const b = brute(naval, role, 1936);
+      const s = bestPlane(naval, role, 1936);
+      ok(s && !s.truncated && s.stats.legal && Math.abs(s.score - b.best) < 1e-9, `aircraft designer finds the exact best ${role.name.toLowerCase()} (1936, game airframes) among ${b.n.toLocaleString('en-GB')} legal designs`);
+    }
+    const torp = bestPlane(naval, PLANE_ROLES.find((r) => r.id === 'naval_bomber'), 1940);
+    ok(torp && /torpedo/.test(torp.modules.fixed_main_weapon_slot) && torp.stats.naval_strike_attack > 10, 'a naval bomber carries torpedoes and gets their naval attack on naval strikes');
+    const fighterWithBombs = planeStats(naval, framesFor(naval, PLANE_ROLES[0], 1940).at(-1), { fixed_main_weapon_slot: 'light_mg_2x', engine_type_slot: 'engine_2_1x', fixed_auxiliary_weapon_slot_1: 'small_bomb_bay' }, 1940, PLANE_ROLES[0]);
+    ok(!fighterWithBombs.air_ground_attack, 'a bomb bay adds no ground attack on air superiority missions');
     const t0 = Date.now(); let trunc = 0; let found = 0;
     for (const role of PLANE_ROLES) { const r = bestPlane(naval, role, 1944); if (r) found++; if (r?.truncated) trunc++; }
     ok(found && !trunc, `every 1944 aircraft role with an airframe is proven best (${found} roles, ${Date.now() - t0} ms)`);

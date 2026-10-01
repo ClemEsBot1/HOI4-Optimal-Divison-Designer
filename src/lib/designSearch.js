@@ -23,9 +23,25 @@
  *   budget, gap
  *
  * Options in a slot that another option of the same category beats on every scored stat are dropped first (it can
- * never lose to drop them), interchangeable custom slots are filled in a fixed order, and a bound that relaxes the
+ * never lose to drop them). With `dropUseless`, in optional slots other than `keepSlot` (the slots that decide the
+ * design's type), so are modules that leaving the slot empty beats (dead weight for the role) and modules an
+ * option under no count limit beats whatever its category, interchangeable custom slots are filled in a fixed order, and a bound that relaxes the
  * score slot by slot rules out the rest without scoring them.
  */
+const TANGENT_ROUNDS = 2;
+
+/**
+ * The smallest t >= 0 whose tangent to ln(x + F) passes at or above ln(F) at x = xLo < 0: tangents at t or beyond bound
+ * ln(max(0, x) + F) from above on [xLo, inf).
+ */
+function tangentFloor(xLo, F) {
+  const h = (t) => Math.log(1 + t / F) + (xLo - t) / (t + F);
+  let lo = 0; let hi = Math.max(1, -xLo);
+  while (h(hi) < 0) hi *= 2;
+  for (let it = 0; it < 40; it++) { const m = (lo + hi) / 2; if (h(m) < 0) lo = m; else hi = m; }
+  return hi;
+}
+
 export function exactDesign(spec) {
   const { modules, hulls, weights, floor = {}, budget = 6e5, gap = 0 } = spec;
   const atLeast = spec.atLeast || [];
@@ -59,10 +75,13 @@ export function exactDesign(spec) {
         ...keys.flatMap((k) => { const d = dirOf(k); return [d * (m.add[k] || 0), d * (m.mul[k] || 0), d * (m.avg[k] || 0)]; }),
         ...atLeast.flatMap(([a, b]) => [m.add[a] || 0, -(m.add[b] || 0), m.mul[a] || 0, -(m.mul[b] || 0)]),
       ];
-      const kept = mods.filter((m) => !mods.some((o) => o !== m && o.cat === m.cat && !(limited.has(o.id) && !limited.has(m.id)) && (() => {
-        const x = vec(o); const y = vec(m); let strict = false;
-        for (let i = 0; i < x.length; i++) { if (x[i] < y[i] - 1e-12) return false; if (x[i] > y[i] + 1e-12) strict = true; }
-        return strict || (x.every((v, i) => Math.abs(v - y[i]) < 1e-12) && o.id < m.id && limited.has(o.id) === limited.has(m.id));
+      const beats = (x, y) => { let strict = false; for (let i = 0; i < x.length; i++) { if (x[i] < y[i] - 1e-12) return false; if (x[i] > y[i] + 1e-12) strict = true; } return strict; };
+      const free = (o) => !limited.has(o.id) && !limits.some((l) => l.category === o.cat);
+      const optional = !slot.required && spec.dropUseless && !(spec.keepSlot && spec.keepSlot.test(n));
+      const zero = optional ? vec(EMPTY) : null;
+      const kept = mods.filter((m) => !(zero && beats(zero, vec(m))) && !mods.some((o) => o !== m && !(limited.has(o.id) && !limited.has(m.id)) && (o.cat === m.cat || (optional && free(o))) && (() => {
+        const x = vec(o); const y = vec(m);
+        return beats(x, y) || (o.cat === m.cat && x.every((v, i) => Math.abs(v - y[i]) < 1e-12) && o.id < m.id && limited.has(o.id) === limited.has(m.id));
       })()));
       const ids = kept.map((m) => m.id);
       if (!slot.required || !ids.length) ids.push(null);
@@ -144,8 +163,10 @@ export function exactDesign(spec) {
      *  - the product a·m is bounded by its McCormick envelope over the remaining slots' ranges.
      * What is left is a constant plus a linear function of each remaining slot's module, so each slot can take its own
      * best module. Returns the constant and fills ca / cm with the weight of each stat's added and multiplied amount.
+     * `tp` holds the points the tangents are taken at: any point gives a valid bound; the incumbent's stats, then those
+     * of the relaxation's own best completion, are tried.
      */
-    const relax = (i) => {
+    const relax = (i, tp) => {
       let C = 0;
       for (let q = 0; q < nK; q++) {
         const w = W[q]; const F = FL[q]; const S = suf[q];
@@ -166,14 +187,19 @@ export function exactDesign(spec) {
         for (let c = 1; c < 8; c++) { if (corners[c] < xLo) xLo = corners[c]; if (corners[c] > xHi) xHi = corners[c]; }
         ca[q] = 0; cm[q] = 0;
         if (isRel[q]) { xLo = Math.max(0, Math.min(1, xLo)); xHi = Math.max(0, Math.min(1, xHi)); }
-        if (isRel[q] || MLo <= 0 || xLo < 0 || tLo[q] <= 0) {
+        // a maximized stat that may end below zero (agility, defense) scores ln(F) there: it keeps a linear bound
+        const negOk = xLo < 0 && w > 0 && tLo[q] === tHi[q] && tLo[q] > 0;
+        if (isRel[q] || MLo <= 0 || (xLo < 0 && !negOk) || tLo[q] <= 0) {
           // outside what the linearization covers: the stat's best value over the box
           C += w > 0 ? w * Math.log(Math.max(0, xHi) + F) : w * Math.log(Math.max(0, xLo) + F);
           continue;
         }
         let c; let c0;
         if (w > 0) {
-          const x0 = Math.min(xHi, Math.max(xLo, bestX[q])) + F;
+          let x0 = Math.min(xHi, Math.max(xLo, tp[q])) + F;
+          // below zero the score is flat at ln(F): only tangents at or past t*, whose line still reaches ln(F) at xLo,
+          // lie above it there
+          if (negOk) x0 = Math.max(x0, tangentFloor(xLo, F) + F);
           c = w / x0; c0 = w * Math.log(x0) + c * (F - x0);
         } else {
           const fL = w * Math.log(xLo + F); const fH = w * Math.log(xHi + F);
@@ -187,6 +213,37 @@ export function exactDesign(spec) {
       return C;
     };
     const valAt = Array.from({ length: nS }, (_, j) => new Float64Array(options[j].length));
+    const rawAt = Array.from({ length: nS }, (_, j) => new Float64Array(options[j].length));
+    const lamAt = new Float64Array(nS + 1);
+    const argAt = new Int32Array(nS + 1);
+    // runs of interchangeable slots (same options), which the bound fills as a whole under the count limits
+    const groupOf = new Array(nS).fill(null);
+    for (let j = 0; j < nS;) {
+      let e = j; while (sig[j] && e + 1 < nS && sig[e + 1] === sig[j]) e++;
+      if (e > j) { const g = { start: j, end: e }; for (let k = j; k <= e; k++) groupOf[k] = g; }
+      j = e + 1;
+    }
+    const limitIdx = options.map((ids) => ids.map((id) => limits.map((l, li) => (id && (id === l.module || modules[id].cat === l.category) ? li : -1)).filter((x) => x >= 0)));
+    const capsBefore = (upto) => limits.map((l) => {
+      let n = 0;
+      for (let k = 0; k < upto; k++) { const id = chosen[k]; if (id && (id === l.module || modules[id].cat === l.category)) n++; }
+      return Math.max(0, (l.op === '<' ? l.count - 1 : l.op === '<=' ? l.count : Infinity) - n);
+    });
+    // the r largest values a run of slots can take, best first (prefix sums): each option as often as its own
+    // tightest limit allows (limits shared between options are relaxed, so this stays an upper bound)
+    const topValues = (g, vals, caps, r) => {
+      const opt = Array.from(vals.keys()).sort((x, y) => vals[y] - vals[x]);
+      const out = new Float64Array(r); const picks = new Int32Array(r); let n = 0; let sum = 0;
+      for (const o of opt) {
+        if (n >= r) break;
+        let cap = r;
+        for (const li of limitIdx[g.end][o]) cap = Math.min(cap, caps[li]);
+        for (let t = 0; t < cap && n < r; t++) { sum += vals[o]; picks[n] = o; out[n++] = sum; }
+      }
+      while (n < r) { sum += vals[opt[0]]; picks[n] = opt[0]; out[n++] = sum; }
+      g.picks = picks;
+      return out;
+    };
     const maxAt = new Float64Array(nS + 1);
     const leafScore = (type) => {
       const tbt = tbBy[type] || spec.bonusOf(type, hull);
@@ -228,17 +285,64 @@ export function exactDesign(spec) {
       let idx = order[i];
       let C = 0;
       if (best) {
-        C = relax(i);
-        maxAt[nS] = 0;
-        for (let j = nS - 1; j >= i; j--) {
-          const vals = valAt[j]; let mx = -Infinity;
-          for (let o = 0; o < vals.length; o++) {
-            const a = optAdd[j][o]; const m = optMul[j][o]; let x = 0;
-            for (let q = 0; q < nK; q++) x += ca[q] * a[q] + cm[q] * m[q];
-            vals[o] = x; if (x > mx) mx = x;
+        const caps = capsBefore(i);
+        // fills valAt / maxAt for the slots from i on, for tangent points tp and multiplier lam; returns the bound
+        const fill = (lam) => {
+          maxAt[nS] = nC === 1 ? lam * pNet[0] : 0;
+          for (let j = nS - 1; j >= i; j--) {
+            const raw = rawAt[j]; const vals = valAt[j]; const net = optNet[j];
+            for (let o = 0; o < vals.length; o++) vals[o] = raw[o] + (nC === 1 ? lam * net[o][0] : 0);
           }
-          maxAt[j] = maxAt[j + 1] + mx;
+          for (let j = nS - 1; j >= i;) {
+            const g = groupOf[j];
+            if (!g) { let mx = -Infinity; let at = 0; const v = valAt[j]; for (let o = 0; o < v.length; o++) if (v[o] > mx) { mx = v[o]; at = o; } argAt[j] = at; maxAt[j] = maxAt[j + 1] + mx; j--; continue; }
+            // interchangeable slots: the best r modules among them, each at most as often as the count limits allow
+            const from = Math.max(g.start, i); const top = topValues(g, valAt[g.end], caps, g.end - from + 1);
+            for (let k = g.end; k >= from; k--) { maxAt[k] = maxAt[g.end + 1] + top[g.end - k]; argAt[k] = g.picks[k - from]; }
+            j = from - 1;
+          }
+          return C + maxAt[i];
+        };
+        const bound = (tp) => {
+          C = relax(i, tp);
+          for (let j = nS - 1; j >= i; j--) {
+            const vals = rawAt[j];
+            for (let o = 0; o < vals.length; o++) {
+              const a = optAdd[j][o]; const m = optMul[j][o]; let x = 0;
+              for (let q = 0; q < nK; q++) x += ca[q] * a[q] + cm[q] * m[q];
+              vals[o] = x;
+            }
+          }
+          // Lagrangian relaxation of the legality constraint (one `atLeast` pair): for any lam >= 0, adding
+          // lam * (margin) cannot lower the score of a legal design, and lets each slot weigh what a module adds
+          // against the thrust it uses. A few multipliers around the last good one are tried; the lowest is kept.
+          let b = fill(0); let lam = 0;
+          if (nC === 1) {
+            const l0 = lamAt[i] || 0.05;
+            for (const f of [0.5, 1, 2]) { const x = fill(l0 * f); if (x < b) { b = x; lam = l0 * f; } }
+            if (lam) lamAt[i] = lam;
+          }
+          return [b, lam];
+        };
+        // the relaxation's own best completion: its stats are the next tangent points
+        const completion = () => {
+          const out = new Array(nK);
+          for (let q = 0; q < nK; q++) {
+            let a = B[q] + pAdd[q]; let m = 1 + pMul[q];
+            for (let j = i; j < nS; j++) { a += optAdd[j][argAt[j]][q]; m += optMul[j][argAt[j]][q]; }
+            out[q] = Math.max(0, a * m);
+          }
+          return out;
+        };
+        let tp = bestX; let [b, lam] = bound(tp); let bestTp = tp; let bestLam = lam; let iters = 0;
+        fill(lam);
+        while (b > bar() + tol && iters++ < TANGENT_ROUNDS) {
+          const next = completion();
+          tp = tp.map((v, q) => (v + next[q]) / 2);
+          const [b2, lam2] = bound(tp);
+          if (b2 < b) { b = b2; bestTp = tp; bestLam = lam2; }
         }
+        if (bestTp !== tp || iters) { bound(bestTp); fill(bestLam); }
         if (C + maxAt[i] <= bar() + tol) return;
         // best-first: the module the relaxation likes most is tried first
         const vals = valAt[i];

@@ -24,8 +24,7 @@ everywhere: theatre, research year and designer mode. Every panel folds away, an
 - **Equipment**: three tabs (Tanks, Aircraft, Ships). Pick a type (a tank role such as main battle tank or tank
   destroyer, an aircraft role, or a ship role such as heavy cruiser or convoy raider, or the tanks in your template),
   and it works like the division designer: the proven-best design, priorities you can change, the next best designs
-  ranked with their gap, and a trade-off chart with the Pareto front. Aircraft are a role guide until the aircraft
-  designer files are extracted.
+  ranked with their gap, and a trade-off chart with the Pareto front.
 - **Field manual**: where the numbers come from, how the searches work and what they leave out.
 
 ## Features
@@ -73,10 +72,14 @@ everywhere: theatre, research year and designer mode. Every panel folds away, an
 - **Ship designer.** Hulls, modules and naval technology are extracted from the game files. For each role the search is
   exact: a bound that relaxes the score slot by slot (tangents for maximized stats, chords for costs, McCormick envelopes
   for added × multiplied amounts) rules out almost every combination unscored, so all roles solve in about a second.
-- **Aircraft designer.** The same exact search over airframes and plane modules, with the designer's rules: engines'
-  thrust must cover the weight of the airframe and modules, leftover thrust adds speed, and the main weapon decides the
-  plane type. Roles cover fighters, interceptors, heavy fighters, CAS, tactical, naval and strategic bombers, maritime
-  patrol, carrier planes and jet fighters. It runs as soon as `src/data/designers.json` holds aircraft designer data.
+- **Aircraft designer.** The same exact search over the 1.14.1 airframes (small, carrier, medium, large) and plane
+  modules, with the designer's rules: engines' thrust must cover the weight of the airframe and modules, leftover thrust
+  adds 0.5 agility per point (`THRUST_WEIGHT_AGILITY_FACTOR`), and the main weapon decides the plane type. Weapon stats
+  depend on the mission (a torpedo adds naval attack and weight only on naval strikes, a bomb bay ground attack on CAS
+  and bombing on strategic runs), so each role is designed for its own mission; on naval strikes only torpedo-class
+  weapons count, as `USE_SINGLE_NAVAL_ARMAMENT_CATEGORY` has it. Roles cover fighters, interceptors, heavy fighters,
+  CAS, tactical, naval and strategic bombers, maritime patrol, carrier planes and jet fighters; every role at every
+  year is proven best in well under two seconds.
 - **Your own equipment priorities.** For any tank, aircraft or ship type, change the priority of every stat; the type
   keeps its chassis, hull or airframe and what the design must carry, and the search runs again.
 - **Reliable tanks.** Stacked reliability penalties can push a tank design to 0%; recommended designs keep at least 60%
@@ -116,11 +119,9 @@ Check a result in game before you rely on it. These rules are assumptions, and t
 - The matchup model ignores terrain, entrenchment, planning, air support and width penalties.
 
 - Ship data comes from the patch 1.7 game files (the newest set reachable when it was added); re-run `npm run designers`
-  on a current install to refresh it.
-- Aircraft are a role guide until the aircraft designer files are extracted: the optimizer is built and tested on a
-  synthetic airframe (`tests/plane-fixture.json`), but no public copy of the patch 1.12+ files was reachable. Run
-  `npm run designers` on a current install to switch it on. The excess-thrust speed (3 km/h per point) is a community
-  measurement; check it against the game.
+  on a current install to refresh it. Aircraft data comes from the 1.14.1 game files (github.com/cbrzeczysz/hoi4-history).
+- Aircraft: the tactical bomber is designed for close air support and also scores its strategic bombing, with the
+  weight and agility of the CAS loadout. Doctrine and air ace bonuses are not applied.
 - Terrain combat widths are the Barbarossa-update values (plains and desert 90 +45, forest and jungle 84 +42, hills 80 +40,
   marsh 78 +26, mountain 75 +25, urban 96 +32). Meta widths are community practice, not derived from the game files.
 
@@ -151,7 +152,12 @@ npm run designers -- "<HOI4 install folder>" --version <patch number> --source "
 
 It reads `common/units/equipment` (ship hulls, airframes and their modules), `common/technologies` (naval and air
 technology bonuses) and the English equipment localisation, and rewrites `src/data/designers.json`. On a patch 1.12 or
-later install this also adds the aircraft designer, and the Aircraft tab turns from a role guide into the optimizer.
+later install this also adds the aircraft designer. `--kinds plane` (or `ship`) replaces only that designer's airframes or
+hulls and modules and keeps the rest of the file, which is how the aircraft data was added on top of the 1.7 ships:
+
+```
+npm run designers -- "<hoi4-history checkout at 1.14.1>" --version 1.14.1 --kinds plane --source "github.com/cbrzeczysz/hoi4-history (1.14.1 Bolivar game files)"
+```
 
 ## Deploy
 
