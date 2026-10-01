@@ -48,6 +48,8 @@ export function TechTree({ game, techs, setTechs, onClose, inline = false }) {
   const [query, setQuery] = useState('');
   const [researchSummary, setResearchSummary] = useState(null);
   const closeRef = useRef(null);
+  const scrollRef = useRef(null);
+  useWheelToHorizontal(scrollRef);
 
   useEffect(() => {
     if (inline) return undefined;
@@ -161,7 +163,7 @@ export function TechTree({ game, techs, setTechs, onClose, inline = false }) {
           {researchSummary.skippedSpecial > 0 ? ` ${researchSummary.skippedSpecial} special-project ${researchSummary.skippedSpecial === 1 ? 'technology was' : 'technologies were'} skipped.` : ''}
           {researchSummary.skippedExclusive > 0 ? ` ${researchSummary.skippedExclusive} mutually exclusive or conflicting ${researchSummary.skippedExclusive === 1 ? 'technology was' : 'technologies were'} skipped without replacing existing research.` : ''}
         </p>}
-        <div className="tp-scroll">
+        <div className="tp-scroll" ref={scrollRef}>
           {q && matchingCount === 0
             ? <p className="note tp-no-matches" role="status">No technologies in this tab match “{query.trim()}”. Try another search or clear the search field.</p>
             : <>
@@ -172,6 +174,51 @@ export function TechTree({ game, techs, setTechs, onClose, inline = false }) {
       </div>
     </div>
   );
+}
+
+/**
+ * Turns the vertical mouse wheel into smooth sideways scrolling over the tree, since the years run left to right.
+ * Once the tree reaches either end the wheel falls through to the page, and trackpad or shift-wheel sideways
+ * scrolling stays native.
+ */
+function useWheelToHorizontal(ref) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    let target = null;
+    let frame = 0;
+    const step = () => {
+      const diff = target - el.scrollLeft;
+      if (Math.abs(diff) < 1) { el.scrollLeft = target; target = null; frame = 0; return; }
+      el.scrollLeft += diff * .2;
+      frame = requestAnimationFrame(step);
+    };
+    const onWheel = (e) => {
+      if (e.ctrlKey || e.shiftKey || Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;
+      const max = el.scrollWidth - el.clientWidth;
+      // Leave the wheel alone when the tree also scrolls vertically (the dialog on short screens) or does not overflow.
+      if (max <= 1 || el.scrollHeight - el.clientHeight > 1) return;
+      const delta = e.deltaY * (e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? el.clientWidth : 1);
+      const from = target ?? el.scrollLeft;
+      if ((delta < 0 && from <= 0) || (delta > 0 && from >= max - 1)) return;
+      e.preventDefault();
+      target = Math.max(0, Math.min(max, from + delta));
+      if (reduce) { el.scrollLeft = target; target = null; return; }
+      if (!frame) frame = requestAnimationFrame(step);
+    };
+    // A drag or keyboard scroll mid-animation should win over the wheel target.
+    const cancel = () => { if (frame) cancelAnimationFrame(frame); frame = 0; target = null; };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    el.addEventListener('pointerdown', cancel);
+    el.addEventListener('keydown', cancel);
+    return () => {
+      cancel();
+      el.removeEventListener('wheel', onWheel);
+      el.removeEventListener('pointerdown', cancel);
+      el.removeEventListener('keydown', cancel);
+    };
+  }, [ref]);
 }
 
 function TreeGrid({ game, list, folder, techs, toggle, matches }) {
@@ -219,51 +266,57 @@ function TreeGrid({ game, list, folder, techs, toggle, matches }) {
     return map;
   }, [positioned]);
 
+  // The game data runs years down the screen; transpose it so years run left to right, like in game, and
+  // drop the empty columns and rows the source grid leaves between branches so the tree stays compact.
   const layout = useMemo(() => {
     if (!positioned.length) return null;
     const pts = positioned.map((t) => posOf.get(t.id));
-    const minX = Math.min(...pts.map((p) => p.x));
-    const minY = Math.min(...pts.map((p) => p.y));
-    return { minX, minY, cols: Math.max(...pts.map((p) => p.x)) - minX + 1, rows: Math.max(...pts.map((p) => p.y)) - minY + 1 };
+    const index = (vals) => new Map([...new Set(vals)].sort((a, b) => a - b).map((v, i) => [v, i]));
+    const colOf = index(pts.map((p) => p.y));
+    const rowOf = index(pts.map((p) => p.x));
+    return { colOf, rowOf, cols: colOf.size, rows: rowOf.size };
   }, [positioned, posOf]);
+  const cellOf = (id) => {
+    const p = posOf.get(id);
+    return { col: layout.colOf.get(p.y), row: layout.rowOf.get(p.x) };
+  };
 
   const positionedIds = new Set(positioned.map((t) => t.id));
   const edges = positioned.flatMap((t) => t.parents
     .map((p) => game.techs.get(p))
     .filter((p) => p && positionedIds.has(p.id))
     .map((p) => ({ from: p, to: t })));
+  const cols = layout ? layout.cols : 0;
   const rows = layout ? layout.rows : 0;
-  const rowYears = layout
-    ? [...new Set(positioned.map((t) => posOf.get(t.id).y))].map((y) => ({
-        row: y - layout.minY + 1,
+  const colYears = layout
+    ? [...layout.colOf].map(([y, col]) => ({
+        col,
         year: Math.min(...positioned.filter((t) => posOf.get(t.id).y === y).map((t) => t.year || 0).filter(Boolean)),
-      }))
+      })).filter((x) => Number.isFinite(x.year))
+      // Label a column only when it moves the timeline forward, so the rail reads as a clean run of years.
+      .filter((x, i, all) => all.slice(0, i).every((prev) => prev.year < x.year))
     : [];
-  const yearsStyle = { height: `${rows * 6 + 1.5}rem` };
-  const yearStyle = (row) => ({ top: `${(row - 1) * 6 + 4.85}rem` });
   return (
     <>
       {layout && (
-        <div className={`tp-tree-wrap tp-folder-${folder}`} style={{ '--tp-cols': layout.cols, '--tp-rows': rows }}>
-          <div className="tp-years tp-years-left" style={yearsStyle} aria-hidden="true">{rowYears.map((x) => <span key={x.row} style={yearStyle(x.row)}>{x.year}</span>)}</div>
-          <div className="tp-years tp-years-right" style={yearsStyle} aria-hidden="true">{rowYears.map((x) => <span key={x.row} style={yearStyle(x.row)}>{x.year}</span>)}</div>
-          <div className="tp-grid" style={{ gridTemplateColumns: `repeat(${layout.cols}, 5.2rem)`, gridTemplateRows: `repeat(${rows}, 6rem)`, paddingTop: '1.5rem' }}>
-            <svg className="tp-lines" style={{ '--tp-cols': layout.cols, '--tp-rows': rows }} viewBox={`0 0 ${layout.cols} ${rows}`} preserveAspectRatio="none" aria-hidden="true">
+        <div className={`tp-tree-wrap tp-folder-${folder}`} style={{ '--tp-cols': cols, '--tp-rows': rows }}>
+          <div className="tp-years" aria-hidden="true">{colYears.map((x) => <span key={x.col} style={{ '--tp-col': x.col }}>{x.year}</span>)}</div>
+          <div className="tp-grid" style={{ gridTemplateColumns: `repeat(${cols}, var(--tp-cw))`, gridTemplateRows: `repeat(${rows}, var(--tp-rh))` }}>
+            <svg className="tp-lines" viewBox={`0 0 ${cols} ${rows}`} preserveAspectRatio="none" aria-hidden="true">
               {edges.map(({ from, to }) => {
-                const fp = posOf.get(from.id); const tp = posOf.get(to.id);
-                const x1 = fp.x - layout.minX + .5; const y1 = fp.y - layout.minY + .5;
-                const x2 = tp.x - layout.minX + .5; const y2 = tp.y - layout.minY + .5;
-                return <path key={`${from.id}-${to.id}`} d={`M ${x1} ${y1} H ${x2} V ${y2}`} />;
+                const f = cellOf(from.id); const t = cellOf(to.id);
+                const x1 = f.col + .5; const y1 = f.row + .5;
+                const x2 = t.col + .5; const y2 = t.row + .5;
+                return <path key={`${from.id}-${to.id}`} d={`M ${x1} ${y1} V ${y2} H ${x2}`} />;
               })}
             </svg>
             {positioned.map((t) => {
-              const p = posOf.get(t.id);
+              const { col, row } = cellOf(t.id);
               // Bottom rows open their tooltip upwards so it stays inside the tree instead of being cut off.
-              const tipUp = rows - (p.y - layout.minY) <= 3;
-              const col = p.x - layout.minX;
-              const tipSide = col <= 1 ? ' tip-left' : col >= layout.cols - 2 ? ' tip-right' : '';
+              const tipUp = rows > 3 && rows - row <= 3;
+              const tipSide = col <= 1 ? ' tip-left' : col >= cols - 2 ? ' tip-right' : '';
               return (
-                <div key={t.id} className={'tp-cell' + (tipUp ? ' tip-up' : '') + tipSide} style={{ gridColumn: p.x - layout.minX + 1, gridRow: p.y - layout.minY + 1 }}>
+                <div key={t.id} className={'tp-cell' + (tipUp ? ' tip-up' : '') + tipSide} style={{ gridColumn: col + 1, gridRow: row + 1 }}>
                   <TechCard game={game} tech={t} techs={techs} toggle={toggle} dim={!matches(t) && !hasMatchingSub(t)} matches={matches} />
                 </div>
               );
