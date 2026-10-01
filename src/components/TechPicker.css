@@ -119,3 +119,9 @@
 .tp-inline .tp-head h2 { font-family: var(--head); letter-spacing: .04em; }
 .tp-tabs button.on { color: var(--accent-ink); }
 .tp-panel { background: var(--panel-solid); }
+
+/* Full-screen tree: the dialog fills the screen and the tree shrinks (down to 75%) to fit its height. */
+.tp-full { padding: 0; background: var(--bg, #0d1214); }
+.tp-full .tp-panel { width: 100%; border: 0; border-radius: 0; }
+.tp-full .tp-hint { display: none; }
+.tp-full .tp-scroll { overflow-y: auto; }

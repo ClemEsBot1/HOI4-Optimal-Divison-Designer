@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import Section from '../components/Section.jsx';
 import { TechPresets, TechTree } from '../components/TechPicker.jsx';
 
 export default function ResearchView({ game, techs, setTechs }) {
+  // Tab to open the full-screen tree on, or null while it is closed.
+  const [fullTab, setFullTab] = useState(null);
+  const closeFull = useCallback(() => setFullTab(null), []);
   return (
     <div className="view-research">
       <div className="view-head">
@@ -16,8 +19,9 @@ export default function ResearchView({ game, techs, setTechs }) {
         <TechPresets game={game} techs={techs} setTechs={setTechs} />
       </Section>
       <Section id="rs-tree" kicker="Technology" title="Tech tree" className="flush">
-        <TechTree game={game} techs={techs} setTechs={setTechs} inline />
+        <TechTree game={game} techs={techs} setTechs={setTechs} inline onExpand={setFullTab} />
       </Section>
+      {fullTab && <TechTree game={game} techs={techs} setTechs={setTechs} fullscreen initialTab={fullTab} onClose={closeFull} />}
     </div>
   );
 }
