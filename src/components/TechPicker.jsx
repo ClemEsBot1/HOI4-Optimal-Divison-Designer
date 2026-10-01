@@ -246,6 +246,9 @@ function useWheelToHorizontal(ref, evenIfTall = false) {
   }, [ref, evenIfTall]);
 }
 
+/** Rows a tree may use before its branches are folded into another band to the right. */
+const MAX_TREE_ROWS = 8;
+
 function TreeGrid({ game, list, folder, techs, toggle, matches, fit }) {
   const positioned = list.filter((t) => t.x && !t.subOf);
   const loose = list.filter((t) => (!t.x && !t.subOf));
@@ -293,17 +296,26 @@ function TreeGrid({ game, list, folder, techs, toggle, matches, fit }) {
 
   // The game data runs years down the screen; transpose it so years run left to right, like in game, and
   // drop the empty columns and rows the source grid leaves between branches so the tree stays compact.
+  // Trees with many branches would then be tall and narrow, so their branches are folded into bands placed
+  // side by side (each with its own run of years), which keeps every tree short and wide.
   const layout = useMemo(() => {
     if (!positioned.length) return null;
     const pts = positioned.map((t) => posOf.get(t.id));
     const index = (vals) => new Map([...new Set(vals)].sort((a, b) => a - b).map((v, i) => [v, i]));
     const colOf = index(pts.map((p) => p.y));
     const rowOf = index(pts.map((p) => p.x));
-    return { colOf, rowOf, cols: colOf.size, rows: rowOf.size };
+    const baseCols = colOf.size;
+    const bands = Math.ceil(rowOf.size / MAX_TREE_ROWS);
+    const bandRows = Math.ceil(rowOf.size / bands);
+    // One empty column between bands carries the lines that link branches across them.
+    const bandWidth = baseCols + 1;
+    return { colOf, rowOf, baseCols, bandRows, bandWidth, bands, cols: bands * bandWidth - 1, rows: bandRows };
   }, [positioned, posOf]);
   const cellOf = (id) => {
     const p = posOf.get(id);
-    return { col: layout.colOf.get(p.y), row: layout.rowOf.get(p.x) };
+    const r = layout.rowOf.get(p.x);
+    const band = Math.floor(r / layout.bandRows);
+    return { col: band * layout.bandWidth + layout.colOf.get(p.y), row: r % layout.bandRows, band };
   };
 
   const positionedIds = new Set(positioned.map((t) => t.id));
@@ -313,14 +325,22 @@ function TreeGrid({ game, list, folder, techs, toggle, matches, fit }) {
     .map((p) => ({ from: p, to: t })));
   const cols = layout ? layout.cols : 0;
   const rows = layout ? layout.rows : 0;
-  const colYears = layout
-    ? [...layout.colOf].map(([y, col]) => ({
-        col,
-        year: Math.min(...positioned.filter((t) => posOf.get(t.id).y === y).map((t) => t.year || 0).filter(Boolean)),
-      })).filter((x) => Number.isFinite(x.year))
-      // Label a column only when it moves the timeline forward, so the rail reads as a clean run of years.
-      .filter((x, i, all) => all.slice(0, i).every((prev) => prev.year < x.year))
-    : [];
+  // One label per column holding techs, shown only where it moves that band's timeline forward so each rail reads
+  // as a clean run of years.
+  const colYears = [];
+  if (layout) {
+    const firstYear = new Map();
+    for (const t of positioned) {
+      if (!t.year) continue;
+      const { col, band } = cellOf(t.id);
+      const cur = firstYear.get(col);
+      if (!cur || t.year < cur.year) firstYear.set(col, { col, band, year: t.year });
+    }
+    const latest = new Map();
+    for (const x of [...firstYear.values()].sort((a, b) => a.col - b.col)) {
+      if (x.year > (latest.get(x.band) ?? -Infinity)) { colYears.push(x); latest.set(x.band, x.year); }
+    }
+  }
   // In full screen, shrink the tree (down to 75%) so every row fits on screen and the wheel only has to scroll sideways.
   // Very tall trees still scroll vertically below that.
   const wrapRef = useRef(null);
@@ -356,7 +376,11 @@ function TreeGrid({ game, list, folder, techs, toggle, matches, fit }) {
                 const f = cellOf(from.id); const t = cellOf(to.id);
                 const x1 = f.col + .5; const y1 = f.row + .5;
                 const x2 = t.col + .5; const y2 = t.row + .5;
-                return <path key={`${from.id}-${to.id}`} d={`M ${x1} ${y1} V ${y2} H ${x2}`} />;
+                // Links between bands run along the parent's row, down the gap column before the child's band, then in.
+                const d = f.band === t.band
+                  ? `M ${x1} ${y1} V ${y2} H ${x2}`
+                  : `M ${x1} ${y1} H ${Math.max(f.band, t.band) * layout.bandWidth - .5} V ${y2} H ${x2}`;
+                return <path key={`${from.id}-${to.id}`} d={d} />;
               })}
             </svg>
             {positioned.map((t) => {
