@@ -455,3 +455,13 @@ table.rank { border-collapse: collapse; width: 100%; font-size: .86rem; }
 .role-group-title { display: flex; align-items: center; gap: .6rem; margin: 0 0 .5rem; font-family: var(--mono); font-size: .68rem; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; color: var(--brass); }
 .role-group-title::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--line-strong), transparent); }
 .role-meta { padding-left: 1.8rem; font-family: var(--mono); font-size: .68rem; letter-spacing: .06em; color: var(--olive-hi); }
+
+/* ---------- equipment: type picker ---------- */
+.type-picker { display: grid; gap: .55rem; margin: 0 0 1rem; padding: .7rem .8rem; border: 1px solid var(--line); border-radius: 9px; background: var(--inset); }
+.type-group { display: grid; grid-template-columns: 9.5rem 1fr; gap: .5rem; align-items: start; }
+.type-group-name { font-family: var(--mono); font-size: .62rem; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); padding-top: .45rem; }
+.data-note { margin: 0 0 .8rem; }
+@media (max-width: 640px) {
+  .type-group { grid-template-columns: 1fr; gap: .25rem; }
+  .type-group-name { padding-top: 0; }
+}

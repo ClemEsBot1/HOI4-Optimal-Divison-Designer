@@ -57,3 +57,26 @@ export function metaTanks(game, techs) {
     return { id: r.id, options };
   });
 }
+
+/**
+ * One role in depth: the `keep` best designs on every chassis that can fill it, merged and ranked, on the role's own
+ * priorities or on the objective given. The first is the recommendation (proven best per chassis); the rest are the
+ * alternatives and the trade-off chart's points.
+ */
+export function roleTanks(game, techs, roleId, objective, keep = 30) {
+  const r = TANK_ROLES.find((x) => x.id === roleId);
+  if (!r) return null;
+  const techSet = techs instanceof Set ? techs : new Set(techs);
+  const open = unlocks(game, techSet);
+  const obj = objective || r.objective;
+  const ranked = [];
+  for (const chassis of r.chassis) {
+    if (!game.raw.designers[chassis]) continue;
+    const d = autoDesign(game, techSet, chassis, r.unitRole, obj, open, { keep });
+    if (!d) continue;
+    const chassisName = game.raw.designers[chassis].name || chassis;
+    for (const t of d.ranked || [d]) ranked.push({ chassis, chassisName, role: r.unitRole, modules: t.modules, stats: t.stats, score: t.score });
+  }
+  ranked.sort((a, b) => b.score - a.score);
+  return { id: r.id, ranked };
+}

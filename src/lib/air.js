@@ -155,7 +155,7 @@ export function planeStats(data, frame, modules, year) {
  * Exact search for one role. Thrust >= weight is checked on every complete design and pruned slot by slot while no
  * module multiplies thrust or weight (true of the game's modules).
  */
-export function bestPlane(data, role, year, { budget = 6e5, gap = 0, weights = role.weights } = {}) {
+export function bestPlane(data, role, year, { budget = 6e5, gap = 0, weights = role.weights, keep = 1 } = {}) {
   const frames = framesFor(data, role, year).sort((x, y) => y.year - x.year);
   if (!frames.length) return null;
   const modules = folded(data);
@@ -168,7 +168,7 @@ export function bestPlane(data, role, year, { budget = 6e5, gap = 0, weights = r
     return [...names.filter((n) => !SWAP.test(n)), ...names.filter((n) => SWAP.test(n))];
   };
   const res = exactDesign({
-    modules, weights, floor: FLOOR, budget, gap, hulls,
+    modules, weights, floor: FLOOR, budget, gap, keep, hulls,
     atLeast: additive ? [['thrust', 'weight']] : [],
     slotOptions: (hull, n, slot) => Object.values(modules).filter((m) => slot.cats.includes(m.cat) && m.year <= year
       && !(role.main && n === mainSlot(hull) && !role.main.test(m.cat))
