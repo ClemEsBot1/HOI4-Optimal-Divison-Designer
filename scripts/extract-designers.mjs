@@ -10,7 +10,8 @@
  *
  * The file in the repository was built from the public copy of the game files at
  * github.com/Killeritch/Hearts-of-Iron-IV (patch 1.7, Man the Guns rules, no aircraft designer). Run this against a
- * current install to refresh it; the Equipment section reads whatever is there.
+ * current install to refresh it and add the aircraft designer (common/units/equipment/plane_airframes.txt and
+ * modules/00_plane_modules.txt, patch 1.12 or later); the Equipment section reads whatever is there.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -72,9 +73,12 @@ for (const f of walk(path.join(root, 'common/technologies')).filter((f) => f.end
   }
 }
 
-// tech bonuses to whole ship types (destroyer, light_cruiser, ...) by year
+// tech bonuses to whole ship and plane types (destroyer, light_cruiser, fighter, cas, ...) by year
 const typeMods = [];
 const SHIP_TYPES = new Set(['destroyer', 'light_cruiser', 'heavy_cruiser', 'battle_cruiser', 'battleship', 'super_heavy_battleship', 'carrier', 'submarine']);
+// plane types, and bonuses given to an airframe archetype itself (small_plane_airframe = { ... })
+const PLANE_TYPES = new Set(['fighter', 'heavy_fighter', 'interceptor', 'cas', 'naval_bomber', 'tactical_bomber', 'strategic_bomber', 'scout_plane', 'maritime_patrol', 'transport_plane', 'suicide']);
+const typeKey = (k) => SHIP_TYPES.has(k) || PLANE_TYPES.has(k) || /airframe$/.test(k);
 for (const f of walk(path.join(root, 'common/technologies')).filter((f) => f.endsWith('.txt'))) {
   let blk;
   try { blk = read(f); } catch { continue; }
@@ -84,7 +88,7 @@ for (const f of walk(path.join(root, 'common/technologies')).filter((f) => f.end
     if (!isBlock(t.v)) continue;
     const year = first(t.v, 'start_year');
     if (typeof year !== 'number') continue;
-    for (const e of t.v) if (SHIP_TYPES.has(e.k) && isBlock(e.v)) {
+    for (const e of t.v) if (typeKey(e.k) && isBlock(e.v)) {
       const stats = numbers(e.v);
       if (Object.keys(stats).length) typeMods.push({ tech: t.k, year, type: e.k, stats });
     }
@@ -137,6 +141,7 @@ for (const e of entries) {
   for (const k of STAT_SKIP) delete base[k];
   designers[e.id] = {
     id: e.id, kind, name: nameOf(e.id), type: first(e.b, 'type'), alias: first(e.b, 'alias') || null,
+    allowedTypes: bare(first(e.b, 'allowed_types')), typeOverride: first(e.b, 'type_override') || null,
     slots: slotsOf(e.b, null), limits: limitsOf(e.b), base, defaults: Object.fromEntries((first(e.b, 'default_modules') || []).filter((x) => typeof x.v === 'string').map((x) => [x.k, x.v])),
     variants: [],
   };
@@ -153,6 +158,8 @@ for (const e of entries.filter((x) => first(x.b, 'archetype') && designers[first
   const year = unlockYear[e.id] ?? first(e.b, 'year') ?? 1936;
   // pre-designer fixed ships (destroyer_1, light_cruiser_2, ...) share the archetype but are not designs
   if (kind(d) === 'ship' && !/^ship_hull_/.test(e.id)) continue;
+  // the same for planes: only airframes are designer frames (old fixed fighters and bombers are converted designs)
+  if (kind(d) === 'plane' && !/airframe/.test(e.id)) continue;
   d.variants.push({
     id: e.id, name: nameOf(e.id), year, stats, slots, researched: e.id in unlockYear || year <= 1922,
     limits: [...d.limits, ...limitsOf(e.b)],

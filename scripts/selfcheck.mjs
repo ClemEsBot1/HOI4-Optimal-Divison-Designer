@@ -13,6 +13,7 @@ import { encodeState, decodeState } from '../src/lib/format.js';
 import { metaTanks } from '../src/lib/tankRoles.js';
 import { MIN_DESIGN_RELIABILITY } from '../src/lib/game.js';
 import { SHIP_ROLES, bestShip, hullsFor, shipStats } from '../src/lib/naval.js';
+import { PLANE_ROLES, bestPlane, framesFor, planeStats, hasPlaneData, FLOOR as PLANE_FLOOR } from '../src/lib/air.js';
 import { THEATRES, frontageFit, fitTable, fittingWidths, battleFill } from '../src/lib/frontage.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -275,6 +276,65 @@ ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id
   const t0 = Date.now(); let trunc = 0;
   for (const role of SHIP_ROLES) if (bestShip(naval, role, 1944)?.truncated) trunc++;
   ok(!trunc, `every 1944 ship role is proven best (${Date.now() - t0} ms for ${SHIP_ROLES.length} roles)`);
+}
+
+// ---- ship designer on your own priorities ----
+{
+  const role = SHIP_ROLES.find((r) => r.id === 'dd_screen');
+  const own = bestShip(naval, role, 1940, { weights: { torpedo_attack: 8, naval_speed: 2 } });
+  ok(own && !own.truncated && own.stats.torpedo_attack > bestShip(naval, role, 1940).stats.torpedo_attack, 'custom ship priorities change the design (a screen hull asked for torpedoes carries more of them)');
+}
+
+// ---- aircraft designer: exact on a synthetic airframe (brute force), and on the real data when it is extracted ----
+{
+  const fixture = JSON.parse(fs.readFileSync(path.join(here, '../tests/plane-fixture.json'), 'utf8'));
+  const scoreOf = (st, w) => Object.entries(w).reduce((x, [k, v]) => x + v * Math.log(Math.max(0, st[k] || 0) + (PLANE_FLOOR[k] ?? 1)), 0);
+  const brute = (data, role, year) => {
+    let best = -Infinity; let n = 0;
+    for (const f of framesFor(data, role, year)) {
+      const names = Object.keys(f.slots).filter((x) => f.slots[x]);
+      const opts = names.map((nm) => {
+        const sl = f.slots[nm];
+        const ids = Object.values(data.modules).filter((m) => sl.cats.includes(m.cat) && m.year <= year).map((m) => m.id);
+        if (!sl.required || !ids.length) ids.push(null);
+        return ids;
+      });
+      const ch = new Array(names.length);
+      const walk = (i) => {
+        if (i === names.length) {
+          for (const l of f.limits || []) {
+            const c = ch.filter((id) => id && (id === l.module || data.modules[id].cat === l.category)).length;
+            if (l.op === '<' ? c >= l.count : l.op === '<=' ? c > l.count : false) return;
+          }
+          const main = names.findIndex((x) => /main_weapon/.test(x));
+          if (role.main && !(ch[main] && role.main.test(data.modules[ch[main]].cat))) return;
+          const st = planeStats(data, f, Object.fromEntries(names.map((nm, k) => [nm, ch[k]])), year);
+          if (!st.legal) return;
+          n++;
+          best = Math.max(best, scoreOf(st, role.weights));
+          return;
+        }
+        for (const id of opts[i]) { ch[i] = id; walk(i + 1); }
+      };
+      walk(0);
+    }
+    return { best, n };
+  };
+  for (const [id, year] of [['fighter', 1936], ['fighter', 1940], ['interceptor', 1940], ['cas', 1940], ['naval_bomber', 1940]]) {
+    const role = PLANE_ROLES.find((r) => r.id === id);
+    const b = brute(fixture, role, year);
+    const s = bestPlane(fixture, role, year);
+    ok(s && !s.truncated && s.stats.legal && Math.abs(s.score - b.best) < 1e-9, `aircraft designer finds the exact best ${role.name.toLowerCase()} (${year}, test airframe) among ${b.n.toLocaleString('en-GB')} legal designs`);
+  }
+  const heavy = bestPlane(fixture, PLANE_ROLES.find((r) => r.id === 'fighter'), 1940);
+  ok(heavy.stats.thrust >= heavy.stats.weight, 'the best fighter\'s engines carry its weight');
+  if (hasPlaneData(naval)) {
+    const t0 = Date.now(); let trunc = 0; let found = 0;
+    for (const role of PLANE_ROLES) { const r = bestPlane(naval, role, 1944); if (r) found++; if (r?.truncated) trunc++; }
+    ok(found && !trunc, `every 1944 aircraft role with an airframe is proven best (${found} roles, ${Date.now() - t0} ms)`);
+  } else {
+    console.log('note designers.json has no aircraft designer data yet; the aircraft tab shows the role guide');
+  }
 }
 
 // ---- theatre frontage ----
