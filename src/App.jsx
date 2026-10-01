@@ -1,60 +1,39 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import TemplateGrid from './components/TemplateGrid.jsx';
-import Pareto from './components/Pareto.jsx';
-import TechPicker from './components/TechPicker.jsx';
-import DoctrinePicker from './components/DoctrinePicker.jsx';
-import UnitPool from './components/UnitPool.jsx';
-import ManualDesigner from './components/ManualDesigner.jsx';
-import { ScoreExplain, Sensitivity, Logistics, OpponentPicker, MatchupSummary } from './components/Insights.jsx';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import raw from './data/game.json';
 import { buildGame, EMPTY_DOCTRINE } from './lib/game.js';
-import { STATS, MOD_KEYS, DEFAULT_OPTS, AXIS_STATS, evaluate, fmt } from './lib/stats.js';
-import { parseKey, DEFAULT_CONSTRAINTS, GAP_SHARE } from './lib/optimizer.js';
+import { DEFAULT_OPTS, AXIS_STATS, evaluate } from './lib/stats.js';
+import { parseKey, DEFAULT_CONSTRAINTS } from './lib/optimizer.js';
 import { explain } from './lib/score.js';
-import { ROLES, ZERO_WEIGHTS, defaultTech, defaultExclude, doctrineRecommendations } from './lib/presets.js';
-import { describeTemplate, countBy, encodeState, decodeState } from './lib/format.js';
-import { describeDesign } from './lib/describe.js';
+import { ROLES, ZERO_WEIGHTS, defaultTech, defaultExclude, doctrineRecommendations, TECH_PRESETS, techPreset, sameSet } from './lib/presets.js';
+import { encodeState, decodeState } from './lib/format.js';
+import { THEATRES, TERRAINS, frontageFit, fitTable, fittingWidths } from './lib/frontage.js';
+import { readStore, writeStore } from './lib/storage.js';
+import Menu from './components/Menu.jsx';
+import DesignerView, { templateText } from './views/DesignerView.jsx';
+import ResearchView from './views/ResearchView.jsx';
+import DoctrineView from './views/DoctrineView.jsx';
+import EquipmentView from './views/EquipmentView.jsx';
+import FieldManualView from './views/FieldManualView.jsx';
 
 const game = buildGame(raw);
 
-const ROLE_AXES = {
-  line: ['def', 'org'], offensive_infantry: ['sa', 'org'], armor: ['sa', 'brk'], hunter: ['ha', 'pier'],
-  space_marines: ['arm', 'sa'], custom: ['sa', 'def'],
-};
-const SHOW_ADVANCED_PRIORITIES = false; // Keep the optimizer controls implemented, but present role presets for now.
-
-const COST_LABEL = { ic: 'Cheaper to build', mp: 'Uses less manpower', sup: 'Uses less supply', trucks: 'Needs fewer trucks' };
-const NAV_ITEMS = [
-  { id: 'results', icon: 'category_all_infantry', label: 'Designer' },
-  { id: 'technology', icon: 'category_artillery', label: 'Research' },
-  { id: 'doctrine', icon: 'category_all_armor', label: 'Doctrine' },
-  { id: 'equipment', icon: 'basic_medium_tank_chassis', label: 'Equipment', iconFolder: 'technologies' },
+const VIEWS = [
+  { id: 'designer', label: 'Designer', icon: '/hoi4/icons/category_all_infantry.png' },
+  { id: 'research', label: 'Research', icon: '/hoi4/icons/category_artillery.png' },
+  { id: 'doctrine', label: 'Doctrine', icon: '/hoi4/icons/category_all_armor.png' },
+  { id: 'equipment', label: 'Equipment', icon: '/hoi4/technologies/basic_medium_tank_chassis.png' },
+  { id: 'manual', label: 'Field manual', icon: '/hoi4/technologies/tech_support.png' },
 ];
-const plural = (n, singular, many) => `${n} ${n === 1 ? singular : many}`;
-const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const ROLE_ICONS = {
-  line: 'category_all_infantry',
-  offensive_infantry: 'category_artillery',
-  armor: 'category_all_armor',
-  hunter: 'category_artillery',
-  space_marines: 'category_all_armor',
-};
-const GROUP_ORDER = ['Offense', 'Staying power', 'Mobility', 'Cost', 'Utility'];
-
-const RESULT_LABEL = {
-  width: 'Combat width', sa: 'Soft attack', ha: 'Hard attack', brk: 'Breakthrough', def: 'Defense', org: 'Organization',
-  rec: 'Recovery rate', hp: 'Hit points', arm: 'Armor', pier: 'Piercing', hard: 'Hardness %', spd: 'Speed (km/h)', rel: 'Reliability %',
-  air: 'Air attack', recon: 'Recon', ic: 'Production cost', mp: 'Manpower', sup: 'Supply use', trucks: 'Trucks needed',
-};
-// Grouped the same way the in-game Division Designer lays out its Base Stats / Combat Stats / Equipment Cost panels.
-const RESULT_PANELS = [
-  { title: 'Base Stats', keys: ['spd', 'hp', 'org', 'rec', 'rel', 'recon', 'width'] },
-  { title: 'Combat Stats', keys: ['sa', 'ha', 'air', 'def', 'brk', 'arm', 'pier', 'hard'] },
-  { title: 'Equipment Cost', keys: ['mp', 'ic', 'sup', 'trucks'] },
+const MODES = [
+  { id: 'search', label: 'Optimal search', blurb: 'Find and prove the best template for the role and limits.' },
+  { id: 'manual', label: 'Manual design', blurb: 'Draft a template by hand and measure it against the best.' },
+  { id: 'compare', label: 'Compare', blurb: 'Line up alternatives and saved designs side by side.' },
 ];
-
+const ROLE_AXES = { line: ['def', 'org'], offensive_infantry: ['sa', 'org'], armor: ['sa', 'brk'], hunter: ['ha', 'pier'], space_marines: ['arm', 'sa'], custom: ['sa', 'def'] };
 const DEFAULT_ENEMY = { id: 'none', focus: 'both', weight: 8 };
 const DEFAULT_SCALE = { divisions: 24, factories: 60, efficiency: 70 };
+const DEFAULT_THEATRE = { id: 'any', fitOnly: false, minFit: 0.9 };
+const FADE_MS = 280;
 
 /** The opponent setting turns into the two matchup priorities. */
 function withMatchup(weights, enemy) {
@@ -65,40 +44,40 @@ function withMatchup(weights, enemy) {
 
 function loadInitial() {
   const base = {
-    roleId: ROLES[0].id,
-    weights: { ...ZERO_WEIGHTS, ...ROLES[0].weights },
-    constraints: { ...DEFAULT_CONSTRAINTS, ...ROLES[0].constraints },
-    techs: defaultTech(game),
-    doctrine: { ...EMPTY_DOCTRINE, slotCount: 1 },
-    exclude: defaultExclude(game),
-    mods: {},
-    opts: { ...DEFAULT_OPTS },
-    axes: ROLE_AXES[ROLES[0].id],
-    enemy: { ...DEFAULT_ENEMY },
-    scale: { ...DEFAULT_SCALE },
+    roleId: ROLES[0].id, weights: { ...ZERO_WEIGHTS, ...ROLES[0].weights }, constraints: { ...DEFAULT_CONSTRAINTS, ...ROLES[0].constraints },
+    techs: defaultTech(game), doctrine: { ...EMPTY_DOCTRINE, slotCount: 1 }, exclude: defaultExclude(game), mods: {}, opts: { ...DEFAULT_OPTS },
+    axes: ROLE_AXES[ROLES[0].id], enemy: { ...DEFAULT_ENEMY }, scale: { ...DEFAULT_SCALE }, theatre: { ...DEFAULT_THEATRE },
+    view: 'designer', mode: 'search', equipTab: 'tanks',
   };
   try {
     const m = /#s=(.+)$/.exec(window.location.hash);
     const s = m && decodeState(m[1], game);
     if (s && s.w && s.c) {
-      // Only accept a chart axis pair that is two known stats, so a hand-edited link cannot break the chart.
       const ax = Array.isArray(s.ax) && s.ax.length === 2 && s.ax.every((k) => AXIS_STATS.includes(k)) ? s.ax : base.axes;
       return {
-        roleId: s.r || 'custom',
-        weights: { ...ZERO_WEIGHTS, ...s.w },
-        constraints: { ...DEFAULT_CONSTRAINTS, ...s.c },
-        techs: s.t || base.techs, // links made for an older data set fall back to the default research
-        doctrine: { ...base.doctrine, ...(s.d || {}) },
-        exclude: Array.isArray(s.x) ? s.x : base.exclude,
-        mods: s.m || {},
-        opts: { ...DEFAULT_OPTS, ...(s.o || {}) },
-        axes: ax,
+        ...base,
+        roleId: s.r || 'custom', weights: { ...ZERO_WEIGHTS, ...s.w }, constraints: { ...DEFAULT_CONSTRAINTS, ...s.c },
+        techs: s.t || base.techs, doctrine: { ...base.doctrine, ...(s.d || {}) }, exclude: Array.isArray(s.x) ? s.x : base.exclude,
+        mods: s.m || {}, opts: { ...DEFAULT_OPTS, ...(s.o || {}) }, axes: ax,
         enemy: { ...DEFAULT_ENEMY, ...(s.e && typeof s.e === 'object' ? s.e : {}) },
         scale: { ...DEFAULT_SCALE, ...(s.k && typeof s.k === 'object' ? s.k : {}) },
+        theatre: { ...DEFAULT_THEATRE, ...(s.th && typeof s.th === 'object' ? s.th : {}) },
+        view: VIEWS.some((v) => v.id === s.v) ? s.v : base.view,
+        mode: MODES.some((x) => x.id === s.md) ? s.md : base.mode,
+        equipTab: ['tanks', 'air', 'navy'].includes(s.eq) ? s.eq : base.equipTab,
       };
     }
   } catch { /* ignore malformed links */ }
   return base;
+}
+
+/** Research year shown in the command bar: the matching preset, or the latest start year among researched techs. */
+function researchYear(techs) {
+  const preset = TECH_PRESETS.find((p) => sameSet(techs, techPreset(game, p.year)));
+  if (preset) return { year: Math.min(1945, preset.year), label: preset.label, preset };
+  let y = 1936;
+  for (const id of techs) { const t = game.techs.get(id); if (t && !t.special && t.year && t.year > y) y = t.year; }
+  return { year: Math.min(1945, y), label: `Custom (${Math.min(1945, y)})`, preset: null };
 }
 
 export default function App() {
@@ -115,17 +94,49 @@ export default function App() {
   const [axisY, setAxisY] = useState(initial.axes[1]);
   const [enemy, setEnemy] = useState(initial.enemy);
   const [scale, setScale] = useState(initial.scale);
+  const [theatreState, setTheatreState] = useState(initial.theatre);
+  const [mode, setMode] = useState(initial.mode);
+  const [equipTab, setEquipTab] = useState(initial.equipTab);
 
   const [result, setResult] = useState(null); // { res, mods, opts, roleId }
   const [running, setRunning] = useState(false);
+  const [tick, setTick] = useState(null);
   const [selected, setSelected] = useState(null);
-  const [copied, setCopied] = useState(false);
-  const [activeNav, setActiveNav] = useState(NAV_ITEMS[0].id);
+  const [copied, setCopied] = useState(null);
+  const [manual, setManual] = useState({ items: [], support: [], reg: [] });
+  const [saved, setSaved] = useState(() => readStore('dd.saved', []));
 
+  // ---- views with a fade between them ----
+  const [view, setView] = useState(initial.view);
+  const [shownView, setShownView] = useState(initial.view);
+  const [phase, setPhase] = useState('in');
+  const fadeTimer = useRef(null);
+  const go = useCallback((v, tab) => {
+    if (tab) setEquipTab(tab);
+    if (v === view) return;
+    setView(v);
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) { setShownView(v); window.scrollTo({ top: 0 }); return; }
+    setPhase('out');
+    clearTimeout(fadeTimer.current);
+    fadeTimer.current = setTimeout(() => {
+      setShownView(v);
+      window.scrollTo({ top: 0 });
+      setPhase('in');
+    }, FADE_MS);
+  }, [view]);
+  const switchMode = (m) => { setMode(m); go('designer'); };
+
+  // ---- theatre ----
+  const theatre = THEATRES.find((t) => t.id === theatreState.id) || THEATRES[0];
+  const fitOf = useCallback((w) => frontageFit(w, theatre), [theatre]);
+  const fitWidths = useMemo(() => (theatre.mix && theatreState.fitOnly ? fittingWidths(theatre, constraints.wmin, constraints.wmax, theatreState.minFit) : null), [theatre, theatreState, constraints.wmin, constraints.wmax]);
+
+  // ---- search worker: long-lived, replaced only when a search must be cancelled ----
   const workerRef = useRef(null);
+  const busyRef = useRef(false);
   const runId = useRef(0);
-
-  // ---- search: debounce, run in a worker, cancel stale runs ----
+  const newWorker = () => new Worker(new URL('./lib/worker.js', import.meta.url), { type: 'module' });
   useEffect(() => {
     const total = Object.values(weights).reduce((a, b) => a + Math.abs(b), 0);
     if (!total) {
@@ -134,78 +145,63 @@ export default function App() {
       return undefined;
     }
     setRunning(true);
+    setTick(null);
     const id = ++runId.current;
     const timer = setTimeout(() => {
-      if (workerRef.current) workerRef.current.terminate();
-      const w = new Worker(new URL('./lib/worker.js', import.meta.url), { type: 'module' });
-      workerRef.current = w;
+      if (workerRef.current && busyRef.current) { workerRef.current.terminate(); workerRef.current = null; }
+      if (!workerRef.current) workerRef.current = newWorker();
+      const w = workerRef.current;
+      busyRef.current = true;
       w.onmessage = (e) => {
         if (e.data.id !== id) return;
+        if (e.data.tick) { setTick(e.data.tick); return; }
         const r = e.data.res;
         setResult({ res: r, mods, opts, roleId });
         if (r.top) setSelected({ items: r.top[0].items, support: r.top[0].support, reg: r.top[0].reg, key: r.top[0].key });
         else setSelected(null);
-        // a provisional answer arrives first; the search keeps going until the proof is done
-        if (!e.data.partial) setRunning(false);
+        if (!e.data.partial) { setRunning(false); busyRef.current = false; setTick(null); }
       };
       w.onerror = () => {
         if (runId.current !== id) return;
+        busyRef.current = false;
         setResult({ res: { error: 'The search worker failed to start.' }, mods, opts, roleId });
         setRunning(false);
       };
       const enemyParam = enemy.id && enemy.id !== 'none' ? enemy : null;
-      w.postMessage({ id, params: { techs: [...techs], doctrine, exclude, weights: withMatchup(weights, enemy), constraints, mods, opts, enemy: enemyParam, topN: 10 } });
+      const cons = fitWidths && fitWidths.length ? { ...constraints, widths: fitWidths } : constraints;
+      w.postMessage({ id, type: 'search', params: { techs: [...techs], doctrine, exclude, weights: withMatchup(weights, enemy), constraints: cons, mods, opts, enemy: enemyParam, topN: 10 } });
     }, 400);
     return () => clearTimeout(timer);
-  }, [weights, constraints, techs, doctrine, exclude, mods, opts, enemy]); // roleId only labels the result
-
+  }, [weights, constraints, techs, doctrine, exclude, mods, opts, enemy, fitWidths]); // roleId only labels the result
   useEffect(() => () => workerRef.current && workerRef.current.terminate(), []);
 
-  // ---- keep the URL in sync so a setup can be shared ----
+  // ---- equipment worker: separate, so equipment pages never wait for a long search ----
+  const equipRef = useRef(null);
+  const equipSeq = useRef(0);
+  const equipWaiters = useRef(new Map());
+  const askEquip = useCallback((msg) => new Promise((resolve) => {
+    if (!equipRef.current) {
+      equipRef.current = newWorker();
+      equipRef.current.onmessage = (e) => { const f = equipWaiters.current.get(e.data.id); if (f) { equipWaiters.current.delete(e.data.id); f(e.data.res); } };
+    }
+    const id = `eq${++equipSeq.current}`;
+    equipWaiters.current.set(id, resolve);
+    equipRef.current.postMessage({ id, ...msg });
+  }), []);
+  useEffect(() => () => equipRef.current && equipRef.current.terminate(), []);
+  const tankCache = useRef(new Map());
+  const techsKey = useMemo(() => [...techs].sort().join(','), [techs]);
+  const requestTanks = useCallback(() => {
+    if (!tankCache.current.has(techsKey)) tankCache.current.set(techsKey, askEquip({ type: 'tanks', techs: [...techs] }));
+    return tankCache.current.get(techsKey);
+  }, [techsKey, techs, askEquip]);
+  const requestShip = useCallback((role, year) => askEquip({ type: 'ship', role, year }), [askEquip]);
+
+  // ---- share link ----
   useEffect(() => {
-    const s = encodeState({ r: roleId, w: weights, c: constraints, t: [...techs], d: doctrine, x: exclude, m: mods, o: opts, ax: [axisX, axisY], e: enemy, k: scale }, game);
+    const s = encodeState({ r: roleId, w: weights, c: constraints, t: [...techs], d: doctrine, x: exclude, m: mods, o: opts, ax: [axisX, axisY], e: enemy, k: scale, th: theatreState, v: view, md: mode, eq: equipTab }, game);
     if (s) window.history.replaceState(null, '', '#s=' + s);
-  }, [roleId, weights, constraints, techs, doctrine, exclude, mods, opts, axisX, axisY, enemy, scale]);
-
-  // ---- section navigation ----
-  // The setup lives in the URL hash, so the nav links must scroll instead of following their anchor: a plain
-  // `#technology` jump would throw away the share link. The active tab follows whichever section is in view.
-  const goToSection = (event, id) => {
-    event.preventDefault();
-    if (NAV_ITEMS.some((n) => n.id === id)) setActiveNav(id);
-    document.getElementById(id)?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
-  };
-
-  useEffect(() => {
-    let frame = 0;
-    const update = () => {
-      frame = 0;
-      // The sections sit in two columns and can be only a few hundred pixels apart, so pick the one whose top is
-      // closest to the top of the viewport out of those that have reached it. Before the first one does, the
-      // first tab stays lit.
-      const line = Math.min(180, window.innerHeight * 0.2);
-      let best = NAV_ITEMS[0].id;
-      let bestDistance = Infinity;
-      for (const item of NAV_ITEMS) {
-        const el = document.getElementById(item.id);
-        if (!el) continue;
-        const top = el.getBoundingClientRect().top;
-        if (top > line) continue;
-        const distance = Math.abs(top);
-        if (distance < bestDistance) { bestDistance = distance; best = item.id; }
-      }
-      setActiveNav(best);
-    };
-    const onScroll = () => { if (!frame) frame = window.requestAnimationFrame(update); };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
-    update();
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
-      if (frame) window.cancelAnimationFrame(frame);
-    };
-  }, []);
+  }, [roleId, weights, constraints, techs, doctrine, exclude, mods, opts, axisX, axisY, enemy, scale, theatreState, view, mode, equipTab]);
 
   // ---- derived display data ----
   const res = result?.res;
@@ -218,30 +214,26 @@ export default function App() {
   }, [res, selected, byId, result]);
   const topKeys = useMemo(() => (res?.top ? res.top.map((t) => t.key) : []), [res]);
   const role = ROLES.find((r) => r.id === result?.roleId);
-  const recommendations = doctrineRecommendations(game, result?.roleId);
-  const bestScore = res?.top?.[0]?.score;
-  // why the selected template scores what it does: against the runner-up for the winner, else against the winner
   const why = useMemo(() => {
     if (!shown || !res?.top || !res.terms) return null;
     const isWinner = selected?.key === res.top[0].key;
     const ref = isWinner ? res.top[1]?.stats : res.top[0].stats;
     return { rows: explain(shown, ref || null, res.terms, res.enemy), isWinner, hasRef: !!ref };
   }, [shown, res, selected]);
-  const pickTemplate = (t) => setSelected({ items: t.items, support: t.support, reg: t.reg, key: t.key });
-
   const designsUsed = useMemo(() => {
-    if (!selected || !byId) return [];
+    if (!selected || !byId || !res?.designs) return [];
     const seen = new Map();
     for (const id of [...selected.items, ...selected.support, ...(selected.reg || [])]) {
       const u = byId.get(id);
-      if (u && u.design) seen.set(`${u.design.chassis}|${u.design.role}`, u);
+      if (u && u.design) {
+        const key = `${u.design.chassis}|${u.design.role}`;
+        const d = res.designs[key];
+        if (d) seen.set(key, { ...d, title: `${game.raw.designers[d.chassis]?.name || d.chassis}${d.role === 'armor' ? '' : ` (${d.role.replace('_', '-')})`}` });
+      }
     }
-    return [...seen.values()].map((u) => ({
-      key: `${u.design.chassis}|${u.design.role}`,
-      title: `${game.raw.designers[u.design.chassis]?.name || u.design.chassis}${u.design.role === 'armor' ? '' : `, ${u.design.role.replace('_', '-')}`}`,
-      parts: describeDesign(game, u.design),
-    }));
-  }, [selected, byId]);
+    return [...seen.values()];
+  }, [selected, byId, res]);
+  const ry = useMemo(() => researchYear(techs), [techs]);
 
   // ---- handlers ----
   const applyRole = (r) => {
@@ -249,475 +241,137 @@ export default function App() {
     setWeights({ ...ZERO_WEIGHTS, ...r.weights });
     setConstraints({ ...DEFAULT_CONSTRAINTS, ...r.constraints });
     const ax = ROLE_AXES[r.id];
-    setAxisX(ax[0]);
-    setAxisY(ax[1]);
+    setAxisX(ax[0]); setAxisY(ax[1]);
   };
   const setWeight = (k, v) => { setRoleId('custom'); setWeights((w) => ({ ...w, [k]: v })); };
   const setCons = (k, v) => { setRoleId('custom'); setConstraints((c) => ({ ...c, [k]: v })); };
-  const pickKey = (key) => {
-    const { items, support, reg } = parseKey(key);
-    setSelected({ items, support, reg, key });
+  const pickKey = (key) => { const { items, support, reg } = parseKey(key); setSelected({ items, support, reg, key }); };
+  const flash = (what) => { setCopied(what); setTimeout(() => setCopied(null), 1800); };
+  const copyLink = async () => { try { await navigator.clipboard.writeText(window.location.href); flash('link'); } catch { /* clipboard unavailable */ } };
+  const copyText = async (tpl, st) => { try { await navigator.clipboard.writeText(templateText(tpl, st, byId)); flash('text'); } catch { /* clipboard unavailable */ } };
+  const saveTemplate = (tpl, st) => {
+    if (!tpl || !st) return;
+    const name = `${role ? role.name : 'Custom'} · ${Math.round(st.width)}w · ${ry.label}`;
+    const entry = { id: Date.now().toString(36), name, items: tpl.items.slice(), support: tpl.support.slice(), reg: (tpl.reg || []).slice(), savedAt: new Date().toISOString() };
+    setSaved((cur) => { const next = [entry, ...cur].slice(0, 40); writeStore('dd.saved', next); return next; });
+    flash('saved');
   };
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch { /* clipboard unavailable */ }
-  };
+  const removeSaved = (id) => setSaved((cur) => { const next = cur.filter((s) => s.id !== id); writeStore('dd.saved', next); return next; });
 
-  const groups = GROUP_ORDER.map((g) => ({ g, stats: STATS.filter((s) => s.group === g) }));
   const version = /^unknown/.test(game.meta.gameVersion) ? null : game.meta.gameVersion;
+  const ctx = {
+    game, mode, setMode: switchMode, roleId, applyRole, weights, setWeight, constraints, setCons, enemy, setEnemy, exclude, setExclude,
+    mods, setMods, opts, setOpts, scale, setScale, res, result, running, tick, selected, setSelected, byId, shown, why, topKeys,
+    axisX, setAxisX, axisY, setAxisY, copyLink, copyText, copied, saveTemplate, saved, removeSaved, manual, setManual, role,
+    theatre, theatreState, fitOf, fitWidths, go, designsUsed, pickKey,
+  };
 
   return (
     <div className="app">
-      <header className="game-bar">
-        <a className="brand-lockup" href="#results" aria-label="Division Desk home" onClick={(e) => goToSection(e, 'results')}>
-          <span className="brand-crest"><img src="/hoi4/icons/category_all_infantry.png" alt="" /></span>
-          <span className="brand-copy"><small>HOI4 // FIELD COMMAND</small><strong>DIVISION DESK</strong></span>
+      <div className="backdrop" aria-hidden="true" />
+      <header className="topbar">
+        <a className="brand" href="#designer" onClick={(e) => { e.preventDefault(); go('designer'); }} aria-label="Division Desk">
+          <span className="brand-mark"><img src="/hoi4/icons/category_all_infantry.png" alt="" /></span>
+          <span className="brand-text"><small>HOI4 // General staff</small><strong>Division Desk</strong></span>
         </a>
-        <nav className="game-nav" aria-label="Designer sections">
-          {NAV_ITEMS.map((item) => (
-            <a key={item.id} className={'nav-tab' + (activeNav === item.id ? ' active' : '')} href={`#${item.id}`}
-              aria-current={activeNav === item.id ? 'true' : undefined} onClick={(e) => goToSection(e, item.id)}>
-              <img src={`/hoi4/${item.iconFolder || 'icons'}/${item.icon}.png`} alt="" />
-              <span>{item.label}</span>
-            </a>
+        <nav className="nav" aria-label="Sections">
+          {VIEWS.map((v) => (
+            <button key={v.id} type="button" className={'nav-item' + (view === v.id ? ' on' : '')} aria-current={view === v.id ? 'page' : undefined} onClick={() => go(v.id)}>
+              <img src={v.icon} alt="" /><span>{v.label}</span>
+            </button>
           ))}
         </nav>
-        <div className="game-actions">
-          <span className="connection"><i /> LOCAL DATA</span>
-          <span className="patch">{version ? `PATCH ${version}` : 'PATCH // UNKNOWN'}</span>
+        <div className="topbar-status">
+          <span className={'signal' + (running ? ' busy' : '')}><i />{running ? 'Computing' : 'Ready'}</span>
+          <span className="patch">{version ? `Patch ${version}` : `Game files · ${game.meta.generatedAt.slice(0, 10)}`}</span>
         </div>
       </header>
 
-      <div className="command-strip" aria-label="Current setup summary">
-        <span><b>THEATRE</b> GERMANY</span>
-        <span><b>YEAR</b> 1936—1945</span>
-        <span><b>MODE</b> OPTIMAL TEMPLATE SEARCH</span>
-        <span className="strip-right">ALL DLC // NO MODS</span>
-      </div>
-
-      <header className="masthead">
-        <div className="masthead-topline"><span>STRATEGIC COMMAND // RESEARCH &amp; DEVELOPMENT</span><span>DESIGN BUREAU 01</span></div>
-        <div className="masthead-main">
-          <div>
-            <div className="eyebrow">DIVISION OPTIMIZATION SYSTEM</div>
-            <h1>Division Desk</h1>
-            <p>Say what the division is for. The bureau searches every legal template, proves the strongest formation, and records what each alternative gives up.</p>
-          </div>
-          <div className="masthead-seal" aria-hidden="true"><span>R&amp;D</span><b>★</b><small>FIELD<br />READY</small></div>
-        </div>
-      </header>
-
-      <div className="layout">
-        <aside className="rail" aria-label="Division goals">
-          <section className="block">
-            <h2>Role</h2>
-            <div className="roles" role="radiogroup" aria-label="Role presets">
-              {ROLES.map((r) => (
-                <button key={r.id} type="button" role="radio" aria-checked={roleId === r.id}
-                  className={'role' + (roleId === r.id ? ' on' : '')} onClick={() => applyRole(r)}>
-                  <span className="role-title">
-                    <img src={`/hoi4/icons/${ROLE_ICONS[r.id] || 'category_all_infantry'}.png`} alt="" />
-                    <strong>{r.name}</strong>
-                    <em>{roleId === r.id ? 'ACTIVE' : 'SELECT'}</em>
-                  </span>
-                  <span className="role-blurb">{r.blurb}</span>
+      <div className="commandbar" role="toolbar" aria-label="Setup">
+        <Menu label="Theatre" value={theatre.name} wide>
+          {(close) => <TheatreMenu theatre={theatre} state={theatreState} setState={setTheatreState} wmin={constraints.wmin} wmax={constraints.wmax} fitWidths={fitWidths} close={close} />}
+        </Menu>
+        <Menu label="Year" value={ry.label}>
+          {(close) => (
+            <div className="menu-list">
+              <p className="menu-title">Research level</p>
+              {TECH_PRESETS.map((p) => (
+                <button key={p.year} type="button" className={'menu-item' + (ry.preset?.year === p.year ? ' on' : '')} onClick={() => { setTechs(techPreset(game, p.year)); close(); }}>
+                  <b>{p.label}</b><small>{p.year >= 9999 ? 'Everything, including special projects' : `Every technology that starts by ${p.year}`}</small>
+                </button>
+              ))}
+              <button type="button" className="menu-item" onClick={() => { close(); go('research'); }}><b>Pick technologies…</b><small>Open the research tree</small></button>
+            </div>
+          )}
+        </Menu>
+        <Menu label="Mode" value={MODES.find((m) => m.id === mode)?.label}>
+          {(close) => (
+            <div className="menu-list">
+              <p className="menu-title">Designer mode</p>
+              {MODES.map((m) => (
+                <button key={m.id} type="button" className={'menu-item' + (mode === m.id ? ' on' : '')} onClick={() => { switchMode(m.id); close(); }}>
+                  <b>{m.label}</b><small>{m.blurb}</small>
                 </button>
               ))}
             </div>
-          </section>
-
-          {SHOW_ADVANCED_PRIORITIES && <section className="block">
-            <h2>Advanced priorities</h2>
-            <p className="note">These controls remain available for future custom optimization. Role presets currently define the search priorities.</p>
-            {groups.map(({ g, stats }) => (
-              <details key={g} className="group" open={g !== 'Utility'}>
-                <summary>{g}</summary>
-                {stats.map((s) => {
-                  const signed = !!s.signed;
-                  const label = COST_LABEL[s.key] || (signed ? 'Hardness (armored ↔ soft)' : s.label);
-                  return (
-                    <label className="slider" key={s.key}>
-                      <span className="slider-name">{label}</span>
-                      <output>{weights[s.key] || 0}</output>
-                      <input type="range" min={signed ? -10 : 0} max="10" step="1" value={weights[s.key] || 0}
-                        onChange={(e) => setWeight(s.key, Number(e.target.value))} />
-                    </label>
-                  );
-                })}
-              </details>
-            ))}
-          </section>}
-
-          <section className="block">
-            <h2>Limits</h2>
-            <div className="fields">
-              <label>Combat width, from
-                <input type="number" min="0" max="45" value={constraints.wmin}
-                  onChange={(e) => setCons('wmin', Math.max(0, Math.min(45, Number(e.target.value) || 0)))} /></label>
-              <label>to
-                <input type="number" min="0" max="45" value={constraints.wmax}
-                  onChange={(e) => setCons('wmax', Math.max(0, Math.min(45, Number(e.target.value) || 0)))} /></label>
-              <label>Organization at least
-                <input type="number" min="0" max="100" value={constraints.minOrg}
-                  onChange={(e) => setCons('minOrg', Math.max(0, Number(e.target.value) || 0))} /></label>
-              <label>Armor at least
-                <input type="number" min="0" max="400" value={constraints.minArm}
-                  onChange={(e) => setCons('minArm', Math.max(0, Number(e.target.value) || 0))} /></label>
-              <label className="wide">Production cost at most (0 for no limit)
-                <input type="number" min="0" step="100" value={constraints.maxIc}
-                  onChange={(e) => setCons('maxIc', Math.max(0, Number(e.target.value) || 0))} /></label>
-            </div>
-            <label className="check">
-              <input type="checkbox" checked={!!constraints.perWidth} onChange={(e) => setCons('perWidth', e.target.checked)} />
-              Compare designs per combat width, so a wider division is not favoured just for being bigger
-            </label>
-          </section>
-
-          <section className="block" id="technology">
-            <h2>Technology</h2>
-            <TechPicker game={game} techs={techs} setTechs={setTechs} />
-          </section>
-
-          <section className="block" id="doctrine">
-            <h2>Recommended doctrines</h2>
-            <DoctrineRecommendations recommendations={recommendations} />
-          </section>
-
-          <section className="block">
-            <h2>Doctrine setup</h2>
-            <DoctrinePicker game={game} doctrine={doctrine} setDoctrine={setDoctrine} />
-          </section>
-
-          <section className="block">
-            <h2>Allowed units</h2>
-            <UnitPool game={game} exclude={exclude} setExclude={setExclude} />
-          </section>
-
-          <section className="block">
-            <h2>Opponent</h2>
-            <OpponentPicker enemy={enemy} setEnemy={setEnemy} />
-          </section>
-
-          <section className="block">
-            <h2>Other bonuses</h2>
-            <details className="group">
-              <summary>Bonus modifiers (percent)</summary>
-              <p className="note">Leaders, national spirits and anything else the data does not model. These scale the division totals.</p>
-              <div className="fields">
-                {MOD_KEYS.map((m) => (
-                  <label key={m.key}>{m.label}
-                    <input type="number" step="1" value={mods[m.key] ?? 0}
-                      onChange={(e) => setMods((x) => ({ ...x, [m.key]: Number(e.target.value) || 0 }))} /></label>
-                ))}
-              </div>
-            </details>
-            <label className="check">
-              <input type="checkbox" checked={opts.supportDilutesOrg}
-                onChange={(e) => setOpts((o) => ({ ...o, supportDilutesOrg: e.target.checked }))} />
-              Support companies count in the organization average
-            </label>
-          </section>
-        </aside>
-
-        <main className="main">
-          <div className="banner" role="note">
-            <strong>Numbers come from the game files</strong>{version ? ` (version ${version})` : ''}, with every DLC and no mods. A few rules are still assumptions, including how many regimental companies a column takes. Check a result in game before you trust it. See <a href="#data" onClick={(e) => goToSection(e, 'data')}>data and assumptions</a>.
-          </div>
-
-          <section className="result" id="results" aria-live="polite">
-            <div className="result-head">
-              <h2>{role ? role.name : 'Custom priorities'}</h2>
-              <div className="status">
-                {running && <span className="busy">{res?.provisional ? 'Proving it is the best' : 'Searching'}</span>}
-                {!running && res?.explored != null && (
-                  <span>
-                    {res.proven
-                      ? <>Proven best (to within {(GAP_SHARE * 100).toFixed(1)}%) · </>
-                      : <>Best found; the proof stopped at its node limit · </>}
-                    {res.nodes.toLocaleString('en-GB')} branches, {res.explored.toLocaleString('en-GB')} complete templates in {(res.ms / 1000).toFixed(1)} s
-                  </span>
-                )}
-                <button type="button" className="ghost" onClick={copyLink}>{copied ? 'Link copied' : 'Copy link to this setup'}</button>
-              </div>
-            </div>
-
-            {shown && byId && (
-              <div className="result-summary">
-                <div className="summary-stamp"><span>RECOMMENDED FORMATION</span><strong>{role ? role.name : 'Custom priorities'}</strong><small>{plural(selected?.items.length || 0, 'battalion', 'battalions')} // {plural(selected?.support.length || 0, 'support company', 'support companies')}</small></div>
-                <div className="summary-kpis">
-                  <div><span>COMBAT WIDTH</span><b>{fmt(shown.width, 'width')}</b></div>
-                  <div><span>ORGANIZATION</span><b>{fmt(shown.org, 'org')}</b></div>
-                  <div><span>SOFT ATTACK</span><b>{fmt(shown.sa, 'sa')}</b></div>
-                  <div><span>BREAKTHROUGH</span><b>{fmt(shown.brk, 'brk')}</b></div>
-                  <div><span>PRODUCTION COST</span><b>{fmt(shown.ic, 'ic')}</b></div>
-                </div>
-              </div>
-            )}
-
-            {res?.error && <p className="error" role="alert">{res.error}</p>}
-
-            {shown && byId && (
-              <div className="result-body">
-                <TemplateGrid items={selected.items} support={selected.support} reg={selected.reg || []} byId={byId} columnSize={res.columnSize} layout={shown.layout} />
-                <div className="detail">
-                  <h3>Composition</h3>
-                  <ul className="compo">
-                    {[...countBy(selected.items)].sort((a, b) => b[1] - a[1]).map(([id, n]) => (
-                      <li key={id}><b>{n}</b> {byId.get(id).name}</li>
-                    ))}
-                    {selected.support.length > 0 && (
-                      <li className="compo-sup">Support: {selected.support.map((id) => byId.get(id).name).join(', ')}</li>
-                    )}
-                    {(selected.reg || []).length > 0 && (
-                      <li className="compo-sup">Regimental: {[...countBy(selected.reg)].map(([id, n]) => (n > 1 ? `${n} ${byId.get(id).name}` : byId.get(id).name)).join(', ')}</li>
-                    )}
-                  </ul>
-                  <h3>Stats</h3>
-                  <div className="td-stats result-stats">
-                    {RESULT_PANELS.map((panel) => {
-                      const keys = panel.keys.filter((k) => !((k === 'air' || k === 'trucks' || k === 'recon') && !shown[k]));
-                      return (
-                        <TdPanel key={panel.title} title={panel.title}
-                          rows={keys.map((k) => [RESULT_LABEL[k], fmt(shown[k], k)])} />
-                      );
-                    })}
-                  </div>
-                  {res.enemy && <MatchupSummary stats={shown} enemy={res.enemy} />}
-                  {designsUsed.length > 0 && (
-                    <>
-                      <h3>Tank designs used</h3>
-                      <p className="note">Chosen together with the template: an exhaustive search over your researched modules, valued by what each stat is worth to this division.</p>
-                      <dl className="designs">
-                        {designsUsed.map((d) => (
-                          <React.Fragment key={d.key}>
-                            <dt>{d.title}</dt>
-                            <dd>{d.parts.map((p) => p.name).join(', ')}</dd>
-                          </React.Fragment>
-                        ))}
-                      </dl>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-          </section>
-
-          {shown && byId && why && (
-            <section className="block wide-block insights">
-              <h2>Explanation</h2>
-              <ScoreExplain explain={why.rows} hasRef={why.hasRef} />
-              {!why.isWinner && <p className="note">Compared with the top result: bars to the left are where the top result is ahead.</p>}
-              {res.sensitivity && (
-                <Sensitivity sensitivity={res.sensitivity} winnerKey={res.top[0].key}
-                  describe={(c) => describeTemplate(c, byId).combat} onPick={(c) => pickTemplate({ ...c, key: c.key })} />
-              )}
-              <Logistics game={game} stats={shown} scale={scale} setScale={setScale} />
-            </section>
           )}
-
-          {res?.units && byId && (
-            <ManualDesigner units={res.units} columnSize={res.columnSize} mods={result.mods} opts={result.opts} best={res.top?.[0]} />
-          )}
-
-          {res?.designs && <DesignSection designs={res.designs} />}
-
-          {res?.top && byId && (
-            <section className="block wide-block">
-              <h2>Ranked alternatives</h2>
-              <p className="note">The proven best, then the best template the search found for each other kind of division (which column types it uses and its lead battalion). Gap is how far each is behind the best, in score points: 1 point is about a 10% loss on a stat with priority 10.</p>
-              <div className="table-scroll">
-                <table className="rank">
-                  <thead>
-                    <tr>
-                      <th scope="col">Rank</th><th scope="col">Kind</th><th scope="col">Battalions</th><th scope="col">Support</th><th scope="col">Regimental</th>
-                      <th scope="col">Width</th><th scope="col">Soft atk</th><th scope="col">Hard atk</th><th scope="col">Brk</th>
-                      <th scope="col">Def</th><th scope="col">Org</th><th scope="col">Cost</th><th scope="col">Gap</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {res.top.map((t, i) => {
-                      const d = describeTemplate(t, byId);
-                      const on = selected?.key === t.key;
-                      return (
-                        <tr key={t.key} className={on ? 'on' : ''}>
-                          <td><button type="button" className="rowbtn" aria-pressed={on}
-                            onClick={() => setSelected({ items: t.items, support: t.support, reg: t.reg, key: t.key })}>{i + 1}</button></td>
-                          <td className="txt">{t.archetypeLabel || ''}</td>
-                          <td className="txt">{d.combat}</td>
-                          <td className="txt">{d.support || 'none'}</td>
-                          <td className="txt">{d.reg || 'none'}</td>
-                          <td>{fmt(t.stats.width, 'width')}</td>
-                          <td>{fmt(t.stats.sa, 'sa')}</td>
-                          <td>{fmt(t.stats.ha, 'ha')}</td>
-                          <td>{fmt(t.stats.brk, 'brk')}</td>
-                          <td>{fmt(t.stats.def, 'def')}</td>
-                          <td>{fmt(t.stats.org, 'org')}</td>
-                          <td>{fmt(t.stats.ic, 'ic')}</td>
-                          <td>{i === 0 ? 'best' : (t.score - bestScore).toFixed(2)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
-
-          {res?.pool && (
-            <section className="block wide-block">
-              <h2>Trade-offs</h2>
-              <p className="note">Pick any two stats to see what improving one costs in the other. {res.frontSize ? `${res.frontSize.toLocaleString('en-GB')} of these templates are on the Pareto front of your priorities; the priorities pick the winner among them.` : ''}</p>
-              <Pareto pool={res.pool} poolKeys={res.poolKeys} poolFront={res.poolFront} axisX={axisX} axisY={axisY} setAxisX={setAxisX} setAxisY={setAxisY}
-                topKeys={topKeys} selectedKey={selected?.key} onPick={pickKey} />
-            </section>
-          )}
-
-          <DataSection version={version} meta={game.meta} />
-        </main>
+        </Menu>
+        <span className="commandbar-note">{role ? role.name : 'Custom priorities'}{saved.length ? ` · ${saved.length} saved` : ''}{copied === 'saved' ? ' · Saved' : ''}</span>
       </div>
+
+      <main className={'stage ' + phase} aria-live="polite">
+        {shownView === 'designer' && <DesignerView {...ctx} />}
+        {shownView === 'research' && <ResearchView game={game} techs={techs} setTechs={setTechs} />}
+        {shownView === 'doctrine' && <DoctrineView game={game} doctrine={doctrine} setDoctrine={setDoctrine} recommendations={doctrineRecommendations(game, result?.roleId)} roleName={role?.name} />}
+        {shownView === 'equipment' && <EquipmentView game={game} tab={equipTab} setTab={setEquipTab} year={ry.year} techsKey={techsKey} designsUsed={designsUsed} requestTanks={requestTanks} requestShip={requestShip} />}
+        {shownView === 'manual' && <FieldManualView version={version} meta={game.meta} />}
+      </main>
+      <div className={'veil ' + phase} aria-hidden="true"><span>{VIEWS.find((v) => v.id === view)?.label}</span></div>
+
+      <footer className="footer">
+        <span>Hearts of Iron IV is a trademark of Paradox Interactive. Unofficial fan tool.</span>
+        <span>All DLC · no mods · data from the game files</span>
+      </footer>
     </div>
   );
 }
 
-const ROLE_LABEL = { armor: 'Standard armor', anti_tank: 'Tank destroyer', anti_air: 'Anti-air', artillery: 'Self-propelled artillery' };
-const CHASSIS_ICON = {
-  light_tank_chassis: 'basic_light_tank_chassis', medium_tank_chassis: 'basic_medium_tank_chassis',
-  heavy_tank_chassis: 'basic_heavy_tank_chassis', super_heavy_tank_chassis: 'super_heavy_tank_chassis',
-  modern_tank_chassis: 'main_battle_tank_chassis', amphibious_tank_chassis: 'amphibious_tank',
-};
-const SLOT_ABBR = {
-  turret_type_slot: 'TUR', main_armament_slot: 'GUN', suspension_type_slot: 'SUS', armor_type_slot: 'ARM',
-  engine_type_slot: 'ENG', radio_type_slot: 'RAD', fuel_type_slot: 'FUEL',
-};
-
-/** One HOI4-style "Tank Designer" panel per chassis+role combination the search actually used. */
-function DesignSection({ designs }) {
-  const tankDesigns = Object.values(designs).filter(Boolean);
+function TheatreMenu({ theatre, state, setState, wmin, wmax, fitWidths, close }) {
+  const table = theatre.mix ? fitTable(theatre, 8, 45) : null;
   return (
-    <section className="block wide-block designs-panel" id="equipment">
-      <h2>Equipment designer</h2>
-      <p className="note">Every tank design the search relied on, picked automatically from your researched modules and applied to the matching battalions above.</p>
-      {tankDesigns.length > 0 ? tankDesigns.map((d) => <TankDesignerCard key={`${d.chassis}|${d.role}`} d={d} />)
-        : <p className="note">No researched tank chassis are available.</p>}
-      <article className="air-design-note">
-        <strong>Air designs</strong>
-        <p>The current game extraction contains no aircraft designer chassis, aircraft modules, or aircraft equipment definitions—only land equipment is available to the optimizer. The section is reserved for air designs and will populate when aircraft designer data is added to the extractor.</p>
-      </article>
-    </section>
-  );
-}
-
-function TankDesignerCard({ d }) {
-  const chassisName = game.units.get(d.chassis)?.name || d.chassis.replaceAll('_', ' ');
-  const icon = `/hoi4/technologies/${CHASSIS_ICON[d.chassis] || d.chassis}.png`;
-  const slots = Object.entries(d.modules || {}).filter(([, id]) => id);
-  const s = d.stats || {};
-  return (
-    <article className="td-card">
-      <header className="td-titlebar">
-        <span>Tank Designer</span>
-        <span className="td-role">{ROLE_LABEL[d.role] || d.role.replaceAll('_', ' ')}</span>
-      </header>
-      <div className="td-name-row">
-        <h3>{chassisName}</h3>
-      </div>
-      {slots.length > 0 && (
-        <div className="td-slots" role="list">
-          {slots.map(([slot, id]) => (
-            <div className="td-slot" role="listitem" key={slot} title={game.raw.modules[id]?.name || id.replaceAll('_', ' ')}>
-              <span className="td-slot-abbr">{SLOT_ABBR[slot] || slot.replace(/_slot(_\d)?$/, '').slice(0, 3).toUpperCase()}</span>
-              <span className="td-slot-name">{game.raw.modules[id]?.name || id.replaceAll('_', ' ')}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="td-body">
-        <div className="td-blueprint">
-          <img src={icon} alt="" onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} />
-        </div>
-        <div className="td-stats">
-          <TdPanel title="Base Stats" rows={[
-            ['Max Speed', s.spd != null ? `${fmt(s.spd, 'spd')} km/h` : null],
-            ['Reliability', s.rel != null ? `${(s.rel * 100).toFixed(1)}%` : null],
-            ['Supply Use', s.sup != null ? fmt(s.sup, 'sup') : null],
-          ]} />
-          <TdPanel title="Combat Stats" rows={[
-            ['Soft Attack', fmt(s.sa, 'sa')],
-            ['Hard Attack', fmt(s.ha, 'ha')],
-            ['Piercing', fmt(s.pier, 'pier')],
-            ['Hardness', `${((s.hard || 0) * 100).toFixed(0)}%`],
-            ['Armor', fmt(s.arm, 'arm')],
-            ['Breakthrough', fmt(s.brk, 'brk')],
-            ['Defense', fmt(s.def, 'def')],
-            s.air ? ['Air Attack', fmt(s.air, 'air')] : null,
-          ].filter(Boolean)} />
-          <TdPanel title="Misc Stats" rows={[
-            ['Production Cost', `${fmt(s.ic, 'ic')} IC`],
-          ]} />
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function TdPanel({ title, rows }) {
-  return (
-    <div className="td-panel">
-      <h4>{title}</h4>
-      <dl>
-        {rows.filter((r) => r && r[1] != null).map(([label, value]) => (
-          <div key={label}><dt>{label}</dt><dd>{value}</dd></div>
+    <div className="theatre-menu">
+      <div className="menu-list">
+        <p className="menu-title">Theatre of operations</p>
+        {THEATRES.map((t) => (
+          <button key={t.id} type="button" className={'menu-item' + (t.id === theatre.id ? ' on' : '')} onClick={() => setState((s) => ({ ...s, id: t.id }))}>
+            <b>{t.name}</b><small>{t.blurb}</small>
+          </button>
         ))}
-      </dl>
+      </div>
+      <div className="theatre-side">
+        {table ? (
+          <>
+            <p className="menu-title">Frontage fit by division width</p>
+            <div className="fit-chart" role="img" aria-label={`Frontage fit for widths 8 to 45 in ${theatre.name}`}>
+              {table.map((x) => (
+                <span key={x.width} className={'fit-bar' + (x.width >= wmin && x.width <= wmax ? ' in' : '') + (x.fit >= state.minFit ? ' good' : '')} style={{ height: `${Math.max(4, x.fit * 100)}%` }} title={`${x.width} width: ${Math.round(x.fit * 100)}%`} />
+              ))}
+            </div>
+            <div className="fit-axis"><span>8</span><span>20</span><span>30</span><span>45</span></div>
+            <p className="note">Mix: {Object.entries(theatre.mix).map(([k, v]) => `${TERRAINS.find((t) => t.id === k)?.name} ${v}%`).join(', ')}.</p>
+            <label className="check">
+              <input type="checkbox" checked={state.fitOnly} onChange={(e) => setState((s) => ({ ...s, fitOnly: e.target.checked }))} />
+              Only search widths that fill at least
+              <select value={state.minFit} onChange={(e) => setState((s) => ({ ...s, minFit: Number(e.target.value) }))}>
+                {[0.8, 0.85, 0.9, 0.95].map((v) => <option key={v} value={v}>{Math.round(v * 100)}%</option>)}
+              </select>
+              of the frontage
+            </label>
+            {state.fitOnly && <p className="note">{fitWidths && fitWidths.length ? `Allowed in your ${wmin}–${wmax} range: ${fitWidths.join(', ')}.` : 'No width in your range fits that well; width is not restricted.'}</p>}
+          </>
+        ) : <p className="note">Pick a theatre to see which division widths fill its frontage, and optionally restrict the search to them.</p>}
+        <button type="button" className="small" onClick={close}>Done</button>
+      </div>
     </div>
-  );
-}
-
-function DoctrineRecommendations({ recommendations }) {
-  if (!recommendations.length) return <p className="note">Select a role to see doctrine guidance.</p>;
-  return (
-    <div className="doctrine-recs">
-      {recommendations.map((r, i) => (
-        <article key={r.doctrine.id} className={'doctrine-rec' + (i === 0 ? ' primary' : '')}>
-          <div className="rec-kicker">{i === 0 ? 'Primary recommendation' : 'Alternative'}</div>
-          <img className="doctrine-icon" src={`/hoi4/icons/${({ new_mobile_warfare: 'mob_warfare_bg', superior_firepower: 'sup_firepower_bg', grand_battleplan: 'grand_battleplan_bg', mass_assault: 'mass_assault_bg' }[r.doctrine.id] || 'grand_battleplan_bg')}.png`} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-          <strong>{r.doctrine.name}</strong>
-          <p>{r.why}</p>
-        </article>
-      ))}
-    </div>
-  );
-}
-
-function DataSection({ version, meta }) {
-  return (
-    <section className="block wide-block" id="data">
-      <h2>Data and assumptions</h2>
-      <p>
-        Every unit, equipment, technology, doctrine and tank module comes straight from the game's own files
-        ({version ? `version ${version}, ` : ''}extracted {meta.generatedAt.slice(0, 10)}). {meta.assumptions.join('. ')}.
-        Run <code>node scripts/extract.mjs</code> against a new install to update it.
-      </p>
-      <h3>Rules as implemented</h3>
-      <ul className="rules">
-        <li>A template has up to five columns. Infantry, artillery, mobile, mobile-artillery and armor battalions use separate columns, with five battalions per column or more if a doctrine milestone raises the column size.</li>
-        <li>A column needs at least three battalions before it can take a regimental support company. The battalion groups are planned explicitly (so ten infantry battalions can be shown as 3-3-3-1 rather than 5-5) to unlock regimental slots.</li>
-        <li>The search is exact. For each battalion count it branches over how many of each unit to take, then over support sets and regimental fills, and drops a branch only when an upper bound proves it cannot win by more than {(GAP_SHARE * 100).toFixed(1)}%. Limits are hard: a template that breaks one is never a candidate. The same setup always gives the same answer.</li>
-        <li>The score is the sum of priority × ln(stat) (minus that for costs), so priorities trade percentage changes. The Pareto front of everything the search completed is shown on the trade-off chart; the priorities pick the winner on it.</li>
-        <li>Special forces units (marines, paratroopers, mountaineers, rangers, amtracs, amphibious tanks) and cavalry are left out unless you switch them on under Allowed units.</li>
-        <li>Attack, defense, breakthrough, air attack, hit points, cost, manpower and supply are summed over battalions and support companies; regimental companies scale with their regiment's battalion count.</li>
-        <li>Organization and recovery are averaged over battalions and support companies. Armor and piercing are 30% of the best battalion plus 70% of the average over line battalions; hardness and reliability are averaged over line battalions. Speed is the slowest line battalion.</li>
-        <li>Unit stats are the sum of the equipment each unit needs (best researched variant) times one plus the unit, tech and doctrine bonuses. Organization, hit points, recovery and combat width take flat bonuses.</li>
-        <li>Support companies can lift whole categories of battalions (a recon company boosts artillery, for example). Divisional support allows one company per type, up to five.</li>
-        <li>Tank designs are chosen with the template: every chassis and role gets an exhaustive module search against what each stat is worth to the winning division, repeated until the designs and the template stop changing. The highest No Step Back engine and armor upgrade levels your research allows are applied.</li>
-        <li>With an opponent set, a simple combat model scores how fast each side breaks the other on the same frontage: attacks against hardness, defense or breakthrough blocking, and half damage when armor beats piercing.</li>
-        <li>Not verified against the game: the exact regimental-company scaling for every stat and unit type, which column types each company can attach to, and whether doctrine supply bonuses are fractions of a unit's supply.</li>
-        <li>Space marines are modelled as mostly infantry with one or two armoured battalions to raise armor and resist ordinary piercing; they remain especially matchup- and multiplayer-dependent.</li>
-        <li>Not modelled: national focus techs, leaders, terrain, entrenchment, the land cruiser, flame tanks, amphibious tank roles, and hand-editing a tank design.</li>
-      </ul>
-    </section>
   );
 }

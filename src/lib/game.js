@@ -382,7 +382,10 @@ function paretoKeep(items, vec) {
  * or multiplier is always at least as good. Special modules are a set (no module twice): the special slots are
  * interchangeable.
  */
-export function designSearch(game, techSet, chassisId, role, open, score, dirs = {}) {
+export function designSearch(game, techSet, chassisId, role, open, score, dirs = {}, opts = {}) {
+  const minRel = opts.minRel || 0;
+  // a reliability floor needs reliability in the dominance test, or a pruned module could have been the feasible one
+  if (minRel > 0 && !dirs.rel) dirs = { ...dirs, rel: 1 };
   const chassis = game.raw.designers[chassisId];
   if (!chassis) return null;
   const variant = bestVariant(chassis.variants, techSet);
@@ -514,6 +517,7 @@ export function designSearch(game, techSet, chassisId, role, open, score, dirs =
     for (let q = 0; q < setSums.length; q++) {
       if (coreIds && !limitCount([...coreIds, ...setSums[q].ids])) continue;
       const sa = setA[q]; const sm = setM[q];
+      if (minRel > 0 && (baseV[iRel] + cA[iRel] + sa[iRel]) * (1 + cM[iRel] + sm[iRel]) < minRel - 1e-9) continue;
       let sc = 0;
       if (linear) {
         for (let k = 0; k < nK; k++) {
@@ -539,7 +543,7 @@ export function designSearch(game, techSet, chassisId, role, open, score, dirs =
   }
   if (!bestChosen) return null;
   const stats = designStats(game, chassis, variant, bestChosen, techSet);
-  return { chassis: chassisId, role, variant: variant.id, modules: bestChosen, stats, score: bestScore, evaluated, candidates: { cores: cores.length, coreFront: coreFront.length, sets: sets.length, setFront: setFront.length } };
+  return { chassis: chassisId, role, variant: variant.id, modules: bestChosen, stats, score: bestScore, evaluated, minRel, candidates: { cores: cores.length, coreFront: coreFront.length, sets: sets.length, setFront: setFront.length } };
 }
 
 /** Pick modules for one chassis and role for a fixed per-role objective (used before the division is known). */
@@ -549,7 +553,19 @@ export function autoDesign(game, techSet, chassisId, role, objective, open) {
   // designScore is linear in the design stats, which lets the search use its fast path
   const linear = {};
   for (const k of DESIGN_KEYS) linear[k] = objective[k] ? objective[k] * (DESIGN_DIR[k] || 1) / DESIGN_SCALE[k] : 0;
-  return designSearch(game, techSet, chassisId, role, open, { linear }, dirs);
+  return reliableDesign((opts) => designSearch(game, techSet, chassisId, role, open, { linear }, dirs, opts));
+}
+
+/**
+ * Lowest reliability a recommended design may have. The tank designer lets stacked reliability penalties push a design
+ * to 0%, which a clamped score treats as free; in game it means constant breakdowns (attrition equipment losses and
+ * accidents are scaled by reliability).
+ */
+export const MIN_DESIGN_RELIABILITY = 0.6;
+
+/** Run a design search with the reliability floor, and without it only if no legal design reaches the floor. */
+export function reliableDesign(run) {
+  return run({ minRel: MIN_DESIGN_RELIABILITY }) || run({});
 }
 
 // ------------------------------------------------------------------ unit resolution
@@ -686,4 +702,19 @@ export function resolve(game, setup) {
     open,
     withDesign,
   };
+}
+
+// ------------------------------------------------------------------ cache
+// Resolving a setup runs the exhaustive tank designer for every chassis, which takes a moment on late research.
+// The search worker stays alive between searches, so remember the last few setups.
+const resolveCache = new Map();
+export function resolveCached(game, setup) {
+  const techs = setup.techs instanceof Set ? [...setup.techs] : (setup.techs || []);
+  const key = JSON.stringify([techs.slice().sort(), setup.doctrine || null, (setup.exclude || []).slice().sort(), setup.design || null, setup.designs || null]);
+  const hit = resolveCache.get(key);
+  if (hit && hit.game === game) { resolveCache.delete(key); resolveCache.set(key, hit); return hit.value; }
+  const value = resolve(game, setup);
+  resolveCache.set(key, { game, value });
+  while (resolveCache.size > 12) resolveCache.delete(resolveCache.keys().next().value);
+  return value;
 }

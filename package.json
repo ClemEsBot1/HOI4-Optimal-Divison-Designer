@@ -9,6 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "extract": "node scripts/extract.mjs",
+    "designers": "node scripts/extract-designers.mjs",
     "check": "node scripts/selfcheck.mjs",
     "golden": "node scripts/golden.mjs"
   },

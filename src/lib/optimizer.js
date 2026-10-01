@@ -21,7 +21,7 @@
  * The winner is proven; the other ranked templates are the best of each other archetype (column types used and
  * lead battalion) among the templates the search completed or started from.
  */
-import { resolve, MAX_COLUMNS, MAX_SUPPORT } from './game.js';
+import { resolveCached as resolve, MAX_COLUMNS, MAX_SUPPORT } from './game.js';
 import { evaluate, planColumns, supportConflict, regFitsColumn, DEFAULT_OPTS, COLUMN_TYPES, ARMOR_MAX_SHARE } from './stats.js';
 import { objectiveTerms, utility, termScore, termValue, explain, PERK_VALUE, REG_VALUE } from './score.js';
 import { enemyStats, matchup } from './combat.js';
@@ -313,7 +313,9 @@ function branchAndBound(resolved, P, run) {
     st.cnt = cnt;
     return st;
   };
-  const feasible = (st) => st.width >= C.wmin - 1e-9 && st.width <= C.wmax + 1e-9
+  // a theatre can restrict the division to widths that fill its frontage well
+  const widthOk = (w) => !C.widths || !C.widths.length || C.widths.some((x) => Math.abs(x - w) < 1e-6);
+  const feasible = (st) => st.width >= C.wmin - 1e-9 && st.width <= C.wmax + 1e-9 && widthOk(st.width)
     && !(C.minOrg && st.org < C.minOrg - 1e-9) && !(C.minArm && st.arm < C.minArm - 1e-9)
     && !(C.maxIc && st.ic > C.maxIc + 1e-9);
 
@@ -879,10 +881,11 @@ function branchAndBound(resolved, P, run) {
     };
     const dfs = (q) => {
       if (++nodes > nodeLimit) aborted = true; // still bound this node, but go no deeper
+      if (run.onTick && (nodes & 0xffff) === 0) run.onTick(nodes);
       const r = N - placed;
       if (r === 0) {
         const w = S[I.width];
-        if (w < C.wmin - 1e-9 || w > C.wmax + 1e-9) return;
+        if (w < C.wmin - 1e-9 || w > C.wmax + 1e-9 || !widthOk(w)) return;
         if (ct[armorCol] < armorMin || ct[armorCol] > armorMax || ct[mobileCol] < mobileMin || ct[mobileCol] > mobileMax) return;
         if (C.minArm && mods.arm * (ARMOR_MAX_SHARE * armMax + (1 - ARMOR_MAX_SHARE) * S[I.arm] / N) < C.minArm - 1e-9) return;
         let lead = -1;
@@ -1082,7 +1085,8 @@ export const GAP_SHARE = 0.005;
  * params: { techs, doctrine, exclude, weights, constraints, mods, opts, enemy, topN, coDesign (default true),
  *           sensitivity (default false), nodeLimit }
  */
-export function search(game, params, onProgress = null) {
+export function search(game, params, onProgress = null, onTick = null) {
+  if (onTick) params = { ...params, onTick: (n) => onTick({ stage: 'proof', nodes: n, limit: params.nodeLimit || DEFAULT_NODE_LIMIT }) };
   const t0 = Date.now();
   const { C, opts, mods, weights } = setup(game, params);
   const topN = params.topN || 10;
@@ -1140,7 +1144,7 @@ export function search(game, params, onProgress = null) {
   }
 
   // ---- the proof: exact search for the single best template ----
-  const run = branchAndBound(resolved, P, { topN: 1, window: 0, nodeLimit, seeds: quick ? [quick.tpl] : [], tolerance });
+  const run = branchAndBound(resolved, P, { topN: 1, window: 0, nodeLimit, seeds: quick ? [quick.tpl] : [], tolerance, onTick: params.onTick });
   if (!run.ranked.length) {
     return { ...base, error: run.aborted ? 'The search ran out of room before finding a legal template. Narrow the combat width range.' : 'No template satisfies these limits. Widen the combat width range or relax the organization, armor, share or cost limits.', explored: run.leaves, nodes: run.nodes, ms: Date.now() - t0 };
   }

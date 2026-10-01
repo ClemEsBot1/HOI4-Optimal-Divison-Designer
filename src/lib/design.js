@@ -15,7 +15,7 @@
  *
  * Each round re-measures the values around the new designs, so the designs and the template settle together.
  */
-import { resolve, designSearch } from './game.js';
+import { resolveCached as resolve, designSearch, reliableDesign } from './game.js';
 import { evaluate } from './stats.js';
 import { utility } from './score.js';
 
@@ -71,7 +71,7 @@ export function coDesign(game, setup, baseResolved, runBest, P) {
         const g = (hiV - loV) / (d.stats[k] + step - Math.max(0, d.stats[k] - step));
         if (Number.isFinite(g)) linear[k] = g;
       }
-      const r = designSearch(game, resolved.techSet, d.chassis, d.role, resolved.open, { linear }, Object.fromEntries(KEYS.map((k) => [k, linear[k] ? Math.sign(linear[k]) : 0])));
+      const r = reliableDesign((opts) => designSearch(game, resolved.techSet, d.chassis, d.role, resolved.open, { linear }, Object.fromEntries(KEYS.map((k) => [k, linear[k] ? Math.sign(linear[k]) : 0])), opts));
       if (r && !sameModules(r.modules, d.modules) && value(r.stats) > current + 1e-9) {
         next[key] = { modules: r.modules, tuned: true };
         changed++;

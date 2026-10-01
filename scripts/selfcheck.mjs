@@ -10,9 +10,14 @@ import { runGolden } from './golden.mjs';
 import { defaultExclude, ROLES } from '../src/lib/presets.js';
 import { search } from '../src/lib/optimizer.js';
 import { encodeState, decodeState } from '../src/lib/format.js';
+import { metaTanks } from '../src/lib/tankRoles.js';
+import { MIN_DESIGN_RELIABILITY } from '../src/lib/game.js';
+import { SHIP_ROLES, bestShip, hullsFor, shipStats } from '../src/lib/naval.js';
+import { THEATRES, frontageFit, fitTable, fittingWidths } from '../src/lib/frontage.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const game = buildGame(JSON.parse(fs.readFileSync(path.join(here, '../src/data/game.json'), 'utf8')));
+const naval = JSON.parse(fs.readFileSync(path.join(here, '../src/data/designers.json'), 'utf8'));
 let fails = 0;
 const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); if (!c) fails++; };
 
@@ -210,6 +215,73 @@ ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id
   ok(b.mAtk > a.mAtk && b.mDef > a.mDef, 'more soft attack improves both matchups');
   const armored = matchup({ ...us, arm: 60 }, them);
   ok(armored.mAtk > a.mAtk, 'armor above the opponent\'s piercing halves the damage taken');
+}
+
+// ---- tank designs keep a usable reliability ----
+{
+  const T45 = techsUpTo(game, 1945);
+  const meta = metaTanks(game, T45);
+  const low = meta.flatMap((r) => r.options.filter((o) => o.stats.rel < MIN_DESIGN_RELIABILITY - 1e-9).map((o) => `${r.id}/${o.chassis}`));
+  ok(!low.length, `every 1945 role design keeps ${MIN_DESIGN_RELIABILITY * 100}% reliability${low.length ? ` (not: ${low.join(', ')})` : ''}`);
+}
+
+// ---- ship designer: the search is exact (brute force on the smaller hulls) ----
+{
+  const FLOOR = { reliability: 0.05, naval_speed: 1, build_cost_ic: 50, naval_range: 100 };
+  const scoreOf = (st, w) => Object.entries(w).reduce((x, [k, v]) => x + v * Math.log(Math.max(0, st[k] || 0) + (FLOOR[k] ?? 1)), 0);
+  const brute = (role, year) => {
+    let best = -Infinity; let n = 0;
+    for (const hull of hullsFor(naval, role, year)) {
+      const names = Object.keys(hull.slots).filter((x) => hull.slots[x]);
+      const opts = names.map((nm) => {
+        const sl = hull.slots[nm];
+        let mods = Object.values(naval.modules).filter((m) => sl.cats.includes(m.cat) && m.year <= year);
+        if (role.batteryOk) mods = mods.filter((m) => !(/battery/.test(m.cat) && !role.batteryOk.test(m.id)));
+        if (role.armor) mods = mods.filter((m) => m.cat !== 'ship_heavy_armor' || new RegExp(`armor_${role.armor}_`).test(m.id));
+        const ids = mods.map((m) => m.id);
+        if (!sl.required || !ids.length) ids.push(null);
+        return ids;
+      });
+      const ch = new Array(names.length);
+      const walk = (i) => {
+        if (i === names.length) {
+          n++;
+          for (const l of hull.limits || []) {
+            const c = ch.filter((id) => id && (id === l.module || naval.modules[id].cat === l.category)).length;
+            if (l.op === '<' ? c >= l.count : l.op === '<=' ? c > l.count : false) return;
+          }
+          const cats = ch.filter(Boolean).map((id) => naval.modules[id].cat);
+          if ((role.require || []).some((c) => !cats.includes(c))) return;
+          if (role.needBattery && !ch.some((id) => id && role.needBattery.test(id))) return;
+          const st = shipStats(naval, hull, Object.fromEntries(names.map((nm, k) => [nm, ch[k]])), year);
+          if (role.type && st.type !== role.type) return;
+          best = Math.max(best, scoreOf(st, role.weights));
+          return;
+        }
+        for (const id of opts[i]) { ch[i] = id; walk(i + 1); }
+      };
+      walk(0);
+    }
+    return { best, n };
+  };
+  for (const [id, year] of [['dd_screen', 1936], ['dd_torpedo', 1936], ['ss_raider', 1944], ['cv', 1940]]) {
+    const role = SHIP_ROLES.find((r) => r.id === id);
+    const b = brute(role, year);
+    const s = bestShip(naval, role, year);
+    ok(s && !s.truncated && Math.abs(s.score - b.best) < 1e-9, `ship designer finds the exact best ${role.name.toLowerCase()} (${year}) among ${b.n.toLocaleString('en-GB')} designs`);
+  }
+  const t0 = Date.now(); let trunc = 0;
+  for (const role of SHIP_ROLES) if (bestShip(naval, role, 1944)?.truncated) trunc++;
+  ok(!trunc, `every 1944 ship role is proven best (${Date.now() - t0} ms for ${SHIP_ROLES.length} roles)`);
+}
+
+// ---- theatre frontage ----
+{
+  const east = THEATRES.find((t) => t.id === 'eastern');
+  const fits = fitTable(east, 6, 50).map((x) => x.fit);
+  ok(fits.every((f) => f > 0 && f <= 1), 'frontage fit is a share between 0 and 1');
+  ok(frontageFit(35, { mix: { plains: 1 } }) === 1, 'a width that divides both plains frontages fills them completely');
+  ok(fittingWidths(east, 10, 40, 0.9).length > 0, 'the Eastern Front has well-fitting widths between 10 and 40');
 }
 
 // ---- golden numbers from in-game screenshots ----
