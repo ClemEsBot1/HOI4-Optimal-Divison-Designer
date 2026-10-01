@@ -23,11 +23,11 @@
  */
 import { resolveCached as resolve, MAX_COLUMNS, MAX_SUPPORT } from './game.js';
 import { evaluate, planColumns, supportConflict, regFitsColumn, DEFAULT_OPTS, COLUMN_TYPES, ARMOR_MAX_SHARE } from './stats.js';
-import { objectiveTerms, utility, termScore, termValue, explain, PERK_VALUE, REG_VALUE } from './score.js';
+import { objectiveTerms, utility, termScore, termValue, explain, fitOf, bestFitIn, metaDistanceIn, PERK_VALUE, REG_VALUE } from './score.js';
 import { enemyStats, matchup } from './combat.js';
 import { coDesign } from './design.js';
 
-export const DEFAULT_CONSTRAINTS = { wmin: 0, wmax: 45, minOrg: 0, minArm: 0, maxIc: 0, perWidth: false };
+export const DEFAULT_CONSTRAINTS = { wmin: 0, wmax: 45, minOrg: 0, minArm: 0, maxIc: 0, perWidth: true, metaWidths: [], metaPull: 0.05 };
 export const PROOF_TOLERANCE = 1e-6;
 const DEFAULT_NODE_LIMIT = 2.5e6;
 const CODESIGN_NODE_LIMIT = 1e5;
@@ -292,8 +292,8 @@ function branchAndBound(resolved, P, run) {
   const pool = []; // good complete templates for the chart, best first
   const POOL_CAP = 2500;
   const threshold = () => {
-    let t = -Infinity;
-    if (ranked.length >= topN) t = ranked[topN - 1].score;
+    let t = run.bar ?? -Infinity;
+    if (ranked.length >= topN) t = Math.max(t, ranked[topN - 1].score);
     if (best && window != null) t = Math.max(t, best.score - window);
     return t;
   };
@@ -349,6 +349,16 @@ function branchAndBound(resolved, P, run) {
       const t = terms[ti];
       if (t.kind === 'perk') { c[I[t.key]] += t.w * PERK_VALUE; continue; }
       if (t.kind === 'count') { c[I.regs] += t.w * REG_VALUE; continue; }
+      if (t.kind === 'frontage') {
+        // width only: the best fit of any whole width the template can still reach
+        c0 += termScore(t, Shi[I.width] - Slo[I.width] < 1e-9 ? fitOf(t, Slo[I.width]) || 1 : bestFitIn(t, Slo[I.width], Shi[I.width]));
+        continue;
+      }
+      if (t.kind === 'meta') {
+        // width only: the nearest any reachable width gets to a meta width
+        c0 += termScore(t, metaDistanceIn(t, Slo[I.width], Shi[I.width]));
+        continue;
+      }
       if (t.kind === 'matchup') {
         // monotone in each of our stats, so the best corner of the box bounds it
         const org = mods.org * Shi[I.org] / Math.max(1e-9, Slo[I.den]);
@@ -649,18 +659,21 @@ function branchAndBound(resolved, P, run) {
       for (const id of items) ct[byId.get(id).cat]++;
       return COLUMN_TYPES.reduce((n, t) => n + Math.ceil(ct[t] / cs), 0) <= MAX_COLUMNS;
     };
-    const fill = (a, b, nb) => {
+    // fill to the widest legal width and to each meta width in range
+    const caps = [...new Set([C.wmax, ...(C.metaWidths || []).filter((m) => m >= C.wmin - 1e-9 && m <= C.wmax + 1e-9)])];
+    const fillTo = (a, b, nb, cap) => {
       const items = [];
       for (let i = 0; i < nb; i++) items.push(b.id);
       let w = nb * b.width;
-      while (w + a.width <= C.wmax + 1e-9 && items.length < MAX_COLUMNS * cs) { items.push(a.id); w += a.width; if (!colsOk(items)) { items.pop(); break; } }
+      if (w > cap + 1e-9) return null;
+      while (w + a.width <= cap + 1e-9 && items.length < MAX_COLUMNS * cs) { items.push(a.id); w += a.width; if (!colsOk(items)) { items.pop(); break; } }
       return w >= C.wmin - 1e-9 && items.length && colsOk(items) ? items : null;
     };
+    const fills = (a, b, nb) => caps.map((cap) => fillTo(a, b, nb, cap)).filter(Boolean);
+    const fill = (a, b, nb) => fillTo(a, b, nb, C.wmax);
     const supportOpts = [[], ...supports.filter((u) => u.perks.engineer || u.id === 'artillery').map((u) => [u.id])];
     const scored = [];
-    for (const a of line) {
-      const items = fill(a, a, 0);
-      if (!items) continue;
+    for (const a of line) for (const items of fills(a, a, 0)) {
       for (const sup of supportOpts) {
         const tpl = { items, support: sup, reg: [] };
         const st = evaluate(tpl, byId, P.mods, P.opts, cs);
@@ -691,9 +704,7 @@ function branchAndBound(resolved, P, run) {
     for (const a of top) for (const b of line) {
       if (a === b) continue;
       for (let nb = 1; nb <= Math.min(12, MAX_COLUMNS * cs); nb++) {
-        const items = fill(a, b, nb);
-        if (!items) continue;
-        for (const sup of supportOpts) out.push({ items, support: sup, reg: [] });
+        for (const items of fills(a, b, nb)) for (const sup of supportOpts) out.push({ items, support: sup, reg: [] });
       }
     }
     // the best few feasible ones also get a greedy pass over support and regimental companies
@@ -1039,7 +1050,7 @@ function branchAndBound(resolved, P, run) {
     ranked = [seedBest, ...ranked.filter((e) => e.archetype !== seedBest.archetype)].sort((a, b) => b.score - a.score);
   }
   const gap = aborted ? Math.max(0, openUb - (ranked[0]?.score ?? -Infinity)) : 0;
-  return { ranked: ranked.slice(0, topN), pool, seedPool, nodes, leaves, aborted, gap };
+  return { ranked: ranked.slice(0, topN), pool, seedPool, nodes, leaves, aborted, gap, openUb: aborted ? openUb : -Infinity };
 }
 
 function shareOk(cnt, n, C) {
@@ -1075,6 +1086,29 @@ function setup(game, params) {
   const mods = params.mods || {};
   const weights = params.weights || {};
   return { C, opts, mods, weights };
+}
+
+/**
+ * The proof search. When the score depends on the width itself (meta widths, frontage fit), a short search at each
+ * meta width in range first finds a strong template there; those seed the full search, whose bar then starts high
+ * enough to rule most other widths out early.
+ */
+const META_PROBE_NODES = 1e5;
+function proofRun(resolved, P, { nodeLimit, seeds, tolerance, onTick }) {
+  const C = P.C;
+  const meta = P.terms.find((t) => t.kind === 'meta');
+  const probes = meta ? meta.metas.filter((w) => w >= C.wmin - 1e-9 && w <= C.wmax + 1e-9) : [];
+  const all = [...seeds];
+  let used = 0;
+  for (const w of probes) {
+    const r = branchAndBound(resolved, { ...P, C: { ...C, wmin: w, wmax: w } }, { topN: 1, window: 0, nodeLimit: META_PROBE_NODES, seeds, tolerance });
+    used += r.nodes;
+    if (r.ranked[0]) all.push(r.ranked[0].tpl);
+  }
+  return branchAndBound(resolved, P, {
+    topN: 1, window: 0, nodeLimit: Math.max(META_PROBE_NODES, nodeLimit - used), seeds: all, tolerance,
+    onTick: onTick ? (n) => onTick(used + n) : undefined,
+  });
 }
 
 // The answer is proven optimal to within this share: no template beats it by more than a 0.5% gain on every priority.
@@ -1144,7 +1178,7 @@ export function search(game, params, onProgress = null, onTick = null) {
   }
 
   // ---- the proof: exact search for the single best template ----
-  const run = branchAndBound(resolved, P, { topN: 1, window: 0, nodeLimit, seeds: quick ? [quick.tpl] : [], tolerance, onTick: params.onTick });
+  const run = proofRun(resolved, P, { nodeLimit, seeds: quick ? [quick.tpl] : [], tolerance, onTick: params.onTick });
   if (!run.ranked.length) {
     return { ...base, error: run.aborted ? 'The search ran out of room before finding a legal template. Narrow the combat width range.' : 'No template satisfies these limits. Widen the combat width range or relax the organization, armor, share or cost limits.', explored: run.leaves, nodes: run.nodes, ms: Date.now() - t0 };
   }
@@ -1224,6 +1258,7 @@ export function search(game, params, onProgress = null, onTick = null) {
 export function sensitivity(weights, P, candidates, winner, byId) {
   const rows = [];
   for (const term of P.terms) {
+    if (term.kind === 'frontage' || term.kind === 'meta') continue; // these follow from the other priorities
     const w0 = weights[term.key] || 0;
     const changes = [];
     for (const d of [-2, -1, 1, 2]) {

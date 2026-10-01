@@ -7,13 +7,13 @@ import { assignRegimentalColumns, evaluate, planColumns, supportConflict } from 
 import { objectiveTerms, utility } from '../src/lib/score.js';
 import { matchup } from '../src/lib/combat.js';
 import { runGolden } from './golden.mjs';
-import { defaultExclude, ROLES } from '../src/lib/presets.js';
-import { search } from '../src/lib/optimizer.js';
+import { defaultExclude, roleExclude, ROLES } from '../src/lib/presets.js';
+import { search, DEFAULT_CONSTRAINTS } from '../src/lib/optimizer.js';
 import { encodeState, decodeState } from '../src/lib/format.js';
 import { metaTanks } from '../src/lib/tankRoles.js';
 import { MIN_DESIGN_RELIABILITY } from '../src/lib/game.js';
 import { SHIP_ROLES, bestShip, hullsFor, shipStats } from '../src/lib/naval.js';
-import { THEATRES, frontageFit, fitTable, fittingWidths } from '../src/lib/frontage.js';
+import { THEATRES, frontageFit, fitTable, fittingWidths, battleFill } from '../src/lib/frontage.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const game = buildGame(JSON.parse(fs.readFileSync(path.join(here, '../src/data/game.json'), 'utf8')));
@@ -112,7 +112,8 @@ ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id
   const constraints = { wmin: 14, wmax: 20, minOrg: 40 };
   const params = { techs: [...T], exclude, weights, constraints, topN: 3, coDesign: false };
   const res = resolve(game, { techs: T, exclude });
-  const terms = objectiveTerms(weights, constraints, null);
+  // the search fills in the default constraints (per-frontage scoring), so score the brute force the same way
+  const terms = objectiveTerms(weights, { ...DEFAULT_CONSTRAINTS, ...constraints }, null);
   const line = res.combat; const sups = res.support; const regs = res.regimental;
   const supSets = [[]];
   for (let i = 0; i < sups.length; i++) for (const set of supSets.slice()) if (set.length < 5 && set.every((j) => !supportConflict(sups[j], sups[i]))) supSets.push([...set, i]);
@@ -145,7 +146,7 @@ ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id
   const again = search(game, params);
   ok(again.top[0].key === rb.top[0].key, 'the same setup gives the same answer');
   ok(rb.top.every((t) => Math.abs(utility(evaluate(t, res.byId, {}, undefined, res.columnSize), terms, null) - t.score) < 1e-9), 'every listed score matches a fresh evaluation');
-  ok(rb.sensitivity && rb.sensitivity.rows.length === terms.length, 'stability check covers every priority');
+  ok(rb.sensitivity && rb.sensitivity.rows.length === terms.filter((t) => t.kind !== 'frontage' && t.kind !== 'meta').length, 'stability check covers every priority');
   ok(rb.top[0].explain && rb.top[0].explain.length === terms.length, 'the winner comes with a stat-by-stat explanation');
 }
 
@@ -280,8 +281,23 @@ ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id
   const east = THEATRES.find((t) => t.id === 'eastern');
   const fits = fitTable(east, 6, 50).map((x) => x.fit);
   ok(fits.every((f) => f > 0 && f <= 1), 'frontage fit is a share between 0 and 1');
-  ok(frontageFit(35, { mix: { plains: 1 } }) === 1, 'a width that divides both plains frontages fills them completely');
+  ok(Math.abs(frontageFit(45, { mix: { plains: 1 } }) - 1) < 1e-9, 'a width that divides every plains frontage (90, 135, 180) fills them completely');
   ok(fittingWidths(east, 10, 40, 0.9).length > 0, 'the Eastern Front has well-fitting widths between 10 and 40');
+  ok(Math.abs(battleFill(90, 30) - 1) < 1e-9 && Math.abs(battleFill(90, 40) - 80 / 90) < 1e-9, 'whole divisions fill a 90-wide plains battle: 30 exactly, 40 leaves 10 empty');
+  ok(Math.abs(battleFill(80, 21) - (84 / 80) * (1 - 2 * 0.05)) < 1e-9, 'over-width costs 2% per 1% over (4 x 21 on 80 is 5% over, 10% weaker)');
+  ok(battleFill(75, 45) < 0.61, 'no division joins once the over-width penalty would pass 33%');
+}
+
+// ---- meta widths: raising the width limit does not make the division wider ----
+{
+  const line = ROLES.find((x) => x.id === 'line');
+  const base = search(game, { techs: [...T], exclude: roleExclude(game, line), weights: line.weights, constraints: { ...line.constraints }, topN: 1, coDesign: false });
+  const wide = search(game, { techs: [...T], exclude: roleExclude(game, line), weights: line.weights, constraints: { ...line.constraints, wmax: 40 }, topN: 1, coDesign: false });
+  ok(base.top[0].stats.width === 20, `line infantry lands on its meta width 20 (got ${base.top[0].stats.width})`);
+  ok(wide.top[0].stats.width === base.top[0].stats.width, `raising the width limit to 40 keeps it at ${base.top[0].stats.width} (got ${wide.top[0].stats.width})`);
+  const mtn = ROLES.find((x) => x.id === 'mountaineers');
+  const m = search(game, { techs: [...T], exclude: roleExclude(game, mtn), weights: mtn.weights, constraints: { ...mtn.constraints }, topN: 1, coDesign: false });
+  ok(m.top[0].items.includes('mountaineers') && !m.top[0].items.includes('infantry'), 'the mountaineer role is led by mountaineers, not regular infantry');
 }
 
 // ---- golden numbers from in-game screenshots ----

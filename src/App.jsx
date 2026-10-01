@@ -4,7 +4,7 @@ import { buildGame, EMPTY_DOCTRINE } from './lib/game.js';
 import { DEFAULT_OPTS, AXIS_STATS, evaluate } from './lib/stats.js';
 import { parseKey, DEFAULT_CONSTRAINTS } from './lib/optimizer.js';
 import { explain } from './lib/score.js';
-import { ROLES, ZERO_WEIGHTS, defaultTech, defaultExclude, doctrineRecommendations, TECH_PRESETS, techPreset, sameSet } from './lib/presets.js';
+import { ROLES, ZERO_WEIGHTS, defaultTech, defaultExclude, roleExclude, doctrineRecommendations, TECH_PRESETS, techPreset, sameSet } from './lib/presets.js';
 import { encodeState, decodeState } from './lib/format.js';
 import { THEATRES, TERRAINS, frontageFit, fitTable, fittingWidths } from './lib/frontage.js';
 import { readStore, writeStore } from './lib/storage.js';
@@ -29,7 +29,7 @@ const MODES = [
   { id: 'manual', label: 'Manual design', blurb: 'Draft a template by hand and measure it against the best.' },
   { id: 'compare', label: 'Compare', blurb: 'Line up alternatives and saved designs side by side.' },
 ];
-const ROLE_AXES = { line: ['def', 'org'], offensive_infantry: ['sa', 'org'], armor: ['sa', 'brk'], hunter: ['ha', 'pier'], space_marines: ['arm', 'sa'], custom: ['sa', 'def'] };
+const ROLE_AXES = { line: ['def', 'org'], offensive_infantry: ['sa', 'org'], armor: ['sa', 'brk'], hunter: ['ha', 'pier'], space_marines: ['arm', 'sa'], mountaineers: ['def', 'sa'], marines: ['def', 'org'], custom: ['sa', 'def'] };
 const DEFAULT_ENEMY = { id: 'none', focus: 'both', weight: 8 };
 const DEFAULT_SCALE = { divisions: 24, factories: 60, efficiency: 70 };
 const DEFAULT_THEATRE = { id: 'any', fitOnly: false, minFit: 0.9 };
@@ -168,11 +168,11 @@ export default function App() {
         setRunning(false);
       };
       const enemyParam = enemy.id && enemy.id !== 'none' ? enemy : null;
-      const cons = fitWidths && fitWidths.length ? { ...constraints, widths: fitWidths } : constraints;
+      const cons = { ...constraints, frontMix: theatre.mix, ...(fitWidths && fitWidths.length ? { widths: fitWidths } : {}) };
       w.postMessage({ id, type: 'search', params: { techs: [...techs], doctrine, exclude, weights: withMatchup(weights, enemy), constraints: cons, mods, opts, enemy: enemyParam, topN: 10 } });
     }, 400);
     return () => clearTimeout(timer);
-  }, [weights, constraints, techs, doctrine, exclude, mods, opts, enemy, fitWidths]); // roleId only labels the result
+  }, [weights, constraints, techs, doctrine, exclude, mods, opts, enemy, fitWidths, theatre]); // roleId only labels the result
   useEffect(() => () => workerRef.current && workerRef.current.terminate(), []);
 
   // ---- equipment worker: separate, so equipment pages never wait for a long search ----
@@ -240,6 +240,7 @@ export default function App() {
     setRoleId(r.id);
     setWeights({ ...ZERO_WEIGHTS, ...r.weights });
     setConstraints({ ...DEFAULT_CONSTRAINTS, ...r.constraints });
+    setExclude(roleExclude(game, r));
     const ax = ROLE_AXES[r.id];
     setAxisX(ax[0]); setAxisY(ax[1]);
   };

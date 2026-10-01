@@ -53,14 +53,15 @@ export default function FieldManualView({ version, meta }) {
           </ul>
         </Section>
         <Section id="fm-theatre" kicker="Section 5" title="Theatres and frontage">
-          <p>A battle's combat width depends on the terrain, plus an extra amount for each extra attack direction. A division width that does not divide it evenly leaves part of the frontage empty. The theatre menu scores every width by how much of its frontage whole divisions fill, averaged over the theatre's terrain and one- and two-direction attacks, and can restrict the search to widths that fit well.</p>
+          <p>A battle's combat width depends on the terrain, plus an extra amount for each extra attack direction. A division width that does not divide it leaves part of the frontage empty; going over it is allowed at −2% per 1% over, until the penalty reaches 33% and no more divisions can join. The fit of a width is the combat power whole divisions of that width bring, as a share of a frontage filled exactly, averaged over the theatre's terrain and one-, two- and three-direction attacks.</p>
+          <p>The search scores combat stats per width times that fit, so a bigger division wins only where it fights better per width. Each role also pulls toward its meta widths (the sizes players use: infantry 20 or 15, armour 40 or 30, mountaineers 25 or 15, marines 20 or 15): every width step from the nearest one costs 5% of every combat stat by default. Both are under Limits; the width range stays a hard limit.</p>
           <div className="table-scroll">
             <table className="rank compact">
               <thead><tr><th scope="col">Terrain</th><th scope="col">Width</th><th scope="col">Per extra direction</th></tr></thead>
               <tbody>{TERRAINS.map((t) => <tr key={t.id}><td className="txt">{t.name}</td><td>{t.width}</td><td>+{t.extra}</td></tr>)}</tbody>
             </table>
           </div>
-          <p className="note">Values from the Barbarossa update; check them in game if a later patch has changed them. Going over the combat width, which the game allows with a penalty, is not modelled.</p>
+          <p className="note">Values from the Barbarossa update; check them in game if a later patch has changed them.</p>
         </Section>
         <Section id="fm-limits" kicker="Section 6" title="Known limits">
           <ul className="rules">

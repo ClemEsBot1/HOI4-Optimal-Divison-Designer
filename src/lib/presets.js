@@ -9,36 +9,73 @@ import { techsUpTo } from './game.js';
 
 export const ZERO_WEIGHTS = Object.fromEntries(STAT_KEYS.map((k) => [k, 0]));
 
+/*
+ * Each role carries its meta widths: the sizes players settle on for it after the Barbarossa combat-width rework
+ * (infantry at 20 or 15, armour at 40 or 30, special forces small enough to fit their terrain). The search scores
+ * per frontage, so a bigger division only wins where it fights better per width, and pays a little for every width
+ * step away from the nearest meta width (see `metaPull`). The width range is a hard limit around that.
+ *
+ * `units` changes the default allowed-unit list for a role: `allow` switches special units on, `deny` switches
+ * regular line units off so the role's own battalion leads the division.
+ */
+const REGULAR_LINE = ['infantry', 'motorized', 'mechanized', 'armored_car', 'light_armor', 'medium_armor', 'heavy_armor', 'modern_armor'];
+
+export const ROLE_GROUPS = [
+  { id: 'regular', name: 'Line roles' },
+  { id: 'special', name: 'Special Forces' },
+];
+
 export const ROLES = [
   {
-    id: 'line', name: 'Line infantry', blurb: 'Mostly defensive infantry: organization, defense and staying power.',
+    id: 'line', group: 'regular', name: 'Line infantry', blurb: 'Mostly defensive infantry: organization, defense and staying power.',
     weights: { def: 10, org: 9, hp: 7, ic: 7, sa: 3, mp: 3, engineer: 8, logistics: 2 },
-    constraints: { wmin: 16, wmax: 20, minOrg: 45, minArm: 0, maxIc: 5000, perWidth: false },
+    constraints: { wmin: 14, wmax: 24, minOrg: 45, minArm: 0, maxIc: 5000, perWidth: true, metaWidths: [20, 15] },
   },
   {
-    id: 'offensive_infantry', name: 'Offensive Infantry', blurb: 'Infantry with enough soft attack to push when tanks are scarce.',
+    id: 'offensive_infantry', group: 'regular', name: 'Offensive Infantry', blurb: 'Infantry with enough soft attack to push when tanks are scarce.',
     weights: { sa: 9, def: 6, brk: 5, org: 8, hp: 6, ic: 8, engineer: 7, logistics: 2, recon: 2 },
     // Capped at a mass-producible infantry cost and a minority mobile share so the search stays with an
     // infantry-plus-support-artillery build (the classic "7 infantry + 2 artillery" shape) instead of drifting
     // into an all-mechanized division that is really the Armoured or Space marines role wearing an infantry label.
-    constraints: { wmin: 18, wmax: 27, minOrg: 40, minArm: 0, maxMobileShare: 0.35, maxIc: 3200, perWidth: false },
+    constraints: { wmin: 16, wmax: 27, minOrg: 40, minArm: 0, maxMobileShare: 0.35, maxIc: 3200, perWidth: true, metaWidths: [20, 25] },
   },
   {
-    id: 'armor', name: 'Armoured division', blurb: 'More than half armoured battalions, with the soft attack to break a line.',
+    id: 'armor', group: 'regular', name: 'Armoured division', blurb: 'More than half armoured battalions, with the soft attack to break a line.',
     weights: { sa: 10, brk: 8, arm: 5, ha: 4, spd: 5, org: 10, ic: 8, rel: 3, engineer: 5, logistics: 7, maintenance: 7, signal: 4, recon: 3 },
-    constraints: { wmin: 30, wmax: 36, minOrg: 32, minArm: 0, minArmorShare: 0.51, maxArmorShare: 0.78, minMobileShare: 0.20, maxIc: 15000, perWidth: false },
+    constraints: { wmin: 28, wmax: 42, minOrg: 32, minArm: 0, minArmorShare: 0.51, maxArmorShare: 0.78, minMobileShare: 0.20, maxIc: 15000, perWidth: true, metaWidths: [40, 30] },
   },
   {
-    id: 'hunter', name: 'Tank Hunter', blurb: 'Anti-armour infantry for multiplayer: piercing and hard attack first.',
+    id: 'hunter', group: 'regular', name: 'Tank Hunter', blurb: 'Anti-armour infantry for multiplayer: piercing and hard attack first.',
     weights: { pier: 10, ha: 10, def: 6, org: 8, ic: 5, sa: 3, engineer: 6, logistics: 3 },
-    constraints: { wmin: 18, wmax: 24, minOrg: 38, minArm: 0, maxIc: 10000, perWidth: false },
+    constraints: { wmin: 16, wmax: 24, minOrg: 38, minArm: 0, maxIc: 10000, perWidth: true, metaWidths: [20] },
   },
   {
-    id: 'space_marines', name: 'Space marines', blurb: 'Infantry backed by a small armoured component to raise armor and punch.',
+    id: 'space_marines', group: 'special', name: 'Space marines', blurb: 'Infantry backed by a small armoured component to raise armor and punch.',
     weights: { sa: 8, arm: 9, def: 7, org: 8, brk: 4, ic: 5, ha: 4, engineer: 7, logistics: 4, maintenance: 3 },
-    constraints: { wmin: 18, wmax: 27, minOrg: 38, minArm: 0, minArmorBattalions: 1, maxArmorBattalions: 2, maxArmorShare: 0.5, maxIc: 12000, perWidth: false },
+    constraints: { wmin: 16, wmax: 24, minOrg: 38, minArm: 0, minArmorBattalions: 1, maxArmorBattalions: 2, maxArmorShare: 0.5, maxIc: 12000, perWidth: true, metaWidths: [20] },
+  },
+  {
+    id: 'mountaineers', group: 'special', name: 'Mountaineers', blurb: 'Mountain infantry for hills and mountains: attack and defense where regular infantry bogs down.',
+    weights: { def: 8, sa: 7, org: 9, hp: 6, brk: 3, ic: 6, mp: 3, engineer: 7, logistics: 3 },
+    // a mountain battle is 75 wide plus 25 per direction, which 25 and 15 divide exactly
+    constraints: { wmin: 12, wmax: 27, minOrg: 45, minArm: 0, maxIc: 6000, perWidth: true, metaWidths: [25, 15] },
+    units: { allow: ['mountaineers'], deny: REGULAR_LINE },
+  },
+  {
+    id: 'marines', group: 'special', name: 'Marines', blurb: 'Naval-invasion and river-crossing infantry: small, cheap and hard to dislodge from a beachhead.',
+    weights: { def: 8, sa: 7, org: 9, hp: 5, brk: 3, ic: 7, mp: 3, engineer: 7, logistics: 2 },
+    constraints: { wmin: 12, wmax: 24, minOrg: 45, minArm: 0, maxIc: 6000, perWidth: true, metaWidths: [20, 15] },
+    units: { allow: ['marine', 'amphibious_mechanized', 'amphibious_armor'], deny: REGULAR_LINE },
   },
 ];
+
+/** The allowed-unit list a role starts from: the defaults, with the role's own special units switched on. */
+export function roleExclude(game, role) {
+  const allow = new Set(role?.units?.allow || []);
+  const out = defaultExclude(game).filter((id) => !allow.has(id));
+  for (const id of role?.units?.deny || []) if (!out.includes(id)) out.push(id);
+  return out;
+}
 
 export const DOCTRINE_RECOMMENDATIONS = {
   line: [
@@ -56,6 +93,14 @@ export const DOCTRINE_RECOMMENDATIONS = {
   hunter: [
     { names: ['Superior Firepower'], why: 'Improves the firepower of anti-tank-heavy infantry formations.' },
     { names: ['Grand Battleplan'], why: 'Useful for planned defensive multiplayer responses.' },
+  ],
+  mountaineers: [
+    { names: ['Grand Battleplan'], why: 'Entrenchment and planning suit slow fighting in hills and mountains.' },
+    { names: ['Superior Firepower'], why: 'When the mountaineers are meant to attack with artillery behind them.' },
+  ],
+  marines: [
+    { names: ['Superior Firepower'], why: 'Firepower to hold a beachhead and win the first battles ashore.' },
+    { names: ['Grand Battleplan'], why: 'Planned invasions benefit from the planning bonus.' },
   ],
   space_marines: [
     { names: ['Grand Battleplan'], why: 'A common space-marine choice: planning, entrenchment and defensive value.' },

@@ -61,6 +61,14 @@ everywhere: theatre, research year and designer mode. Every panel folds away, an
   list shows different kinds of division rather than tweaks of one.
 - **Trade-off chart and Pareto front.** Plot any two stats to see what improving one costs in the other; templates on the
   Pareto front of all your priorities are highlighted. Click a point to open that template.
+- **Meta widths, scored per frontage.** Raising the width limit does not make the division wider. Combat stats are
+  scored per width times how much of a battle's width whole divisions use (Barbarossa terrain widths, one to three
+  attack directions, over-width allowed at -2% per 1% over up to 33%, as in the game's defines), and each role pulls
+  toward the widths players use for it: infantry 20 or 15, armour 40 or 30, special forces sized to their terrain
+  (mountaineers 25 or 15, marines 20 or 15). The pull (5% of every combat stat per width step by default) and the
+  meta widths are editable under Limits.
+- **Special Forces roles.** Space marines, mountaineers and marines; picking one switches its special battalions on
+  and the regular line infantry off.
 - **Theatre fit.** Pick a theatre and the menu scores every width by how much of the frontage whole divisions fill, averaged
   over that theatre's terrain and one- and two-direction attacks. Optionally the search only considers widths that fit well.
 - **Ship designer.** Hulls, modules and naval technology are extracted from the game files. For each role the search is
@@ -105,7 +113,8 @@ Check a result in game before you rely on it. These rules are assumptions, and t
 - Ship data comes from the patch 1.7 game files (the newest set reachable when it was added); re-run `npm run designers`
   on a current install to refresh it.
 - Aircraft are a role guide, not a computed optimum, until the aircraft designer files are extracted.
-- Terrain combat widths are the Barbarossa-update values; going over the combat width (allowed with a penalty) is not modelled.
+- Terrain combat widths are the Barbarossa-update values (plains and desert 90 +45, forest and jungle 84 +42, hills 80 +40,
+  marsh 78 +26, mountain 75 +25, urban 96 +32). Meta widths are community practice, not derived from the game files.
 
 Not modelled: national focus techs, leaders, terrain, the land cruiser, flame tanks and amphibious tank roles.
 
