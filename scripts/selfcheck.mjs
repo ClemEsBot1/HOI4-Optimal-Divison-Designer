@@ -14,6 +14,7 @@ import { metaTanks, roleTanks } from '../src/lib/tankRoles.js';
 import { MIN_DESIGN_RELIABILITY } from '../src/lib/game.js';
 import { SHIP_ROLES, bestShip, hullsFor, shipStats } from '../src/lib/naval.js';
 import { PLANE_ROLES, bestPlane, framesFor, planeStats, hasPlaneData, FLOOR as PLANE_FLOOR } from '../src/lib/air.js';
+import { emptyGrid, gridFromTemplate, templateFromGrid, placeBattalion, fillColumn, removeBattalion, setRegimental, setSupport, battalionChoices, regimentalChoices, supportChoices, slotContribution } from '../src/lib/grid.js';
 import { THEATRES, frontageFit, fitTable, fittingWidths, battleFill } from '../src/lib/frontage.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -449,6 +450,50 @@ ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id
   }
   const solo = unitContribution({ items: ['infantry'] }, 'items', 0, by);
   ok(Math.abs(solo.sa - evaluate({ items: ['infantry'] }, by).sa) < 1e-9, 'the only battalion contributes the whole division');
+}
+
+// ---- manual designer grid: slots edited like the game's designer ----
+{
+  const r = resolve(game, { techs: T });
+  const by = r.byId;
+  const size = r.columnSize;
+  const inf = by.get('infantry');
+  const art = r.combat.find((u) => u.cat === 'artillery');
+  const fsc = by.get('fire_support');
+  let g = emptyGrid(size);
+  g = fillColumn(g, 0, inf);
+  ok(g.columns[0].type === 'infantry' && g.columns[0].items.every((id) => id === 'infantry'), 'fill puts one battalion type in every slot of a column');
+  ok(battalionChoices(g, 0, 1, r.combat).every((u) => u.cat === 'infantry'), 'a column with battalions only offers its own family');
+  ok(battalionChoices(g, 1, 0, r.combat).length === r.combat.length, 'an empty column takes any battalion');
+  g = placeBattalion(g, 1, 0, art);
+  ok(g.columns[1].type === 'artillery', 'the first battalion sets the column family');
+  ok(regimentalChoices(g, 1, r.regimental).length === 0, 'one battalion leaves the regimental slot locked');
+  ok(regimentalChoices(g, 0, r.regimental).some((u) => u.id === 'fire_support'), 'a full infantry column offers regimental companies');
+  g = setRegimental(g, 0, 'fire_support');
+  ok(!regimentalChoices(g, 1, r.regimental).some((u) => u.id === 'fire_support'), 'a regimental company is used once');
+  const tpl = templateFromGrid(g);
+  const st = evaluate(tpl, by, {}, undefined, size);
+  ok(st?.valid && st.layout.explicit && st.layout.sizes.infantry[0] === size && st.layout.sizes.artillery[0] === 1, 'the grid is evaluated with the columns as placed');
+  const noReg = evaluate(templateFromGrid(setRegimental(g, 0, null)), by, {}, undefined, size);
+  ok(Math.abs((st.ic - noReg.ic) - size * fsc.ic) < 1e-6, `a regimental company scales with the ${size} battalions in its own column`);
+  let g2 = removeBattalion(removeBattalion(removeBattalion(g, 0, 0), 0, 1), 0, 2);
+  ok(g2.columns[0].reg === null, 'dropping a column below three battalions clears its regimental company');
+  g2 = placeBattalion(g, 1, 0, inf);
+  ok(g2.columns[1].type === 'infantry', 'swapping a column\'s only battalion changes its family');
+  const sp = r.support[0];
+  g = setSupport(g, 3, sp.id);
+  ok(g.support.length === 1 && g.support[0] === sp.id, 'support packs from the top');
+  ok(!supportChoices(g, 1, r.support, by).some((u) => u.id === sp.id), 'a support company cannot be taken twice');
+  ok(supportChoices(g, 0, r.support, by).some((u) => u.id === sp.id), 'a support slot can keep its own company');
+  const back = gridFromTemplate(templateFromGrid(g), by, size);
+  ok(JSON.stringify(back) === JSON.stringify(g), 'a grid round-trips through its template');
+  const planned = gridFromTemplate({ items: Array(10).fill('infantry'), support: [], reg: ['fire_support'] }, by, size);
+  ok(planned.columns.map((c) => c.items.filter(Boolean).length).join('-') === '3-3-3-1-0' && planned.columns[0].reg === 'fire_support', 'a flat template opens in the planned 3-3-3-1 layout');
+  const bad = templateFromGrid(placeBattalion(emptyGrid(size), 0, 0, inf));
+  bad.columns[0].items[1] = art.id;
+  ok(!evaluate(bad, by, {}, undefined, size).valid, 'mixed families in one column are not valid');
+  const d = slotContribution(g, { kind: 'line', ci: 1, si: 0 }, by, {}, undefined, size);
+  ok(d && d.sa > 0 && d.width === art.width, 'a slot shows what its battalion adds');
 }
 
 // ---- golden numbers from in-game screenshots ----

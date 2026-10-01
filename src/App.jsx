@@ -283,7 +283,7 @@ export default function App() {
   const saveTemplate = (tpl, st) => {
     if (!tpl || !st) return;
     const name = `${role ? role.name : 'Custom'} · ${Math.round(st.width)}w · ${ry.label}`;
-    const entry = { id: Date.now().toString(36), name, items: tpl.items.slice(), support: tpl.support.slice(), reg: (tpl.reg || []).slice(), savedAt: new Date().toISOString() };
+    const entry = { id: Date.now().toString(36), name, items: tpl.items.slice(), support: tpl.support.slice(), reg: (tpl.reg || []).slice(), ...(tpl.columns ? { columns: tpl.columns } : {}), savedAt: new Date().toISOString() };
     setSaved((cur) => { const next = [entry, ...cur].slice(0, 40); writeStore('dd.saved', next); return next; });
     flash('saved');
   };
