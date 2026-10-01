@@ -260,8 +260,10 @@ function TreeGrid({ game, list, folder, techs, toggle, matches }) {
               const p = posOf.get(t.id);
               // Bottom rows open their tooltip upwards so it stays inside the tree instead of being cut off.
               const tipUp = rows - (p.y - layout.minY) <= 3;
+              const col = p.x - layout.minX;
+              const tipSide = col <= 1 ? ' tip-left' : col >= layout.cols - 2 ? ' tip-right' : '';
               return (
-                <div key={t.id} className={'tp-cell' + (tipUp ? ' tip-up' : '')} style={{ gridColumn: p.x - layout.minX + 1, gridRow: p.y - layout.minY + 1 }}>
+                <div key={t.id} className={'tp-cell' + (tipUp ? ' tip-up' : '') + tipSide} style={{ gridColumn: p.x - layout.minX + 1, gridRow: p.y - layout.minY + 1 }}>
                   <TechCard game={game} tech={t} techs={techs} toggle={toggle} dim={!matches(t) && !hasMatchingSub(t)} matches={matches} />
                 </div>
               );
