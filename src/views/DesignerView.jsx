@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import Section, { setAllCollapsed } from '../components/Section.jsx';
+import NumberInput from '../components/NumberInput.jsx';
 import TemplateGrid from '../components/TemplateGrid.jsx';
 import Pareto from '../components/Pareto.jsx';
 import UnitPool from '../components/UnitPool.jsx';
@@ -105,15 +106,15 @@ function Rail(ctx) {
       <Section id="dz-limits" kicker="Hard limits" title="Limits">
         <div className="fields">
           <label>Combat width, from
-            <input type="number" min="0" max="45" value={constraints.wmin} onChange={(e) => setCons('wmin', Math.max(0, Math.min(45, Number(e.target.value) || 0)))} /></label>
+            <NumberInput min="0" max="45" integer value={constraints.wmin} onChange={(v) => setCons('wmin', v)} /></label>
           <label>to
-            <input type="number" min="0" max="45" value={constraints.wmax} onChange={(e) => setCons('wmax', Math.max(0, Math.min(45, Number(e.target.value) || 0)))} /></label>
+            <NumberInput min="0" max="45" integer value={constraints.wmax} onChange={(v) => setCons('wmax', v)} /></label>
           <label>Organization at least
-            <input type="number" min="0" max="100" value={constraints.minOrg} onChange={(e) => setCons('minOrg', Math.max(0, Number(e.target.value) || 0))} /></label>
+            <NumberInput min="0" max="100" value={constraints.minOrg} onChange={(v) => setCons('minOrg', v)} /></label>
           <label>Armor at least
-            <input type="number" min="0" max="400" value={constraints.minArm} onChange={(e) => setCons('minArm', Math.max(0, Number(e.target.value) || 0))} /></label>
+            <NumberInput min="0" max="400" value={constraints.minArm} onChange={(v) => setCons('minArm', v)} /></label>
           <label className="wide">Production cost at most (0 for no limit)
-            <input type="number" min="0" step="100" value={constraints.maxIc} onChange={(e) => setCons('maxIc', Math.max(0, Number(e.target.value) || 0))} /></label>
+            <NumberInput min="0" step="100" value={constraints.maxIc} onChange={(v) => setCons('maxIc', v)} /></label>
         </div>
         <div className="fields">
           <label>Meta widths
@@ -173,7 +174,7 @@ function Rail(ctx) {
         <div className="fields">
           {MOD_KEYS.map((m) => (
             <label key={m.key}>{m.label} %
-              <input type="number" step="1" value={mods[m.key] ?? 0} onChange={(e) => setMods((x) => ({ ...x, [m.key]: Number(e.target.value) || 0 }))} /></label>
+              <NumberInput step="1" fallback={0} value={mods[m.key] ?? 0} onChange={(v) => setMods((x) => ({ ...x, [m.key]: v }))} /></label>
           ))}
         </div>
         <label className="check">

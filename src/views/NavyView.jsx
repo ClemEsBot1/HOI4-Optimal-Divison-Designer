@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Section, { setAllCollapsed } from '../components/Section.jsx';
+import NumberInput from '../components/NumberInput.jsx';
 import { DesignCard, SHIP } from './EquipmentView.jsx';
 import { SHIP_ROLES } from '../lib/naval.js';
 import {
@@ -156,10 +157,10 @@ export default function NavyView({ year, requestShip }) {
       <Section id={IDS[2]} kicker="Production" title="Dockyard plan">
         <div className="fields compact dock-fields">
           <label>Dockyards for this fleet
-            <input type="number" min="1" max="999" step="1" value={st.dockyards} onChange={(e) => setSt((s) => ({ ...s, dockyards: clamp(Math.round(Number(e.target.value)) || 1, 1, 999) }))} />
+            <NumberInput min="1" max="999" step="1" integer value={st.dockyards} onChange={(v) => setSt((s) => ({ ...s, dockyards: v }))} />
           </label>
           <label>Output per dockyard (IC a day)
-            <input type="number" min="0.5" max="10" step="0.05" value={st.output} onChange={(e) => setSt((s) => ({ ...s, output: clamp(Number(e.target.value) || DOCKYARD_OUTPUT, 0.5, 10) }))} />
+            <NumberInput min="0.5" max="10" step="0.05" fallback={DOCKYARD_OUTPUT} value={st.output} onChange={(v) => setSt((s) => ({ ...s, output: v }))} />
           </label>
           <label>Fit the fleet to finish within
             <span className="fit-row">
