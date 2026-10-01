@@ -298,6 +298,14 @@ ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id
   const mtn = ROLES.find((x) => x.id === 'mountaineers');
   const m = search(game, { techs: [...T], exclude: roleExclude(game, mtn), weights: mtn.weights, constraints: { ...mtn.constraints }, topN: 1, coDesign: false });
   ok(m.top[0].items.includes('mountaineers') && !m.top[0].items.includes('infantry'), 'the mountaineer role is led by mountaineers, not regular infantry');
+  ok(Math.abs(m.top[0].stats.width - 25) < 1, `mountaineers land on about 25 width, a third of a mountain battle (got ${m.top[0].stats.width})`);
+  // Special Forces' mountaineer subdoctrine cuts each mountaineer battalion's width: more battalions, same frontage
+  const sfSub = game.subs.get('mountaineers_1');
+  const sfGrand = [...game.grands.values()].find((x) => x.tracks.includes(sfSub.tracks[0]));
+  const sfDoctrine = { grands: [sfGrand.id], slots: { [sfSub.tracks[0]]: [sfSub.id] }, progress: {} };
+  const md = search(game, { techs: [...T], doctrine: sfDoctrine, exclude: roleExclude(game, mtn), weights: mtn.weights, constraints: { ...mtn.constraints }, topN: 1, coDesign: false });
+  const nMtn = (t) => t.items.filter((x) => x === 'mountaineers').length;
+  ok(Math.abs(md.top[0].stats.width - 25) < 1 && nMtn(md.top[0]) > nMtn(m.top[0]), `with narrower mountaineers the division keeps about 25 width and adds battalions (${nMtn(m.top[0])} -> ${nMtn(md.top[0])} at ${md.top[0].stats.width.toFixed(1)})`);
 }
 
 // ---- hover contribution: what one unit adds to the division ----
