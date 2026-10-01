@@ -148,7 +148,8 @@ export function bestShip(data, role, year, { budget = 6e5, gap = 0, weights = ro
   const allowed = (m) => !(role.batteryOk && /battery/.test(m.cat) && !role.batteryOk.test(m.id));
   const reqCats = role.require || [];
   const res = exactDesign({
-    modules: data.modules, weights, floor: FLOOR, budget, gap, keep, minStats,
+    // one tangent point per node: on ship hulls extra rounds barely cut the nodes and cost a full bound each
+    modules: data.modules, weights, floor: FLOOR, budget, gap, keep, minStats, tangentRounds: 0,
     hulls: [...hullsFor(data, role, year)].sort((x, y) => y.year - x.year),
     slotOptions: (hull, n, slot) => {
       let mods = Object.values(data.modules).filter((m) => slot.cats.includes(m.cat) && m.year <= year).filter(allowed);
