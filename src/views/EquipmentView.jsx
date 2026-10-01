@@ -8,6 +8,7 @@ import { PLANE_ROLES, PLANE_STATS, isLowerBetter as planeLower, hasPlaneData, EX
 import { AIR_ROLES, AIR_ERAS, eraFor } from '../data/air.js';
 import naval from '../data/designers.json';
 import { fmt } from '../lib/stats.js';
+import { moduleIcon, hullIcon, airframeIcon } from '../lib/icons.js';
 
 const TABS = [
   { id: 'tanks', label: 'Tanks', kicker: 'Armor branch' },
@@ -262,7 +263,10 @@ function AirGuide({ year, role: r }) {
       </div>
       <Section id="eq-air-guide" kicker={`${r.group} // ${r.name}`} title="Recommended layout">
         <article className="spec-card">
-          <header><span className="spec-tag">{r.airframe}{r.engines > 1 ? ` · ${r.engines} engines` : ''}</span><h3>{r.name}</h3></header>
+          <header>
+            {airframeIcon(r.airframe) && <img className="spec-art" src={airframeIcon(r.airframe)} alt="" />}
+            <span className="spec-tag">{r.airframe}{r.engines > 1 ? ` · ${r.engines} engines` : ''}</span><h3>{r.name}</h3>
+          </header>
           <p className="spec-job">{r.job}</p>
           {e ? (
             <dl className="spec-slots">
@@ -308,12 +312,13 @@ const PLANE_TYPE_LABEL = {
 
 function DesignCard({ kind, d }) {
   const all = kind.stats.filter(([k]) => d.stats[k]);
+  const art = kind.id === 'plane' ? airframeIcon(d.hull) : hullIcon(d.hull);
   return (
     <article className="spec-card ship">
-      <header><span className="spec-tag">{kind.typeLabel[d.stats.type] || d.stats.type}</span><h3>{d.hullName}</h3></header>
+      <header>{art && <img className="spec-art" src={art} alt="" />}<span className="spec-tag">{kind.typeLabel[d.stats.type] || d.stats.type}</span><h3>{d.hullName}</h3></header>
       <dl className="spec-slots">
         {Object.entries(d.modules).filter(([, id]) => id).map(([slot, id]) => (
-          <div key={slot}><dt>{kind.slotLabel(slot)}</dt><dd>{naval.modules[id]?.name || id}</dd></div>
+          <div key={slot}><dt>{kind.slotLabel(slot)}</dt><dd>{moduleIcon(id) && <img className="slot-icon" src={moduleIcon(id)} alt="" />}{naval.modules[id]?.name || id}</dd></div>
         ))}
       </dl>
       <dl className="ship-stats">
