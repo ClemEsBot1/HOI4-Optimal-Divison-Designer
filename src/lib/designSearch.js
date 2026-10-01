@@ -19,7 +19,12 @@
  *   accept(hull, chosenIds, type, stats?)  role requirements on a complete design
  *   atLeast                 [[a, b], ...]: a design is legal only when the summed additions of a reach those of b
  *                           (planes: thrust must cover weight); pruned slot by slot
+ *   minStats                stat -> least final value a legal design must have (a fleet's speed floor); pruned slot by
+ *                           slot with the most the remaining slots could still give the stat, and (one stat, no atLeast)
+ *                           folded into the bound with a Lagrange multiplier so slow completions stop propping it up
  *   keep                    how many of the best designs to return (ranked, best first; default 1)
+ *   tangentRounds           extra tangent points tried when a node's first bound does not prune it (default 2); each
+ *                           round costs a full bound, so searches without a legality constraint may run faster on 0
  *   budget, gap
  *
  * Options in a slot that another option of the same category beats on every scored stat are dropped first (it can
@@ -43,8 +48,11 @@ function tangentFloor(xLo, F) {
 }
 
 export function exactDesign(spec) {
-  const { modules, hulls, weights, floor = {}, budget = 6e5, gap = 0 } = spec;
+  const { modules, hulls, floor = {}, budget = 6e5, gap = 0, tangentRounds = TANGENT_ROUNDS } = spec;
   const atLeast = spec.atLeast || [];
+  // a stat with a minimum is tracked like a scored one with weight 0, so no option that raises it is dropped
+  const minStats = spec.minStats || {};
+  const weights = { ...Object.fromEntries(Object.keys(minStats).map((k) => [k, 0])), ...spec.weights };
   const keys = Object.keys(weights);
   let best = null; let evaluated = 0; let truncated = false; let nodes = 0;
   // the `keep` best designs found so far, best first; the search proves each of them against everything it rules out
@@ -74,6 +82,7 @@ export function exactDesign(spec) {
       const vec = (m) => [
         ...keys.flatMap((k) => { const d = dirOf(k); return [d * (m.add[k] || 0), d * (m.mul[k] || 0), d * (m.avg[k] || 0)]; }),
         ...atLeast.flatMap(([a, b]) => [m.add[a] || 0, -(m.add[b] || 0), m.mul[a] || 0, -(m.mul[b] || 0)]),
+        ...Object.keys(minStats).flatMap((k) => [m.add[k] || 0, m.mul[k] || 0, m.avg[k] || 0]),
       ];
       const beats = (x, y) => { let strict = false; for (let i = 0; i < x.length; i++) { if (x[i] < y[i] - 1e-12) return false; if (x[i] > y[i] + 1e-12) strict = true; } return strict; };
       const free = (o) => !limited.has(o.id) && !limits.some((l) => l.category === o.cat);
@@ -166,10 +175,10 @@ export function exactDesign(spec) {
      * `tp` holds the points the tangents are taken at: any point gives a valid bound; the incumbent's stats, then those
      * of the relaxation's own best completion, are tried.
      */
-    const relax = (i, tp) => {
+    const relax = (i, tp, Wv = W, caO = ca, cmO = cm) => {
       let C = 0;
       for (let q = 0; q < nK; q++) {
-        const w = W[q]; const F = FL[q]; const S = suf[q];
+        const w = Wv[q]; const F = FL[q]; const S = suf[q];
         const aRL = S.aL[i]; const aRU = S.aU[i]; const mRL = S.mL[i]; const mRU = S.mU[i];
         const remL = S.vL[i]; const remU = S.vU[i];
         let vLo; let vHi;
@@ -185,7 +194,7 @@ export function exactDesign(spec) {
         corners[4] = AHi * MLo * tLo[q]; corners[5] = AHi * MLo * tHi[q]; corners[6] = AHi * MHi * tLo[q]; corners[7] = AHi * MHi * tHi[q];
         let xLo = corners[0]; let xHi = corners[0];
         for (let c = 1; c < 8; c++) { if (corners[c] < xLo) xLo = corners[c]; if (corners[c] > xHi) xHi = corners[c]; }
-        ca[q] = 0; cm[q] = 0;
+        caO[q] = 0; cmO[q] = 0;
         if (isRel[q]) { xLo = Math.max(0, Math.min(1, xLo)); xHi = Math.max(0, Math.min(1, xHi)); }
         // a maximized stat that may end below zero (agility, defense) scores ln(F) there: it keeps a linear bound
         const negOk = xLo < 0 && w > 0 && tLo[q] === tHi[q] && tLo[q] > 0;
@@ -208,13 +217,23 @@ export function exactDesign(spec) {
         if (c === 0) { C += c0; continue; }
         const up = c > 0; const T = up ? tHi[q] : tLo[q]; const A = A0 + (up ? vHi : vLo); const aX = up ? aRU : aRL;
         C += c0 + c * T * (A * M0 - aX * mRL);
-        ca[q] = c * T * (M0 + mRL); cm[q] = c * T * (A + aX);
+        caO[q] = c * T * (M0 + mRL); cmO[q] = c * T * (A + aX);
       }
       return C;
     };
     const valAt = Array.from({ length: nS }, (_, j) => new Float64Array(options[j].length));
     const rawAt = Array.from({ length: nS }, (_, j) => new Float64Array(options[j].length));
     const lamAt = new Float64Array(nS + 1);
+    // Lagrangian relaxation of a stat floor (one minStats stat, searches without atLeast): for any lamS >= 0,
+    // score + lamS * (ln(stat + F) - ln(floor + F)) is at least the score of every design that reaches the floor, and
+    // the tangent of ln(stat + F) bounds it like a scored stat. rawS holds each option's share of that tangent.
+    const lagQ = nC === 0 && Object.keys(minStats).length === 1 && W[keys.indexOf(Object.keys(minStats)[0])] >= 0 ? keys.indexOf(Object.keys(minStats)[0]) : -1;
+    const lagLn = lagQ >= 0 ? Math.log(minStats[keys[lagQ]] + FL[lagQ]) : 0;
+    const Wunit = keys.map((_, q) => (q === lagQ ? 1 : 0));
+    const caS = new Float64Array(nK); const cmS = new Float64Array(nK);
+    const rawS = Array.from({ length: nS }, (_, j) => new Float64Array(options[j].length));
+    const lamSAt = new Float64Array(nS + 1);
+    let lamS = 0; let gS = 0;
     const argAt = new Int32Array(nS + 1);
     // runs of interchangeable slots (same options), which the bound fills as a whole under the count limits
     const groupOf = new Array(nS).fill(null);
@@ -231,17 +250,25 @@ export function exactDesign(spec) {
     });
     // the r largest values a run of slots can take, best first (prefix sums): each option as often as its own
     // tightest limit allows (limits shared between options are relaxed, so this stays an upper bound)
+    // options are taken best first by selection (ties to the lower index, as a stable sort would) since r is small;
+    // the buffers are the group's own and are read before the search goes deeper
     const topValues = (g, vals, caps, r) => {
-      const opt = Array.from(vals.keys()).sort((x, y) => vals[y] - vals[x]);
-      const out = new Float64Array(r); const picks = new Int32Array(r); let n = 0; let sum = 0;
-      for (const o of opt) {
-        if (n >= r) break;
+      const nO = vals.length;
+      if (!g.out) { g.out = new Float64Array(g.end - g.start + 1); g.picks = new Int32Array(g.end - g.start + 1); }
+      if (!g.used || g.used.length < nO) g.used = new Uint8Array(nO); else g.used.fill(0, 0, nO);
+      const { out, picks, used } = g; const lim = limitIdx[g.end];
+      let n = 0; let sum = 0; let first = -1;
+      while (n < r) {
+        let o = -1; let mx = -Infinity;
+        for (let x = 0; x < nO; x++) if (!used[x] && vals[x] > mx) { mx = vals[x]; o = x; }
+        if (o < 0) break;
+        if (first < 0) first = o;
+        used[o] = 1;
         let cap = r;
-        for (const li of limitIdx[g.end][o]) cap = Math.min(cap, caps[li]);
+        for (const li of lim[o]) cap = Math.min(cap, caps[li]);
         for (let t = 0; t < cap && n < r; t++) { sum += vals[o]; picks[n] = o; out[n++] = sum; }
       }
-      while (n < r) { sum += vals[opt[0]]; picks[n] = opt[0]; out[n++] = sum; }
-      g.picks = picks;
+      while (n < r) { sum += vals[first]; picks[n] = first; out[n++] = sum; }
       return out;
     };
     const maxAt = new Float64Array(nS + 1);
@@ -256,6 +283,25 @@ export function exactDesign(spec) {
       }
       return sc;
     };
+    // the most a stat with a minimum can still reach: the best corner of what the remaining slots can add, average
+    // and multiply, times the technology bonus of any type the hull can become
+    const minQ = Object.entries(minStats).map(([k, v]) => [keys.indexOf(k), v]);
+    const reachable = (q, i) => {
+      const S = suf[q]; const remL = S.vL[i]; const remU = S.vU[i];
+      let vLo; let vHi;
+      if (pAvgN[q] > 0) {
+        const cur = pAvgSum[q] / pAvgN[q];
+        vLo = remL == null ? cur : Math.min(cur, remL); vHi = remU == null ? cur : Math.max(cur, remU);
+      } else {
+        vLo = remL == null ? 0 : Math.min(0, remL); vHi = remU == null ? 0 : Math.max(0, remU);
+      }
+      const A0 = B[q] + pAdd[q]; const M0 = 1 + pMul[q];
+      let hi = -Infinity;
+      for (const A of [A0 + S.aL[i] + vLo, A0 + S.aU[i] + vHi]) {
+        for (const M of [M0 + S.mL[i], M0 + S.mU[i]]) for (const t of [tLo[q], tHi[q]]) hi = Math.max(hi, A * M * t);
+      }
+      return isRel[q] ? Math.min(1, hi) : hi;
+    };
     const chosen = new Array(nS).fill(null);
     const order = Array.from({ length: nS }, (_, j) => options[j].map((_, o) => o));
     let hullNodes = 0; let stop = false;
@@ -263,6 +309,7 @@ export function exactDesign(spec) {
       nodes++;
       if (++hullNodes > budget) { stop = true; truncated = true; return; }
       for (let c = 0; c < nC; c++) if (pNet[c] + netHi[c][i] < -1e-9) return;
+      for (const [q, v] of minQ) if (reachable(q, i) < v - 1e-9) return;
       if (i === nS) {
         const type = spec.typeOf(hull, chosen);
         if (!spec.accept(hull, chosen, type)) return;
@@ -270,6 +317,7 @@ export function exactDesign(spec) {
         if (top.length >= keep && leafScore(type) <= bar() + 1e-12) return;
         const mods = Object.fromEntries(slotNames.map((n, k) => [n, chosen[k]]));
         const st = spec.stats(hull, mods);
+        if (minQ.some(([q, v]) => (st[keys[q]] || 0) < v - 1e-9)) return;
         if (spec.acceptStats && !spec.acceptStats(st)) return;
         const sc = scoreOf(st);
         if (top.length < keep || sc > bar() + 1e-12) {
@@ -291,7 +339,8 @@ export function exactDesign(spec) {
           maxAt[nS] = nC === 1 ? lam * pNet[0] : 0;
           for (let j = nS - 1; j >= i; j--) {
             const raw = rawAt[j]; const vals = valAt[j]; const net = optNet[j];
-            for (let o = 0; o < vals.length; o++) vals[o] = raw[o] + (nC === 1 ? lam * net[o][0] : 0);
+            const rs = rawS[j];
+            for (let o = 0; o < vals.length; o++) vals[o] = raw[o] + (nC === 1 ? lam * net[o][0] : 0) + (lamS ? lamS * rs[o] : 0);
           }
           for (let j = nS - 1; j >= i;) {
             const g = groupOf[j];
@@ -301,7 +350,7 @@ export function exactDesign(spec) {
             for (let k = g.end; k >= from; k--) { maxAt[k] = maxAt[g.end + 1] + top[g.end - k]; argAt[k] = g.picks[k - from]; }
             j = from - 1;
           }
-          return C + maxAt[i];
+          return C + lamS * gS + maxAt[i];
         };
         const bound = (tp) => {
           C = relax(i, tp);
@@ -316,11 +365,23 @@ export function exactDesign(spec) {
           // Lagrangian relaxation of the legality constraint (one `atLeast` pair): for any lam >= 0, adding
           // lam * (margin) cannot lower the score of a legal design, and lets each slot weigh what a module adds
           // against the thrust it uses. A few multipliers around the last good one are tried; the lowest is kept.
+          lamS = 0;
           let b = fill(0); let lam = 0;
           if (nC === 1) {
             const l0 = lamAt[i] || 0.05;
             for (const f of [0.5, 1, 2]) { const x = fill(l0 * f); if (x < b) { b = x; lam = l0 * f; } }
             if (lam) lamAt[i] = lam;
+          }
+          if (lagQ >= 0) {
+            gS = relax(i, tp, Wunit, caS, cmS) - lagLn;
+            for (let j = nS - 1; j >= i; j--) {
+              const vals = rawS[j]; const a = optAdd[j]; const m = optMul[j];
+              for (let o = 0; o < vals.length; o++) vals[o] = caS[lagQ] * a[o][lagQ] + cmS[lagQ] * m[o][lagQ];
+            }
+            const l0 = lamSAt[i] || 1; let best = 0;
+            for (const f of [0.5, 1, 2]) { lamS = l0 * f; const x = fill(lam); if (x < b) { b = x; best = lamS; } }
+            lamS = best;
+            if (best) lamSAt[i] = best;
           }
           return [b, lam];
         };
@@ -336,14 +397,14 @@ export function exactDesign(spec) {
         };
         let tp = bestX; let [b, lam] = bound(tp); let bestTp = tp; let bestLam = lam; let iters = 0;
         fill(lam);
-        while (b > bar() + tol && iters++ < TANGENT_ROUNDS) {
+        while (b > bar() + tol && iters++ < tangentRounds) {
           const next = completion();
           tp = tp.map((v, q) => (v + next[q]) / 2);
           const [b2, lam2] = bound(tp);
           if (b2 < b) { b = b2; bestTp = tp; bestLam = lam2; }
         }
         if (bestTp !== tp || iters) { bound(bestTp); fill(bestLam); }
-        if (C + maxAt[i] <= bar() + tol) return;
+        if (C + lamS * gS + maxAt[i] <= bar() + tol) return;
         // best-first: the module the relaxation likes most is tried first
         const vals = valAt[i];
         idx = order[i].slice().sort((x, y) => vals[y] - vals[x]);
@@ -351,7 +412,7 @@ export function exactDesign(spec) {
       let prevIdx = Infinity;
       for (let j = i - 1; j >= 0; j--) if (sig[j] && sig[j] === sig[i]) { prevIdx = options[j].indexOf(chosen[j]); break; }
       const childVal = best ? valAt[i].slice() : null;
-      const rest = best ? C + maxAt[i + 1] : 0;
+      const rest = best ? C + lamS * gS + maxAt[i + 1] : 0;
       for (const k of idx) {
         if (sig[i] && k > prevIdx) continue;
         if (childVal && best && rest + childVal[k] <= bar() + tol) continue;

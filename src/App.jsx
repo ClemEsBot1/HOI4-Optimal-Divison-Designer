@@ -16,11 +16,13 @@ import DesignerView, { templateText } from './views/DesignerView.jsx';
 const loadResearch = () => import('./views/ResearchView.jsx');
 const loadDoctrine = () => import('./views/DoctrineView.jsx');
 const loadEquipment = () => import('./views/EquipmentView.jsx');
+const loadNavy = () => import('./views/NavyView.jsx');
 const loadManual = () => import('./views/FieldManualView.jsx');
-const VIEW_IMPORTS = [loadResearch, loadDoctrine, loadEquipment, loadManual];
+const VIEW_IMPORTS = [loadResearch, loadDoctrine, loadEquipment, loadNavy, loadManual];
 const ResearchView = lazy(loadResearch);
 const DoctrineView = lazy(loadDoctrine);
 const EquipmentView = lazy(loadEquipment);
+const NavyView = lazy(loadNavy);
 const FieldManualView = lazy(loadManual);
 
 const game = buildGame(raw);
@@ -30,6 +32,7 @@ const VIEWS = [
   { id: 'research', label: 'Research', icon: '/hoi4/icons/category_artillery.png' },
   { id: 'doctrine', label: 'Doctrine', icon: '/hoi4/icons/category_all_armor.png' },
   { id: 'equipment', label: 'Equipment', icon: '/hoi4/technologies/basic_medium_tank_chassis.png' },
+  { id: 'navy', label: 'Navy', icon: '/icons/navy.svg' },
   { id: 'manual', label: 'Field manual', icon: '/hoi4/technologies/tech_support.png' },
 ];
 const MODES = [
@@ -215,7 +218,7 @@ export default function App() {
     if (!tankCache.current.has(techsKey)) tankCache.current.set(techsKey, askEquip({ type: 'tanks', techs: [...techs] }));
     return tankCache.current.get(techsKey);
   }, [techsKey, techs, askEquip]);
-  const requestShip = useCallback((role, year, weights, keep) => askEquip({ type: 'ship', role, year, weights, keep }), [askEquip]);
+  const requestShip = useCallback((role, year, weights, keep, minStats) => askEquip({ type: 'ship', role, year, weights, keep, minStats }), [askEquip]);
   const requestPlane = useCallback((role, year, weights, keep) => askEquip({ type: 'plane', role, year, weights, keep }), [askEquip]);
   const requestTankRole = useCallback((role, objective) => askEquip({ type: 'tankRole', techs: [...techs], role, objective }), [askEquip, techs]);
 
@@ -359,6 +362,7 @@ export default function App() {
             {shownView === 'research' && <ResearchView game={game} techs={techs} setTechs={setTechs} />}
             {shownView === 'doctrine' && <DoctrineView game={game} doctrine={doctrine} setDoctrine={setDoctrine} recommendations={doctrineRecommendations(game, result?.roleId)} roleName={role?.name} />}
             {shownView === 'equipment' && <EquipmentView game={game} tab={equipTab} setTab={setEquipTab} year={ry.year} techsKey={techsKey} designsUsed={designsUsed} requestTanks={requestTanks} requestShip={requestShip} requestPlane={requestPlane} requestTankRole={requestTankRole} />}
+            {shownView === 'navy' && <NavyView year={ry.year} requestShip={requestShip} />}
             {shownView === 'manual' && <FieldManualView version={version} meta={game.meta} />}
           </Suspense>
         </ErrorBoundary>

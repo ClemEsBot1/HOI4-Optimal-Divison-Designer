@@ -16,7 +16,8 @@ const DESIGNERS = { ship: [SHIP_ROLES, bestShip], plane: [PLANE_ROLES, bestPlane
  *   { type: 'tanks', techs }    the best tank design of every role and chassis
  *   { type: 'tankRole', techs, role, objective? }  one tank role in depth: ranked designs over every chassis
  *   { type: 'ship' | 'plane', role, year, weights? }  the best ship or aircraft design of one role, on the role's own
- *                               priorities or on the weights given; keep > 1 also returns the next best designs
+ *                               priorities or on the weights given; keep > 1 also returns the next best designs;
+ *                               minStats ({ naval_speed: 28 }) keeps only designs that reach those values
  */
 self.onmessage = (e) => {
   const { id, type = 'search' } = e.data;
@@ -30,12 +31,12 @@ self.onmessage = (e) => {
       return;
     }
     if (DESIGNERS[type]) {
-      const { role: roleId, year, weights, keep = 1 } = e.data;
-      const key = `${type}|${roleId}|${year}|${keep}|${weights ? JSON.stringify(weights) : ''}`;
+      const { role: roleId, year, weights, keep = 1, minStats } = e.data;
+      const key = `${type}|${roleId}|${year}|${keep}|${weights ? JSON.stringify(weights) : ''}|${minStats ? JSON.stringify(minStats) : ''}`;
       if (!designCache.has(key)) {
         const [roles, best] = DESIGNERS[type];
         const role = roles.find((r) => r.id === roleId);
-        designCache.set(key, role ? best(naval, role, year, { keep, ...(weights ? { weights } : {}) }) : null);
+        designCache.set(key, role ? best(naval, role, year, { keep, ...(weights ? { weights } : {}), ...(minStats ? { minStats } : {}) }) : null);
       }
       self.postMessage({ id, res: designCache.get(key) });
       return;
