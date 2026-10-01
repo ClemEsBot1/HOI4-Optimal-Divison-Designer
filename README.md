@@ -24,7 +24,8 @@ everywhere: theatre, research year and designer mode. Every panel folds away, an
 - **Equipment**: three tabs. Tanks (the designs in your template, then the best design for every tank role: main battle,
   breakthrough, light, infantry support, tank destroyer, self-propelled gun and anti-air), Aircraft (a role guide for
   fighters, interceptors, heavy fighters, CAS, tactical, naval, torpedo, patrol, strategic, transport, carrier and jet roles,
-  by stage of the war) and Ships (the proven-best design for every ship role: screen, anti-submarine, torpedo, anti-air and
+  by stage of the war, which becomes the proven-best design for every role once the aircraft designer files are extracted)
+  and Ships (the proven-best design for every ship role: screen, anti-submarine, torpedo, anti-air and
   mine destroyers, light attack, anti-air, torpedo and minelaying cruisers, heavy cruiser, battleship, battlecruiser,
   super-heavy battleship, fleet and armored carriers, and convoy-raider, minelaying and long-range submarines).
 - **Field manual**: where the numbers come from, how the searches work and what they leave out.
@@ -74,6 +75,12 @@ everywhere: theatre, research year and designer mode. Every panel folds away, an
 - **Ship designer.** Hulls, modules and naval technology are extracted from the game files. For each role the search is
   exact: a bound that relaxes the score slot by slot (tangents for maximized stats, chords for costs, McCormick envelopes
   for added × multiplied amounts) rules out almost every combination unscored, so all roles solve in about a second.
+- **Aircraft designer.** The same exact search over airframes and plane modules, with the designer's rules: engines'
+  thrust must cover the weight of the airframe and modules, leftover thrust adds speed, and the main weapon decides the
+  plane type. Roles cover fighters, interceptors, heavy fighters, CAS, tactical, naval and strategic bombers, maritime
+  patrol, carrier planes and jet fighters. It runs as soon as `src/data/designers.json` holds aircraft designer data.
+- **Your own ship and aircraft goals.** Start from any role (it keeps the hull or airframe and what the design must
+  carry), set your own priority for every stat and search again.
 - **Reliable tanks.** Stacked reliability penalties can push a tank design to 0%; recommended designs keep at least 60%
   whenever any legal design can.
 - **Saved templates, copy as text.** Save any result or draft (kept in your browser) and copy a template as plain text.
@@ -112,7 +119,10 @@ Check a result in game before you rely on it. These rules are assumptions, and t
 
 - Ship data comes from the patch 1.7 game files (the newest set reachable when it was added); re-run `npm run designers`
   on a current install to refresh it.
-- Aircraft are a role guide, not a computed optimum, until the aircraft designer files are extracted.
+- Aircraft are a role guide until the aircraft designer files are extracted: the optimizer is built and tested on a
+  synthetic airframe (`tests/plane-fixture.json`), but no public copy of the patch 1.12+ files was reachable. Run
+  `npm run designers` on a current install to switch it on. The excess-thrust speed (3 km/h per point) is a community
+  measurement; check it against the game.
 - Terrain combat widths are the Barbarossa-update values (plains and desert 90 +45, forest and jungle 84 +42, hills 80 +40,
   marsh 78 +26, mountain 75 +25, urban 96 +32). Meta widths are community practice, not derived from the game files.
 
@@ -141,8 +151,9 @@ Ship hulls and modules come from a separate extractor:
 npm run designers -- "<HOI4 install folder>" --version <patch number> --source "<where the files came from>"
 ```
 
-It reads `common/units/equipment` (hulls and modules), `common/technologies` (naval technology bonuses) and the English
-equipment localisation, and rewrites `src/data/designers.json`.
+It reads `common/units/equipment` (ship hulls, airframes and their modules), `common/technologies` (naval and air
+technology bonuses) and the English equipment localisation, and rewrites `src/data/designers.json`. On a patch 1.12 or
+later install this also adds the aircraft designer, and the Aircraft tab turns from a role guide into the optimizer.
 
 ## Deploy
 
@@ -154,8 +165,8 @@ Vite preset (build command `npm run build`, output directory `dist`) and leave t
 - `scripts/`: `paradox.mjs`, `extract.mjs` and `extract-designers.mjs` (game files to JSON), `selfcheck.mjs`, `golden.mjs`.
 - `src/data/game.json`, `src/data/designers.json`: the extracted game data; `src/data/air.js`: the aircraft role guide.
 - `src/lib/`: the engine (`game.js` units and exhaustive tank designs, `stats.js` template stats, `score.js` the score,
-  `optimizer.js` branch and bound, `design.js` designs tuned to the division, `combat.js` the matchup model, `naval.js` the
-  ship designer, `tankRoles.js` tank designs by role, `frontage.js` theatre fit), the search worker, presets, share links
+  `optimizer.js` branch and bound, `design.js` designs tuned to the division, `combat.js` the matchup model,
+  `designSearch.js` the exact module search shared by `naval.js` (ship designer) and `air.js` (aircraft designer), `tankRoles.js` tank designs by role, `frontage.js` theatre fit), the search worker, presets, share links
   and text helpers.
 - `tests/golden.json` and `scripts/golden.mjs`: numbers from in-game screenshots.
 - `src/components/`: template view, trade-off chart, tech tree and doctrine pickers, collapsible panels and menus.

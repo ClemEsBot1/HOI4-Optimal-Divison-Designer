@@ -270,6 +270,12 @@ input[type='checkbox'] { accent-color: var(--brass); }
 .spec-card:hover { border-color: var(--line-strong); }
 .spec-card header { display: grid; gap: .1rem; }
 .spec-card h3 { margin: 0; font-size: 1.2rem; }
+.custom-goal { display: grid; gap: .7rem; }
+.custom-goal .field-inline { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; font-size: .9rem; color: var(--muted); }
+.custom-goal .field-inline select { min-width: 0; flex: 1 1 14rem; color: var(--ink); }
+.custom-goal > button { justify-self: start; }
+.custom-goal > button:disabled { opacity: .5; cursor: not-allowed; }
+.goal-sliders { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: 0 1.2rem; }
 .spec-tag { font-family: var(--mono); font-size: .6rem; letter-spacing: .14em; text-transform: uppercase; color: var(--brass); }
 .spec-job { margin: 0; color: var(--muted); font-size: .88rem; }
 .spec-slots, .ship-stats { display: grid; gap: .1rem; margin: 0; }

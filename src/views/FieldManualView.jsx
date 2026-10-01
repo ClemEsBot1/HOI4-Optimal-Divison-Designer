@@ -43,7 +43,9 @@ export default function FieldManualView({ version, meta }) {
           <ul className="rules">
             <li>Tanks: every chassis that can fill a role gets an exhaustive module search with that role's priorities. Stacked reliability penalties can push a design to 0%, which in game means constant breakdowns, so a recommended design keeps at least {MIN_DESIGN_RELIABILITY * 100}% reliability whenever any legal design can.</li>
             <li>Ships: a stat is (hull + modules + the average of averaged modules) × (1 + module multipliers) × (1 + naval technology for the ship type). Each role scores the sum of priority × ln(stat), so it trades percentages like the division search.</li>
-            <li>The ship search is exact. At every step it bounds the best finish of the partial design: each maximized stat is replaced by its tangent at the best design so far, each minimized stat (cost, visibility) by its chord, and the product of added and multiplied amounts by its envelope. The bound then splits slot by slot, so each remaining slot can take its own best module, and whole branches are dropped without scoring them.</li>
+            <li>Aircraft use the same stat model (airframe instead of hull, air technology for the plane type and airframe), plus the designer's two rules: a design is legal only when the engines' thrust covers the weight of the airframe and its modules, and leftover thrust adds speed (3 km/h per point, a community measurement, added before the multipliers). The main weapon decides the plane's type.</li>
+            <li>Every role has a fixed set of priorities. Under Your own goal in the Ships and Aircraft tabs you can set them yourself; the role you start from keeps its hull or airframe and what the design must carry.</li>
+            <li>The ship and aircraft searches are exact. At every step it bounds the best finish of the partial design: each maximized stat is replaced by its tangent at the best design so far, each minimized stat (cost, visibility) by its chord, and the product of added and multiplied amounts by its envelope. The bound then splits slot by slot, so each remaining slot can take its own best module, and whole branches are dropped without scoring them.</li>
           </ul>
         </Section>
         <Section id="fm-rules" kicker="Section 4" title="Rules as implemented">
@@ -74,7 +76,7 @@ export default function FieldManualView({ version, meta }) {
           <ul className="rules">
             <li>Not verified against the game: the exact regimental-company scaling for every stat, which column types each company can attach to, and whether doctrine supply bonuses are fractions of a unit's supply.</li>
             <li>Not modelled: national focus technologies, leaders, {HAS_TERRAIN ? '' : 'terrain modifiers, '}river crossings, entrenchment, the land cruiser, flame tanks, amphibious tank roles and hand-editing a tank design.</li>
-            <li>Aircraft designs are a role guide until the aircraft designer files are extracted.</li>
+            <li>The aircraft optimizer needs the aircraft designer files (patch 1.12 or later), which this app's data does not have yet; until <code>npm run designers</code> is run on such an install, the Aircraft tab is a role guide.</li>
           </ul>
         </Section>
       </div>
