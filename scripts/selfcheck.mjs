@@ -308,9 +308,14 @@ ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id
   const withEng = evaluate({ ...tpl, support: ['engineer'] }, tr.byId, {}, undefined, tr.columnSize);
   const engAlone = resolve(tg, { techs: T, terrain: forest }).byId.get('engineer');
   ok(Math.abs(withEng.sa - (plain.sa * 1.1 + engAlone.sa)) < 1e-6, 'engineers\' forest attack bonus lifts every battalion by 10%');
+  const mtnUnit = game.units.get('mountaineers');
+  ok((mtnUnit.terrain?.mountain?.attack || 0) > 0, 'the extracted data gives mountaineers an attack bonus in mountains');
+  const tankAny = resolve(game, { techs: T, terrain: THEATRES.find((x) => x.id === 'any').mix }).byId.get('medium_armor');
+  const tankJungle = resolve(game, { techs: T, terrain: THEATRES.find((x) => x.id === 'pacific').mix }).byId.get('medium_armor');
+  ok(tankJungle.sa < tankAny.sa, 'medium tanks attack worse in the Pacific than on an average front');
   const none = resolve(game, { techs: T, terrain: forest }).byId.get('infantry');
   const noneFlat = resolve(game, { techs: T }).byId.get('infantry');
-  ok(none.sa === noneFlat.sa, 'units without terrain data are unchanged by the theatre');
+  ok(none.sa === noneFlat.sa, 'units without terrain modifiers (regular infantry) are unchanged by the theatre');
 }
 
 // ---- meta widths: raising the width limit does not make the division wider ----

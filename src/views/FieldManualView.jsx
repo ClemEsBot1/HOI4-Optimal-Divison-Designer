@@ -67,7 +67,7 @@ export default function FieldManualView({ version, meta }) {
           </div>
           <p className="note">Values from the Barbarossa update; check them in game if a later patch has changed them.</p>
           <p>{HAS_TERRAIN
-            ? 'The theatre also sets where the fighting happens: each battalion\'s terrain modifiers scale its soft and hard attack and its defense, averaged over the theatre\'s terrain, and a support company\'s terrain modifiers (engineers, for example) apply to every battalion. Any front weighs every terrain the same.'
+            ? `The theatre also sets where the fighting happens: each battalion's terrain modifiers scale its soft and hard attack and its defense, averaged over the theatre's terrain, and a support company's terrain modifiers (engineers, for example) apply to every battalion. Any front weighs every terrain the same.${raw.meta.terrainSource ? ` Terrain modifiers come from the ${raw.meta.terrainSource}; units added since then (the regimental companies, for example) have none.` : ''}`
             : 'Terrain attack and defense modifiers are read from the game files on the next data extraction; until then the theatre only changes how widths fit.'}</p>
         </Section>
         <Section id="fm-limits" kicker="Section 6" title="Known limits">
