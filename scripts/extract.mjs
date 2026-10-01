@@ -61,9 +61,12 @@ const loc = {};
 for (const f of walk(P.loc).filter((x) => x.endsWith('.yml'))) {
   for (const line of fs.readFileSync(f, 'utf8').split(/\r?\n/)) {
     const m = /^\s+([A-Za-z0-9_.'\-]+):\d*\s+"(.*)"\s*(#.*)?$/.exec(line);
-    if (m) loc[m[1]] = m[2].replace(/§./g, '').replace(/\\n/g, ' ').replace(/\$[A-Za-z_]+\$/g, '').trim();
+    if (m) loc[m[1]] = m[2].replace(/§./g, '').replace(/\\n/g, ' ');
   }
 }
+// `$key$` points at another entry (e.g. a tech named after the equipment it unlocks); anything left is a scripted value.
+const deref = (v, depth = 0) => v.replace(/\$([A-Za-z0-9_.]+)\$/g, (_, k) => (depth < 5 && loc[k] !== undefined ? deref(loc[k], depth + 1) : ''));
+for (const k of Object.keys(loc)) loc[k] = deref(loc[k]).replace(/\s+/g, ' ').trim();
 const nameOf = (id, ...alts) => {
   for (const k of [id, ...alts]) if (k && loc[k]) return loc[k];
   return prettify(id);
@@ -305,6 +308,7 @@ if (fs.existsSync(upFile)) {
 }
 
 // ================================================================ 4. TECH GRAPH
+const TECH_NAMES = JSON.parse(fs.readFileSync(path.join(here, 'tech-names.json'), 'utf8')); // in-game names the loc lookup gets wrong
 const unitIds = new Set(Object.keys(units));
 const isUnitTarget = (k) => k.startsWith('category_') || unitIds.has(k);
 const STAT_BLOCK_SKIP = new Set(['path', 'folder', 'categories', 'allow', 'allow_branch', 'ai_will_do', 'on_research_complete', 'on_research_complete_limit', 'ai_research_weights', 'enable_equipments', 'enable_subunits', 'enable_equipment_modules', 'enable_building', 'xor', 'XOR', 'dependencies', 'sub_technologies', 'special_project_specialization']);
@@ -328,7 +332,7 @@ for (const t of Object.values(rawTechs)) {
   const parents = []; // filled below from path edges
   techs[t.id] = {
     id: t.id,
-    name: nameOf(t.id),
+    name: TECH_NAMES[t.id] || nameOf(t.id),
     folder,
     file: t.file,
     year: numOf(b, 'start_year', 1936),
