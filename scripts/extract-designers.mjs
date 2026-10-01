@@ -2,16 +2,16 @@
 /**
  * Ship (and aircraft) designer data for the Equipment section.
  *
- *   node scripts/extract-designers.mjs "<HOI4 install folder>" [--version 1.x.y]
+ *   node scripts/extract-designers.mjs "<HOI4 install folder>" [--version 1.x.y] [--kinds plane|ship] [--source text]
  *
  * Reads every equipment archetype that has module slots outside the tank designer (ship hulls, and the aircraft
  * airframes of the By Blood Alone designer when the install has them), the modules they can take and the year the
  * technology that unlocks each one starts, and writes src/data/designers.json.
  *
- * The file in the repository was built from the public copy of the game files at
- * github.com/Killeritch/Hearts-of-Iron-IV (patch 1.7, Man the Guns rules, no aircraft designer). Run this against a
- * current install to refresh it and add the aircraft designer (common/units/equipment/plane_airframes.txt and
- * modules/00_plane_modules.txt, patch 1.12 or later); the Equipment section reads whatever is there.
+ * The ships in the repository's file come from the public copy of the game files at
+ * github.com/Killeritch/Hearts-of-Iron-IV (patch 1.7, Man the Guns rules); the aircraft designer (airframes, plane
+ * modules with their mission-dependent stats, and THRUST_WEIGHT_AGILITY_FACTOR from the defines) from the 1.14.1 files
+ * at github.com/cbrzeczysz/hoi4-history, added with --kinds plane. The Equipment section reads whatever is there.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -130,7 +130,7 @@ const limitsOf = (b) => all(b, 'module_count_limit').map((l) => {
   const c = l.find((x) => x.k === 'count');
   return { module: first(l, 'module') || null, category: first(l, 'category') || null, op: c ? c.op : '<', count: c ? c.v : 1 };
 });
-const STAT_SKIP = new Set(['year', 'priority', 'module_slots', 'is_archetype', 'is_buildable', 'manpower']);
+const STAT_SKIP = new Set(['year', 'priority', 'module_slots', 'is_archetype', 'is_buildable', 'manpower', 'air_map_icon_frame', 'interface_overview_category_index', 'lend_lease_cost']);
 
 const designers = {};
 for (const e of entries) {
@@ -184,6 +184,14 @@ for (const f of walk(path.join(eqDir, 'modules')).filter((f) => f.endsWith('.txt
       modules[m.k] = {
         id: m.k, name: nameOf(m.k), cat,
         add: numbers(first(m.v, 'add_stats')), mul: numbers(first(m.v, 'multiply_stats')), avg: numbers(first(m.v, 'add_average_stats')),
+        // plane modules (1.14+): stats that apply only on some missions, e.g. a torpedo's naval attack on naval strikes
+        ...(all(m.v, 'mission_type_stats').length ? {
+          missions: all(m.v, 'mission_type_stats').map((b) => ({
+            on: bare(first(b, 'limit')), add: numbers(first(b, 'add_stats')), mul: numbers(first(b, 'multiply_stats')), avg: numbers(first(b, 'add_average_stats')),
+          })),
+        } : {}),
+        ...(first(m.v, 'allow_mission_type') ? { allowMissions: bare(first(m.v, 'allow_mission_type')) } : {}),
+        ...(first(m.v, 'add_equipment_type') ? { types: [first(m.v, 'add_equipment_type')].flatMap((t) => (isBlock(t) ? bare(t) : [t])) } : {}),
         year: unlockYear[m.k] ?? (suffix ? SUFFIX_YEAR[suffix[1]] ?? 1936 : 1936),
         researched: m.k in unlockYear,
       };
@@ -194,14 +202,47 @@ for (const f of walk(path.join(eqDir, 'modules')).filter((f) => f.endsWith('.txt
 const usedCats = new Set(Object.values(designers).flatMap((d) => d.variants.flatMap((v) => Object.values(v.slots || {}).flatMap((s) => (s ? s.cats : [])))));
 for (const id of Object.keys(modules)) if (!usedCats.has(modules[id].cat)) delete modules[id];
 
-const out = {
-  meta: {
-    generatedAt: new Date().toISOString(),
-    gameVersion: opt.version || 'unknown',
-    source: opt.source || root,
-    counts: { designers: Object.keys(designers).length, modules: Object.keys(modules).length, typeMods: typeMods.length },
-  },
-  designers, modules, typeMods,
+// ---------------------------------------------------------------- plane designer rules from the defines
+const planeRules = {};
+for (const f of walk(path.join(root, 'common/defines')).filter((f) => f.endsWith('.lua'))) {
+  const m = /THRUST_WEIGHT_AGILITY_FACTOR\s*=\s*([\d.]+)/.exec(fs.readFileSync(f, 'utf8'));
+  if (m) planeRules.thrustAgility = Number(m[1]);
+}
+
+// --kinds plane (or ship): replace only those designers and their modules in the existing file, keep the rest
+const kinds = opt.kinds ? new Set(opt.kinds.split(',')) : null;
+const source = opt.source || root;
+let out = { meta: {}, designers, modules, typeMods };
+if (kinds && fs.existsSync(outFile)) {
+  const prev = JSON.parse(fs.readFileSync(outFile, 'utf8'));
+  const keep = Object.fromEntries(Object.entries(prev.designers).filter(([, d]) => !kinds.has(d.kind)));
+  const catsOf = (ds) => new Set(Object.values(ds).flatMap((d) => d.variants.flatMap((v) => Object.values(v.slots || {}).flatMap((s) => (s ? s.cats : [])))));
+  const keptCats = catsOf(keep);
+  const fresh = Object.fromEntries(Object.entries(designers).filter(([, d]) => kinds.has(d.kind)));
+  const freshCats = catsOf(fresh);
+  const isShipType = (t) => SHIP_TYPES.has(t);
+  out = {
+    meta: { ...prev.meta, sources: { ...(prev.meta.sources || { ship: { version: prev.meta.gameVersion, source: prev.meta.source } }) } },
+    designers: { ...keep, ...fresh },
+    modules: {
+      ...Object.fromEntries(Object.entries(prev.modules).filter(([, m]) => keptCats.has(m.cat))),
+      ...Object.fromEntries(Object.entries(modules).filter(([, m]) => freshCats.has(m.cat))),
+    },
+    typeMods: [...(prev.typeMods || []).filter((m) => (kinds.has('ship') ? !isShipType(m.type) : isShipType(m.type))),
+      ...typeMods.filter((m) => (kinds.has('ship') ? isShipType(m.type) : !isShipType(m.type)))],
+    planeRules: kinds.has('plane') ? planeRules : prev.planeRules || {},
+  };
+  for (const k of kinds) out.meta.sources[k] = { version: opt.version || 'unknown', source };
+} else {
+  out.planeRules = planeRules;
+  out.meta.sources = Object.fromEntries([...new Set(Object.values(designers).map((d) => d.kind))].map((k) => [k, { version: opt.version || 'unknown', source }]));
+}
+out.meta = {
+  ...out.meta,
+  generatedAt: new Date().toISOString(),
+  gameVersion: kinds ? out.meta.gameVersion : opt.version || 'unknown',
+  source: kinds ? out.meta.source : source,
+  counts: { designers: Object.keys(out.designers).length, modules: Object.keys(out.modules).length, typeMods: out.typeMods.length },
 };
 fs.writeFileSync(outFile, JSON.stringify(out));
-console.log(`wrote ${outFile}: ${out.meta.counts.designers} designers (${Object.values(designers).map((d) => `${d.id}/${d.variants.length}`).join(', ')}), ${out.meta.counts.modules} modules, ${typeMods.length} ship-type tech bonuses`);
+console.log(`wrote ${outFile}: ${out.meta.counts.designers} designers (${Object.values(out.designers).map((d) => `${d.id}/${d.variants.length}`).join(', ')}), ${out.meta.counts.modules} modules, ${out.typeMods.length} type tech bonuses, plane rules ${JSON.stringify(out.planeRules)}`);

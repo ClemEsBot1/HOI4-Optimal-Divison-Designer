@@ -4,10 +4,11 @@ import TankCard from '../components/TankCard.jsx';
 import Pareto from '../components/Pareto.jsx';
 import { TANK_ROLES } from '../lib/tankRoles.js';
 import { SHIP_ROLES, SHIP_STATS, isLowerBetter as shipLower } from '../lib/naval.js';
-import { PLANE_ROLES, PLANE_STATS, isLowerBetter as planeLower, hasPlaneData, EXCESS_THRUST_SPEED } from '../lib/air.js';
+import { PLANE_ROLES, PLANE_STATS, isLowerBetter as planeLower, hasPlaneData, thrustAgility, MISSION_LABEL } from '../lib/air.js';
 import { AIR_ROLES, AIR_ERAS, eraFor } from '../data/air.js';
 import naval from '../data/designers.json';
 import { fmt } from '../lib/stats.js';
+import { moduleIcon, hullIcon, airframeIcon } from '../lib/icons.js';
 
 const TABS = [
   { id: 'tanks', label: 'Tanks', kicker: 'Armor branch' },
@@ -102,7 +103,7 @@ function DataNote({ kind }) {
   return (
     <p className="note data-note">
       {kind === 'air'
-        ? <>Airframes, modules and air technology from {naval.meta.source} (game version {naval.meta.gameVersion}). A design is legal only when the engines&apos; thrust covers the weight; thrust left over adds {EXCESS_THRUST_SPEED} km/h of speed per point. Change the year from the command bar.</>
+        ? <>Airframes and plane modules from {naval.meta.sources?.plane?.source || naval.meta.source} (game version {naval.meta.sources?.plane?.version || naval.meta.gameVersion}). A design is legal only when the engines&apos; thrust covers the weight; thrust left over adds {thrustAgility(naval)} agility per point. Weapons count only on the missions they fly (a torpedo adds naval attack on naval strikes, a bomb bay ground attack on close air support), so each type is designed and shown for its own mission. Change the year from the command bar.</>
         : <>Hulls, modules and naval technology from {naval.meta.source} (game version {naval.meta.gameVersion}). Change the year from the command bar.</>}
     </p>
   );
@@ -262,7 +263,10 @@ function AirGuide({ year, role: r }) {
       </div>
       <Section id="eq-air-guide" kicker={`${r.group} // ${r.name}`} title="Recommended layout">
         <article className="spec-card">
-          <header><span className="spec-tag">{r.airframe}{r.engines > 1 ? ` · ${r.engines} engines` : ''}</span><h3>{r.name}</h3></header>
+          <header>
+            {airframeIcon(r.airframe) && <img className="spec-art" src={airframeIcon(r.airframe)} alt="" />}
+            <span className="spec-tag">{r.airframe}{r.engines > 1 ? ` · ${r.engines} engines` : ''}</span><h3>{r.name}</h3>
+          </header>
           <p className="spec-job">{r.job}</p>
           {e ? (
             <dl className="spec-slots">
@@ -308,18 +312,20 @@ const PLANE_TYPE_LABEL = {
 
 export function DesignCard({ kind, d }) {
   const all = kind.stats.filter(([k]) => d.stats[k]);
+  const art = kind.id === 'plane' ? airframeIcon(d.hull) : hullIcon(d.hull);
   return (
     <article className="spec-card ship">
-      <header><span className="spec-tag">{kind.typeLabel[d.stats.type] || d.stats.type}</span><h3>{d.hullName}</h3></header>
+      <header>{art && <img className="spec-art" src={art} alt="" />}<span className="spec-tag">{kind.typeLabel[d.stats.type] || d.stats.type}{kind.id === 'plane' && d.mission ? ` · ${MISSION_LABEL[d.mission] || d.mission}` : ''}</span><h3>{d.hullName}</h3></header>
       <dl className="spec-slots">
         {Object.entries(d.modules).filter(([, id]) => id).map(([slot, id]) => (
-          <div key={slot}><dt>{kind.slotLabel(slot)}</dt><dd>{naval.modules[id]?.name || id}</dd></div>
+          <div key={slot}><dt>{kind.slotLabel(slot)}</dt><dd>{moduleIcon(id) && <img className="slot-icon" src={moduleIcon(id)} alt="" />}{naval.modules[id]?.name || id}</dd></div>
         ))}
       </dl>
       <dl className="ship-stats">
         {all.map(([k, label]) => (
           <div key={k} className={kind.lower(k) ? 'cost' : ''}><dt>{label}</dt><dd>{kind.fmt(k, d.stats[k])}</dd></div>
         ))}
+        {kind.id === 'plane' && d.stats.thrust != null && <div><dt>Thrust / weight</dt><dd>{formatPlane('thrust', d.stats.thrust)} / {formatPlane('weight', d.stats.weight)}</dd></div>}
       </dl>
     </article>
   );

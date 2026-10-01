@@ -7,6 +7,7 @@ import {
   DOCKYARD_OUTPUT, BOMBARD, RAID_REGIONS, MAX_CARRIERS, SCREENS_PER_SHIP,
 } from '../lib/fleet.js';
 import { readStore, writeStore } from '../lib/storage.js';
+import { hullIcon, hideBroken } from '../lib/icons.js';
 import naval from '../data/designers.json';
 import './NavyView.css';
 
@@ -117,7 +118,7 @@ export default function NavyView({ year, requestShip }) {
                   <tr key={s.id}>
                     <td className="txt"><span className={`cls-dot ${s.cls}`} />{roleName(s)}</td>
                     <td className="txt">{CLASS_NAME[s.cls]}</td>
-                    <td className="txt">{d ? d.hullName : d === null ? 'None available' : '…'}</td>
+                    <td className="txt">{d && hullIcon(d.hull) && <img className="hull-icon" src={hullIcon(d.hull)} alt="" onError={hideBroken} />}{d ? d.hullName : d === null ? 'None available' : '…'}</td>
                     <td>{comp.counts[s.id]}</td>
                     <td>{perTf.join(' / ')}</td>
                     <td className={d?.slow ? 'bad' : ''}>{d ? `${one(d.stats.naval_speed)} kn` : '–'}</td>
@@ -133,7 +134,7 @@ export default function NavyView({ year, requestShip }) {
       </Section>
 
       <Section id={IDS[1]} kicker="Naval designer" title="Ship designs">
-        <p className="note">The proven-best design for each ship at your research level ({shipYear}; change it from the command bar), searched over every hull and module like the Equipment page{speed ? `, keeping only designs that make ${speed} knots so the fleet sails together` : ''}. Hulls, modules and naval technology from {naval.meta.source} (game version {naval.meta.gameVersion}).</p>
+        <p className="note">The proven-best design for each ship at your research level ({shipYear}; change it from the command bar), searched over every hull and module like the Equipment page{speed ? `, keeping only designs that make ${speed} knots so the fleet sails together` : ''}. Hulls, modules and naval technology from {naval.meta.sources?.ship?.source || naval.meta.source} (game version {naval.meta.sources?.ship?.version || naval.meta.gameVersion}).</p>
         <div className="card-grid">
           {slots.filter((s) => comp.counts[s.id]).map((s) => {
             const d = designs[s.id];

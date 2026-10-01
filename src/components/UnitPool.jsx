@@ -1,5 +1,6 @@
 import React from 'react';
 import { defaultExclude } from '../lib/presets.js';
+import { unitIcon } from '../lib/icons.js';
 
 const isArtillery = (u) => (u.cats || []).includes('category_line_artillery');
 const GROUPS = [
@@ -35,6 +36,7 @@ export default function UnitPool({ game, exclude, setExclude }) {
                 <li key={u.id}>
                   <label className="check">
                     <input type="checkbox" checked={!off.has(u.id)} onChange={() => toggle(u.id)} />
+                    {unitIcon(u.id) && <img className="unit-icon" src={unitIcon(u.id)} alt="" />}
                     {u.name}{u.special ? ' (special forces)' : ''}
                   </label>
                 </li>
