@@ -61,6 +61,7 @@ export default function DesignerView(ctx) {
       <div className="layout">
         <Rail {...ctx} />
         <div className="main">
+          <a className="rail-jump" href="#division-goals">Role, limits and priorities are below the results</a>
           {mode === 'search' && <SearchMain {...ctx} />}
           {mode === 'manual' && <ManualMain {...ctx} />}
           {mode === 'compare' && <CompareMain {...ctx} />}
@@ -76,7 +77,7 @@ function Rail(ctx) {
   const groups = GROUP_ORDER.map((g) => ({ g, stats: STATS.filter((s) => s.group === g) }));
   const ids = ['dz-role', 'dz-limits', 'dz-priorities', 'dz-opponent', 'dz-units', 'dz-bonuses'];
   return (
-    <aside className="rail" aria-label="Division goals">
+    <aside className="rail" id="division-goals" aria-label="Division goals">
       <div className="fold-all">
         <button type="button" className="ghost small" onClick={() => setAllCollapsed(ids, false)}>Expand all</button>
         <button type="button" className="ghost small" onClick={() => setAllCollapsed(ids, true)}>Collapse all</button>

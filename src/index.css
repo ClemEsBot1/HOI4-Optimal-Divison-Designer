@@ -149,7 +149,8 @@ input[type='checkbox'] { accent-color: var(--brass); }
 
 /* layouts */
 .layout { display: grid; grid-template-columns: minmax(18rem, 23rem) minmax(0, 1fr); gap: 1.25rem; align-items: start; }
-@media (max-width: 64rem) { .layout { grid-template-columns: minmax(0, 1fr); } }
+.rail-jump { display: none; margin: 0 0 .6rem; font-size: .85rem; color: var(--muted); }
+@media (max-width: 64rem) { .layout { grid-template-columns: minmax(0, 1fr); } .layout > .main { order: -1; } .rail-jump { display: block; } }
 .rail { display: grid; gap: .8rem; position: sticky; top: 4.6rem; max-height: calc(100vh - 5.2rem); overflow: auto; padding-right: .25rem; scrollbar-width: thin; }
 @media (max-width: 64rem) { .rail { position: static; max-height: none; overflow: visible; } }
 .main { display: grid; gap: 1rem; min-width: 0; }
@@ -162,7 +163,7 @@ input[type='checkbox'] { accent-color: var(--brass); }
 .panel { position: relative; min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); backdrop-filter: blur(6px); }
 .panel::before { content: ''; position: absolute; left: 0; top: 0; width: 3.5rem; height: 2px; background: linear-gradient(90deg, var(--brass), transparent); border-radius: var(--radius) 0 0 0; }
 .panel-head { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .35rem .5rem .35rem .35rem; }
-.panel-toggle { flex: 1; display: flex; align-items: center; gap: .65rem; min-width: 0; background: transparent; color: var(--ink); border: 0; border-radius: 8px; padding: .5rem .6rem; text-align: left; font-weight: 400; }
+.panel-toggle { flex: 1 1 14rem; display: flex; align-items: center; gap: .65rem; min-width: 0; background: transparent; color: var(--ink); border: 0; border-radius: 8px; padding: .5rem .6rem; text-align: left; font-weight: 400; }
 .panel-toggle:hover { background: rgba(255, 240, 200, .03); filter: none; }
 .panel-toggle h2 { font-size: 1.28rem; line-height: 1.1; }
 .panel-titles { display: grid; gap: .1rem; min-width: 0; }

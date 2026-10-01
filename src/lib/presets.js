@@ -34,9 +34,13 @@ export const ROLES = [
   {
     id: 'offensive_infantry', group: 'regular', name: 'Offensive Infantry', blurb: 'Infantry with enough soft attack to push when tanks are scarce.',
     weights: { sa: 9, def: 6, brk: 5, org: 8, hp: 6, ic: 8, engineer: 7, logistics: 2, recon: 2 },
-    // Capped at a mass-producible infantry cost and a minority mobile share so the search stays with an
-    // infantry-plus-support-artillery build (the classic "7 infantry + 2 artillery" shape) instead of drifting
-    // into an all-mechanized division that is really the Armoured or Space marines role wearing an infantry label.
+    // Capped at a mass-producible infantry cost and a minority mobile share so the search stays with an infantry
+    // build instead of drifting into an all-mechanized division that is really the Armoured or Space marines role
+    // wearing an infantry label. Its soft attack comes mostly from support and regimental companies: two artillery
+    // battalions make a column that never reaches the three battalions a regimental slot needs, so with 1942
+    // research "7 infantry + 2 artillery" gains under 10% soft attack over 10 infantry with guns and rockets in
+    // every slot, but loses a regimental company, a quarter of its organization (below the 40 floor) and a third
+    // of its defense and hit points.
     constraints: { wmin: 16, wmax: 27, minOrg: 40, minArm: 0, maxMobileShare: 0.35, maxIc: 3200, perWidth: true, metaWidths: [20, 25] },
   },
   {
