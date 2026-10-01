@@ -425,6 +425,34 @@ table.rank { border-collapse: collapse; width: 100%; font-size: .86rem; }
 .manual-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: .8rem; }
 .manual-compare h3 { margin-top: 0; }
 .manual-summary { color: var(--muted); font-size: .85rem; }
+/* manual designer: the game's template grid, editable slot by slot */
+.dz { display: flex; gap: .9rem; align-items: flex-start; flex-wrap: wrap; margin: .75rem 0; }
+.dz-grid { flex-wrap: nowrap; max-width: 100%; }
+.dz-grid h4 { font-family: var(--mono); font-size: .6rem; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); margin-bottom: .3rem; white-space: nowrap; }
+@media (max-width: 60rem) { .dz-grid { overflow-x: auto; padding-bottom: .2rem; } }
+.dz-support { background: rgba(211, 166, 79, .04); }
+.counter.slot { font: inherit; color: inherit; padding: .15rem 0; min-height: 2.7rem; background: none; border: 1px solid transparent; border-radius: 5px; cursor: pointer; }
+.counter.slot.empty { border: 1px dashed var(--line); opacity: .7; }
+.counter.slot.empty:hover, .counter.slot.empty:focus-visible { border-color: rgba(211, 166, 79, .45); opacity: 1; background: rgba(211, 166, 79, .06); }
+.counter.slot.locked { opacity: .35; cursor: not-allowed; }
+.counter.slot.active { border: 1px solid var(--brass); border-style: solid; opacity: 1; box-shadow: 0 0 0 1px rgba(211, 166, 79, .25) inset; }
+.c-tip .c-hint { margin: .35rem 0 0; font-style: italic; }
+.dz-picker { flex: 1 1 15rem; max-width: 22rem; max-height: 26rem; overflow-y: auto; padding: .55rem; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--panel-solid); box-shadow: var(--shadow); }
+.dz-picker-head { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin-bottom: .35rem; }
+.dz-picker .note { margin: .2rem 0 .4rem; font-size: .8rem; }
+.dz-remove { margin-bottom: .4rem; }
+.dz-choices { list-style: none; margin: 0; padding: 0; display: grid; gap: .2rem; }
+.dz-choices li { display: flex; gap: .3rem; align-items: center; }
+.dz-choice { flex: 1; display: flex; gap: .45rem; align-items: center; text-align: left; padding: .25rem .35rem; font: inherit; color: var(--ink); background: none; border: 1px solid transparent; border-radius: 6px; cursor: pointer; }
+.dz-choice:hover, .dz-choice:focus-visible { background: rgba(211, 166, 79, .1); border-color: var(--line-strong); }
+.dz-choice.on { border-color: var(--brass); }
+.dz-choice img { width: 2rem; height: 2rem; object-fit: contain; flex: none; }
+.dz-choice b { display: block; font-size: .85rem; font-weight: 600; }
+.dz-choice small { display: block; font-family: var(--mono); font-size: .66rem; color: var(--muted); }
+.dz-live { display: flex; flex-wrap: wrap; gap: .4rem; margin: .4rem 0 .8rem; }
+.dz-live div { display: grid; padding: .3rem .55rem; border: 1px solid var(--line); border-radius: 6px; background: var(--inset); min-width: 4.4rem; }
+.dz-live span { font-size: .66rem; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
+.dz-live b { font-family: var(--mono); font-size: .9rem; color: var(--ink); }
 .manual-table { border-collapse: collapse; width: 100%; font-size: .86rem; }
 .manual-table th, .manual-table td { padding: .35rem .5rem; border-bottom: 1px solid var(--line); text-align: right; }
 .manual-table td { font-family: var(--mono); font-size: .8rem; }

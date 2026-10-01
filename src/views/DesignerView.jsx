@@ -354,9 +354,6 @@ function ManualMain(ctx) {
             <div><span>Production cost</span><b>{fmt(st.ic, 'ic')}</b></div>
             {theatre.mix && <div><span>Frontage fit</span><b>{pct(fitOf(st.width))}</b></div>}
           </div>
-          <div className="template-frame">
-            <TemplateGrid items={manual.items} support={manual.support} reg={manual.reg} byId={byId} columnSize={res.columnSize} layout={st.layout} mods={result?.mods} opts={result?.opts} />
-          </div>
         </Section>
       )}
     </>
@@ -408,7 +405,7 @@ function CompareMain(ctx) {
                   onBlur={(e) => { const name = e.target.value.trim(); if (name && name !== s.name) renameSaved(s.id, name); else e.target.value = s.name; }}
                   onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} />
                 <small>{s.savedAt ? new Date(s.savedAt).toLocaleDateString() : ''}</small>
-                <button type="button" className="ghost small" onClick={() => { setManual({ items: s.items.slice(), support: (s.support || []).slice(), reg: (s.reg || []).slice() }); setMode('manual'); }}>Edit as draft</button>
+                <button type="button" className="ghost small" onClick={() => { setManual({ items: s.items.slice(), support: (s.support || []).slice(), reg: (s.reg || []).slice(), ...(s.columns ? { columns: s.columns } : {}) }); setMode('manual'); }}>Edit as draft</button>
                 <button type="button" className="ghost small" onClick={() => removeSaved(s.id)}>Delete</button>
               </li>
             ))}
