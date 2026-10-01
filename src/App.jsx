@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import raw from './data/game.json';
 import { buildGame, EMPTY_DOCTRINE } from './lib/game.js';
 import { DEFAULT_OPTS, AXIS_STATS, evaluate } from './lib/stats.js';
@@ -11,10 +11,17 @@ import { readStore, writeStore } from './lib/storage.js';
 import Menu from './components/Menu.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import DesignerView, { templateText } from './views/DesignerView.jsx';
-import ResearchView from './views/ResearchView.jsx';
-import DoctrineView from './views/DoctrineView.jsx';
-import EquipmentView from './views/EquipmentView.jsx';
-import FieldManualView from './views/FieldManualView.jsx';
+
+// the other views load when first opened, so the designer starts sooner
+const loadResearch = () => import('./views/ResearchView.jsx');
+const loadDoctrine = () => import('./views/DoctrineView.jsx');
+const loadEquipment = () => import('./views/EquipmentView.jsx');
+const loadManual = () => import('./views/FieldManualView.jsx');
+const VIEW_IMPORTS = [loadResearch, loadDoctrine, loadEquipment, loadManual];
+const ResearchView = lazy(loadResearch);
+const DoctrineView = lazy(loadDoctrine);
+const EquipmentView = lazy(loadEquipment);
+const FieldManualView = lazy(loadManual);
 
 const game = buildGame(raw);
 
@@ -182,6 +189,11 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [weights, constraints, techs, doctrine, exclude, mods, opts, enemy, fitWidths, theatre]); // roleId only labels the result
   useEffect(() => () => workerRef.current && workerRef.current.terminate(), []);
+  // fetch the other views once the page has settled, so opening one later does not wait on the network
+  useEffect(() => {
+    const t = setTimeout(() => { VIEW_IMPORTS.forEach((load) => load().catch(() => {})); }, 4000);
+    return () => clearTimeout(t);
+  }, []);
 
   // ---- equipment worker: separate, so equipment pages never wait for a long search ----
   const equipRef = useRef(null);
@@ -342,11 +354,13 @@ export default function App() {
 
       <main className={'stage ' + phase} aria-live="polite">
         <ErrorBoundary resetKey={shownView}>
-          {shownView === 'designer' && <DesignerView {...ctx} />}
-          {shownView === 'research' && <ResearchView game={game} techs={techs} setTechs={setTechs} />}
-          {shownView === 'doctrine' && <DoctrineView game={game} doctrine={doctrine} setDoctrine={setDoctrine} recommendations={doctrineRecommendations(game, result?.roleId)} roleName={role?.name} />}
-          {shownView === 'equipment' && <EquipmentView game={game} tab={equipTab} setTab={setEquipTab} year={ry.year} techsKey={techsKey} designsUsed={designsUsed} requestTanks={requestTanks} requestShip={requestShip} requestPlane={requestPlane} requestTankRole={requestTankRole} />}
-          {shownView === 'manual' && <FieldManualView version={version} meta={game.meta} />}
+          <Suspense fallback={<p className="note view-loading">Loading…</p>}>
+            {shownView === 'designer' && <DesignerView {...ctx} />}
+            {shownView === 'research' && <ResearchView game={game} techs={techs} setTechs={setTechs} />}
+            {shownView === 'doctrine' && <DoctrineView game={game} doctrine={doctrine} setDoctrine={setDoctrine} recommendations={doctrineRecommendations(game, result?.roleId)} roleName={role?.name} />}
+            {shownView === 'equipment' && <EquipmentView game={game} tab={equipTab} setTab={setEquipTab} year={ry.year} techsKey={techsKey} designsUsed={designsUsed} requestTanks={requestTanks} requestShip={requestShip} requestPlane={requestPlane} requestTankRole={requestTankRole} />}
+            {shownView === 'manual' && <FieldManualView version={version} meta={game.meta} />}
+          </Suspense>
         </ErrorBoundary>
       </main>
       <div className={'veil ' + phase} aria-hidden="true"><span>{VIEWS.find((v) => v.id === view)?.label}</span></div>
