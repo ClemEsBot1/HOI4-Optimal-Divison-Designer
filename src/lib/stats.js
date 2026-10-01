@@ -309,3 +309,21 @@ export function fmt(value, key) {
   const dp = STAT_BY_KEY[key]?.dp ?? (key === 'width' ? 0 : 1);
   return Number(value).toLocaleString('en-GB', { minimumFractionDigits: dp, maximumFractionDigits: dp });
 }
+
+// stats shown when hovering a unit in the template, in display order
+export const CONTRIBUTION_KEYS = ['sa', 'ha', 'brk', 'def', 'org', 'rec', 'hp', 'arm', 'pier', 'air', 'spd', 'recon', 'width', 'ic', 'mp', 'sup', 'trucks'];
+
+/**
+ * What one unit adds to the division: the division's stats with the unit minus the stats without it.
+ * `list` is 'items', 'support' or 'reg' and `index` is the unit's position in that list. Averaged stats (organization,
+ * armor, piercing) and support bonuses come out exactly as the division sees them, so a support company's row
+ * includes the boost it gives the battalions. Returns { key: delta } for CONTRIBUTION_KEYS.
+ */
+export function unitContribution(tpl, list, index, byId, mods = {}, opts = DEFAULT_OPTS, columnSize = 5) {
+  const full = { items: tpl.items, support: tpl.support || [], reg: tpl.reg || [] };
+  const without = { ...full, [list]: full[list].filter((_, i) => i !== index) };
+  const a = evaluate(full, byId, mods, opts, columnSize);
+  if (!a) return null;
+  const b = evaluate(without, byId, mods, opts, columnSize);
+  return Object.fromEntries(CONTRIBUTION_KEYS.map((k) => [k, a[k] - (b ? b[k] : 0)]));
+}

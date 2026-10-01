@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildGame, techsUpTo, researchTech, unresearchTech, canResearch, resolve, collectModifiers, unlocks, designSearch, designStats } from '../src/lib/game.js';
-import { assignRegimentalColumns, evaluate, planColumns, supportConflict } from '../src/lib/stats.js';
+import { assignRegimentalColumns, evaluate, planColumns, supportConflict, unitContribution } from '../src/lib/stats.js';
 import { objectiveTerms, utility } from '../src/lib/score.js';
 import { matchup } from '../src/lib/combat.js';
 import { runGolden } from './golden.mjs';
@@ -298,6 +298,26 @@ ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id
   const mtn = ROLES.find((x) => x.id === 'mountaineers');
   const m = search(game, { techs: [...T], exclude: roleExclude(game, mtn), weights: mtn.weights, constraints: { ...mtn.constraints }, topN: 1, coDesign: false });
   ok(m.top[0].items.includes('mountaineers') && !m.top[0].items.includes('infantry'), 'the mountaineer role is led by mountaineers, not regular infantry');
+}
+
+// ---- hover contribution: what one unit adds to the division ----
+{
+  const r = resolve(game, { techs: T });
+  const by = r.byId;
+  const art = r.combat.find((u) => u.cat === 'artillery');
+  const sp = r.support.find((u) => u.battalionMult?.length);
+  const tpl = { items: ['infantry', 'infantry', 'infantry', 'infantry', art.id], support: sp ? [sp.id] : [], reg: [] };
+  const full = evaluate(tpl, by);
+  const d = unitContribution(tpl, 'items', 4, by);
+  const lessArt = evaluate({ ...tpl, items: tpl.items.slice(0, 4) }, by);
+  ok(Math.abs(d.sa - (full.sa - lessArt.sa)) < 1e-9 && d.sa > 0, `artillery adds ${d.sa.toFixed(1)} soft attack`);
+  ok(d.width === art.width, `artillery adds its own width (${d.width})`);
+  if (sp) {
+    const ds = unitContribution(tpl, 'support', 0, by);
+    ok(ds.width === 0 && ds.ic > 0, `${sp.id} adds no width but costs ${ds.ic.toFixed(0)} production`);
+  }
+  const solo = unitContribution({ items: ['infantry'] }, 'items', 0, by);
+  ok(Math.abs(solo.sa - evaluate({ items: ['infantry'] }, by).sa) < 1e-9, 'the only battalion contributes the whole division');
 }
 
 // ---- golden numbers from in-game screenshots ----

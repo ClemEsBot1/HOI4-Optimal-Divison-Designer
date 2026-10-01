@@ -1,5 +1,5 @@
-import React from 'react';
-import { assignRegimentalColumns } from '../lib/stats.js';
+import React, { useState } from 'react';
+import { assignRegimentalColumns, unitContribution, STAT_BY_KEY, fmt } from '../lib/stats.js';
 
 const COLS = [
   { id: 'infantry', label: 'Infantry' },
@@ -11,13 +11,48 @@ const COLS = [
 const MIN_FOR_REG = 3; // a column needs three battalions before it can take a regimental company
 const TEMPLATE_COLUMNS = 5; // the game's designer always shows five battalion columns
 
-/** HOI4-style unit counter using the game's branch icon instead of NATO symbols. */
-function Counter({ unit }) {
-  const iconName = unit.cat === 'armor' ? 'category_all_armor' : unit.cat === 'artillery' || unit.cat === 'mobile_artillery' ? 'category_artillery' : 'category_all_infantry';
+const TIP_LABEL = { width: 'Combat width', spd: 'Speed (km/h)', ic: 'Production cost' };
+const LIST_LABEL = { items: 'Battalion', support: 'Divisional support', reg: 'Regimental support' };
+
+/** Rows for the hover card: every stat this unit moves by a visible amount, signed and coloured by whether it helps. */
+function ContributionTip({ unit, ctx, list, index }) {
+  const delta = unitContribution(ctx.tpl, list, index, ctx.byId, ctx.mods, ctx.opts, ctx.columnSize);
+  const rows = delta ? Object.entries(delta).filter(([k, v]) => {
+    const dp = STAT_BY_KEY[k]?.dp ?? 0;
+    return Math.abs(v) >= 0.5 / 10 ** dp;
+  }) : [];
   return (
-    <div className="counter" title={unit.name}>
+    <div className="c-tip" role="tooltip">
+      <b>{unit.name}</b>
+      <small>{LIST_LABEL[list]} · adds to the division</small>
+      {rows.length ? (
+        <dl>
+          {rows.map(([k, v]) => {
+            const dir = k === 'width' ? -1 : STAT_BY_KEY[k].dir;
+            return (
+              <React.Fragment key={k}>
+                <dt>{TIP_LABEL[k] || STAT_BY_KEY[k].label}</dt>
+                <dd className={v * dir > 0 ? 'up' : 'down'}>{v > 0 ? '+' : '\u2212'}{fmt(Math.abs(v), k)}</dd>
+              </React.Fragment>
+            );
+          })}
+        </dl>
+      ) : <small>No measurable change.</small>}
+    </div>
+  );
+}
+
+/** HOI4-style unit counter using the game's branch icon instead of NATO symbols. Hover or focus shows what it adds. */
+function Counter({ unit, ctx, list, index }) {
+  const [open, setOpen] = useState(false);
+  const iconName = unit.cat === 'armor' ? 'category_all_armor' : unit.cat === 'artillery' || unit.cat === 'mobile_artillery' ? 'category_artillery' : 'category_all_infantry';
+  const show = () => setOpen(true);
+  const hide = () => setOpen(false);
+  return (
+    <div className="counter" tabIndex={0} aria-label={unit.name} onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}>
       <img className="c-icon" src={`/hoi4/icons/${iconName}.png`} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
       <span className="c-name">{unit.abbr || unit.name}</span>
+      {open && <ContributionTip unit={unit} ctx={ctx} list={list} index={index} />}
     </div>
   );
 }
@@ -39,15 +74,15 @@ function spread(ids, n) {
   return out;
 }
 
-function Column({ label, ids, reg, byId, size }) {
+function Column({ label, ids, reg, byId, size, ctx }) {
   const slots = Array.from({ length: size }, (_, i) => ids[i]);
   const canReg = ids.length >= MIN_FOR_REG;
   return (
     <div className="tg-col">
       <h4>{label || '\u00a0'}</h4>
-      {slots.map((id, i) => (id ? <Counter key={i} unit={byId.get(id)} /> : <div key={i} className="counter empty" aria-hidden="true" />))}
+      {slots.map((id, i) => (id ? <Counter key={i} unit={byId.get(id)} ctx={ctx} list="items" index={ctx.tpl.items.indexOf(id)} /> : <div key={i} className="counter empty" aria-hidden="true" />))}
       <div className="tg-reg">
-        {reg ? <Counter unit={byId.get(reg)} /> : <div className={'counter empty' + (canReg ? ' open' : '')} title={canReg ? 'Free regimental support slot' : 'Needs three battalions for regimental support'} aria-hidden="true" />}
+        {reg ? <Counter unit={byId.get(reg)} ctx={ctx} list="reg" index={ctx.tpl.reg.indexOf(reg)} /> : <div className={'counter empty' + (canReg ? ' open' : '')} title={canReg ? 'Free regimental support slot' : 'Needs three battalions for regimental support'} aria-hidden="true" />}
       </div>
     </div>
   );
@@ -57,7 +92,8 @@ function Column({ label, ids, reg, byId, size }) {
  * A division template laid out like the game's designer: columns of battalions, a regimental support slot under
  * each column that has three or more battalions, and divisional support below.
  */
-export default function TemplateGrid({ items, support = [], reg = [], byId, columnSize = 5, layout }) {
+export default function TemplateGrid({ items, support = [], reg = [], byId, columnSize = 5, layout, mods, opts }) {
+  const ctx = { tpl: { items, support, reg }, byId, mods, opts, columnSize };
   const columns = [];
   for (const c of COLS) {
     const ids = items.filter((id) => byId.get(id).cat === c.id);
@@ -74,15 +110,15 @@ export default function TemplateGrid({ items, support = [], reg = [], byId, colu
   const shown = [...columns];
   while (shown.length < TEMPLATE_COLUMNS) shown.push({ label: '', ids: [], reg: null });
   return (
-    <div className="tg" role="img" aria-label={`Template with ${items.length} battalions in ${columns.length} columns`}>
+    <div className="tg" role="group" aria-label={`Template with ${items.length} battalions in ${columns.length} columns`}>
       <div className="tg-cols">
-        {shown.map((c, i) => <Column key={i} label={c.label} ids={c.ids} reg={c.reg} byId={byId} size={columnSize} />)}
+        {shown.map((c, i) => <Column key={i} label={c.label} ids={c.ids} reg={c.reg} byId={byId} size={columnSize} ctx={ctx} />)}
       </div>
       {columns.length > 0 && <p className="note tg-note">The bottom slot of each column is regimental support. It opens once a column has three battalions.</p>}
       {support.length > 0 && (
         <div className="tg-row">
           <h4>Divisional support</h4>
-          <div className="tg-strip">{support.map((id, i) => <Counter key={i} unit={byId.get(id)} />)}</div>
+          <div className="tg-strip">{support.map((id, i) => <Counter key={i} unit={byId.get(id)} ctx={ctx} list="support" index={i} />)}</div>
         </div>
       )}
     </div>

@@ -232,7 +232,7 @@ function SearchMain(ctx) {
             </div>
             <div className="result-body">
               <div className="template-frame">
-                <TemplateGrid items={selected.items} support={selected.support} reg={selected.reg || []} byId={byId} columnSize={res.columnSize} layout={shown.layout} />
+                <TemplateGrid items={selected.items} support={selected.support} reg={selected.reg || []} byId={byId} columnSize={res.columnSize} layout={shown.layout} mods={result?.mods} opts={result?.opts} />
               </div>
               <div className="detail">
                 <h3>Composition</h3>
@@ -351,7 +351,7 @@ function ManualMain(ctx) {
             {theatre.mix && <div><span>Frontage fit</span><b>{pct(fitOf(st.width))}</b></div>}
           </div>
           <div className="template-frame">
-            <TemplateGrid items={manual.items} support={manual.support} reg={manual.reg} byId={byId} columnSize={res.columnSize} layout={st.layout} />
+            <TemplateGrid items={manual.items} support={manual.support} reg={manual.reg} byId={byId} columnSize={res.columnSize} layout={st.layout} mods={result?.mods} opts={result?.opts} />
           </div>
         </Section>
       )}
@@ -420,7 +420,7 @@ function CompareMain(ctx) {
           {evals.map((e) => e.st && (
             <figure key={e.id} className="template-frame">
               <figcaption>{e.label}</figcaption>
-              <TemplateGrid items={e.tpl.items} support={e.tpl.support || []} reg={e.tpl.reg || []} byId={byId} columnSize={res.columnSize} layout={e.st.layout} />
+              <TemplateGrid items={e.tpl.items} support={e.tpl.support || []} reg={e.tpl.reg || []} byId={byId} columnSize={res.columnSize} layout={e.st.layout} mods={result?.mods} opts={result?.opts} />
             </figure>
           ))}
         </div>
