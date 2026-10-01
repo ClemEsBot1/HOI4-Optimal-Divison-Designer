@@ -289,6 +289,30 @@ ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id
   ok(battleFill(75, 45) < 0.61, 'no division joins once the over-width penalty would pass 33%');
 }
 
+// ---- terrain modifiers: battalions scale their own attack and defense, support companies boost the division ----
+{
+  const raw = JSON.parse(fs.readFileSync(path.join(here, '../src/data/game.json'), 'utf8'));
+  raw.units.infantry.terrain = { forest: { attack: -0.2, defence: 0.1 } };
+  raw.units.engineer.terrain = { forest: { attack: 0.1 } };
+  const tg = buildGame(raw);
+  const forest = { forest: 1 };
+  const half = { forest: 1, plains: 1 };
+  const flat = resolve(tg, { techs: T }).byId.get('infantry');
+  const inForest = resolve(tg, { techs: T, terrain: forest }).byId.get('infantry');
+  const mixed = resolve(tg, { techs: T, terrain: half }).byId.get('infantry');
+  ok(Math.abs(inForest.sa / flat.sa - 0.8) < 1e-9 && Math.abs(inForest.def / flat.def - 1.1) < 1e-9, 'a forest-only theatre applies infantry\'s -20% attack and +10% defense');
+  ok(Math.abs(mixed.sa / flat.sa - 0.9) < 1e-9, 'a half-forest theatre applies half of it');
+  const tr = resolve(tg, { techs: T, terrain: forest });
+  const tpl = { items: Array(6).fill('infantry'), support: [], reg: [] };
+  const plain = evaluate(tpl, tr.byId, {}, undefined, tr.columnSize);
+  const withEng = evaluate({ ...tpl, support: ['engineer'] }, tr.byId, {}, undefined, tr.columnSize);
+  const engAlone = resolve(tg, { techs: T, terrain: forest }).byId.get('engineer');
+  ok(Math.abs(withEng.sa - (plain.sa * 1.1 + engAlone.sa)) < 1e-6, 'engineers\' forest attack bonus lifts every battalion by 10%');
+  const none = resolve(game, { techs: T, terrain: forest }).byId.get('infantry');
+  const noneFlat = resolve(game, { techs: T }).byId.get('infantry');
+  ok(none.sa === noneFlat.sa, 'units without terrain data are unchanged by the theatre');
+}
+
 // ---- meta widths: raising the width limit does not make the division wider ----
 {
   const line = ROLES.find((x) => x.id === 'line');

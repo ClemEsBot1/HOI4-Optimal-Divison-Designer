@@ -3,7 +3,11 @@ import Section from '../components/Section.jsx';
 import { GAP_SHARE } from '../lib/optimizer.js';
 import { TERRAINS } from '../lib/frontage.js';
 import naval from '../data/designers.json';
+import raw from '../data/game.json';
 import { MIN_DESIGN_RELIABILITY } from '../lib/game.js';
+
+// terrain modifiers only exist in data extracted after they were added to the extractor
+const HAS_TERRAIN = Object.values(raw.units).some((u) => u.terrain);
 
 export default function FieldManualView({ version, meta }) {
   return (
@@ -62,11 +66,14 @@ export default function FieldManualView({ version, meta }) {
             </table>
           </div>
           <p className="note">Values from the Barbarossa update; check them in game if a later patch has changed them.</p>
+          <p>{HAS_TERRAIN
+            ? 'The theatre also sets where the fighting happens: each battalion\'s terrain modifiers scale its soft and hard attack and its defense, averaged over the theatre\'s terrain, and a support company\'s terrain modifiers (engineers, for example) apply to every battalion. Any front weighs every terrain the same.'
+            : 'Terrain attack and defense modifiers are read from the game files on the next data extraction; until then the theatre only changes how widths fit.'}</p>
         </Section>
         <Section id="fm-limits" kicker="Section 6" title="Known limits">
           <ul className="rules">
             <li>Not verified against the game: the exact regimental-company scaling for every stat, which column types each company can attach to, and whether doctrine supply bonuses are fractions of a unit's supply.</li>
-            <li>Not modelled: national focus technologies, leaders, terrain modifiers on attack, entrenchment, the land cruiser, flame tanks, amphibious tank roles and hand-editing a tank design.</li>
+            <li>Not modelled: national focus technologies, leaders, {HAS_TERRAIN ? '' : 'terrain modifiers, '}river crossings, entrenchment, the land cruiser, flame tanks, amphibious tank roles and hand-editing a tank design.</li>
             <li>Aircraft designs are a role guide until the aircraft designer files are extracted.</li>
           </ul>
         </Section>

@@ -110,6 +110,8 @@ for (const f of fs.readdirSync(P.units).filter((x) => x.endsWith('.txt'))) {
   for (const e of su) if (isBlock(e.v)) rawUnits[e.k] = { id: e.k, b: e.v, file: f };
 }
 
+// terrain blocks a sub-unit can carry (the ones the theatres use, plus river and amphibious for completeness)
+const TERRAIN_IDS = ['plains', 'desert', 'forest', 'jungle', 'hills', 'marsh', 'mountain', 'urban', 'river', 'amphibious'];
 const numOf = (b, k, d) => (typeof first(b, k) === 'number' ? first(b, k) : d);
 
 // ---- categories a unit belongs to
@@ -126,6 +128,15 @@ for (const u of Object.values(rawUnits)) {
   for (const e of first(u.b, 'need') || []) if (typeof e.v === 'number') need[e.k] = e.v;
   const transport = first(u.b, 'transport');
   const bm = all(u.b, 'battalion_mult').map((b) => ({ category: first(b, 'category'), add: first(b, 'add') === true, stats: mapStats(b) })).filter((x) => x.category);
+  // terrain modifiers: forest = { attack = -0.2 defence = -0.1 movement = -0.2 }, as fractions
+  const terrain = {};
+  for (const t of TERRAIN_IDS) {
+    const tb = first(u.b, t);
+    if (!isBlock(tb)) continue;
+    const m = {};
+    for (const k of ['attack', 'defence', 'movement']) if (typeof first(tb, k) === 'number' && first(tb, k)) m[k] = round(first(tb, k));
+    if (Object.keys(m).length) terrain[t] = m;
+  }
   const sameType = all(u.b, 'same_support_type');
   const supportType = (bare(first(u.b, 'type')) || []);
   // absolute values vs fractional modifiers: see engine notes. Store both in one object; the engine knows which is which.
@@ -157,6 +168,7 @@ for (const u of Object.values(rawUnits)) {
     sameType: sameType.filter((x) => typeof x === 'string'),
     types: supportType,
     battalionMult: bm,
+    ...(Object.keys(terrain).length ? { terrain } : {}),
     affectsSpeed: first(u.b, 'affects_speed') !== false && role === 'line',
   };
   // remove keys that belong to stat maps only via `base`

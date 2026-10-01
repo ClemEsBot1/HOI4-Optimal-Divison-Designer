@@ -70,7 +70,7 @@ everywhere: theatre, research year and designer mode. Every panel folds away, an
 - **Special Forces roles.** Space marines, mountaineers and marines; picking one switches its special battalions on
   and the regular line infantry off.
 - **Theatre fit.** Pick a theatre and the menu scores every width by how much of the frontage whole divisions fill, averaged
-  over that theatre's terrain and one- and two-direction attacks. Optionally the search only considers widths that fit well.
+  over that theatre's terrain and one-, two- and three-direction attacks (50%, 35% and 15% of battles). Optionally the search only considers widths that fit well.
 - **Ship designer.** Hulls, modules and naval technology are extracted from the game files. For each role the search is
   exact: a bound that relaxes the score slot by slot (tangents for maximized stats, chords for costs, McCormick envelopes
   for added × multiplied amounts) rules out almost every combination unscored, so all roles solve in about a second.

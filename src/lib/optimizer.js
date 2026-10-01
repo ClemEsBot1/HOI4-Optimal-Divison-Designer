@@ -1301,7 +1301,7 @@ export function search(game, params, onProgress = null, onTick = null) {
   const t0 = Date.now();
   const { C, opts, mods, weights } = setup(game, params);
   const topN = params.topN || 10;
-  const setupBase = { techs: params.techs, doctrine: params.doctrine, exclude: params.exclude };
+  const setupBase = { techs: params.techs, doctrine: params.doctrine, exclude: params.exclude, terrain: C.frontMix || null };
 
   const baseResolved = resolve(game, { ...setupBase, design: weights });
   const base0 = { units: [...baseResolved.byId.values()], designs: baseResolved.designs, columnSize: baseResolved.columnSize };

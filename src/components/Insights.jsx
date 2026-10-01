@@ -10,6 +10,9 @@ export function ScoreExplain({ explain, hasRef }) {
   if (!explain?.length) return null;
   const max = Math.max(...explain.map((e) => Math.abs(e.delta)), 1e-9);
   const total = explain.reduce((a, e) => a + e.delta, 0);
+  // against a runner-up, stats where the two are level only add noise: list them in one line under the bars
+  const tied = hasRef ? explain.filter((e) => Math.abs(e.delta) < 0.005) : [];
+  const rows = hasRef ? explain.filter((e) => Math.abs(e.delta) >= 0.005) : explain;
   return (
     <div className="explain">
       <h3>Why this template wins</h3>
@@ -19,7 +22,7 @@ export function ScoreExplain({ explain, hasRef }) {
           : <>Each stat's contribution to the score.</>}
       </p>
       <ul className="explain-rows">
-        {explain.map((e) => (
+        {rows.map((e) => (
           <li key={e.key}>
             <span className="ex-label">{e.label} <em>({e.key === 'frontage' ? `share of each battle's width used; weight ${e.weight}, the sum of the combat priorities` : `${e.weight > 0 ? '' : 'lower is better, '}priority ${Math.abs(e.weight)}`})</em></span>
             <span className="ex-bar" aria-hidden="true">
@@ -30,6 +33,7 @@ export function ScoreExplain({ explain, hasRef }) {
           </li>
         ))}
       </ul>
+      {tied.length > 0 && <p className="note">Level with the runner-up on {tied.map((e) => e.label.toLowerCase()).join(', ')}.</p>}
     </div>
   );
 }

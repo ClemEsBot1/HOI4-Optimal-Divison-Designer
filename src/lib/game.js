@@ -591,6 +591,22 @@ function unitOpen(game, u, techSet, open, tiers, chassisBest) {
   return true;
 }
 
+/**
+ * A unit's terrain modifiers averaged over a theatre's terrain mix ({ plains: 40, forest: 25, ... }): the share of
+ * attack and defense it gains or loses there, as fractions. Without a mix, or without modifiers, both are 0.
+ */
+export function terrainFactor(u, mix) {
+  if (!mix || !u.terrain) return { attack: 0, defence: 0 };
+  let a = 0; let d = 0; let total = 0;
+  for (const [t, p] of Object.entries(mix)) {
+    if (!(p > 0)) continue;
+    const m = u.terrain[t];
+    total += p;
+    if (m) { a += p * num(m.attack); d += p * num(m.defence); }
+  }
+  return total ? { attack: a / total, defence: d / total } : { attack: 0, defence: 0 };
+}
+
 export function resolve(game, setup) {
   const techSet = setup.techs instanceof Set ? setup.techs : new Set(setup.techs);
   const open = unlocks(game, techSet);
@@ -654,15 +670,22 @@ export function resolve(game, setup) {
 
     const m = unitModifiers(mods, u);
     const F = (k) => num(u.base[k]) + num(m[k]);
+    // Terrain: a battalion's own modifiers scale its attacks and defense; a support company's apply to every
+    // battalion in the division (engineers, say), so they become a boost on all land battalions.
+    const tf = terrainFactor(u, setup.terrain);
+    const own = u.role === 'line' ? tf : { attack: 0, defence: 0 };
+    const terrainBoost = u.role !== 'line' && (tf.attack || tf.defence)
+      ? [{ category: 'category_army', stats: { ...(tf.attack ? { sa: tf.attack, ha: tf.attack } : {}), ...(tf.defence ? { def: tf.defence } : {}) } }]
+      : [];
     const trucks = num(u.need.motorized_equipment) + num(u.need.motorbike_equipment);
     const cat = columnType(u); // separate infantry, artillery, mobile artillery and armor columns
     return {
       id: u.id, name: u.name, abbr: u.abbr, role: u.role, cat, group: u.group, cats: u.cats, special: u.special,
       sameType: [u.id, ...u.sameType],
       // per-battalion stats
-      sa: eq.sa * (1 + F('sa')),
-      ha: eq.ha * (1 + F('ha')),
-      def: eq.def * (1 + F('def')),
+      sa: eq.sa * (1 + F('sa')) * (1 + own.attack),
+      ha: eq.ha * (1 + F('ha')) * (1 + own.attack),
+      def: eq.def * (1 + F('def')) * (1 + own.defence),
       brk: eq.brk * (1 + F('brk')),
       pier: eq.pier * (1 + F('pier')),
       air: eq.air * (1 + F('air')),
@@ -682,7 +705,7 @@ export function resolve(game, setup) {
       equipment,
       affectsSpeed: u.affectsSpeed,
       perks: PERK_BY_UNIT[u.id] ? { [PERK_BY_UNIT[u.id]]: 1 } : {},
-      battalionMult: u.battalionMult.filter((b) => Object.keys(b.stats).length && !b.add),
+      battalionMult: [...u.battalionMult.filter((b) => Object.keys(b.stats).length && !b.add), ...terrainBoost],
       tank: u.tank || null,
       design: design ? { chassis: design.chassis, role: design.role, variant: design.variant, modules: design.modules } : null,
     };
@@ -724,7 +747,7 @@ export function resolve(game, setup) {
 const resolveCache = new Map();
 export function resolveCached(game, setup) {
   const techs = setup.techs instanceof Set ? [...setup.techs] : (setup.techs || []);
-  const key = JSON.stringify([techs.slice().sort(), setup.doctrine || null, (setup.exclude || []).slice().sort(), setup.design || null, setup.designs || null]);
+  const key = JSON.stringify([techs.slice().sort(), setup.doctrine || null, (setup.exclude || []).slice().sort(), setup.design || null, setup.designs || null, setup.terrain || null]);
   const hit = resolveCache.get(key);
   if (hit && hit.game === game) { resolveCache.delete(key); resolveCache.set(key, hit); return hit.value; }
   const value = resolve(game, setup);
