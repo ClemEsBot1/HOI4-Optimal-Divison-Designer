@@ -357,8 +357,10 @@ table.rank { border-collapse: collapse; width: 100%; font-size: .86rem; }
 .tg-col { display: grid; gap: .3rem; align-content: start; padding: .3rem; border: 1px solid var(--line); border-radius: 7px; background: rgba(255, 240, 200, .02); }
 .tg-strip { display: flex; gap: .3rem; flex-wrap: wrap; }
 .tg-reg { margin-top: .35rem; padding-top: .35rem; border-top: 1px dashed var(--line-strong); }
+.tg-reg .counter.empty::after { content: 'REG'; font-family: var(--mono); font-size: .55rem; letter-spacing: .1em; color: var(--dim); }
 .tg-note { max-width: 22rem; }
-.counter { position: relative; width: 3.5rem; text-align: center; }
+/* every slot, filled or empty, has the same height so the battalion rows and the regimental row line up across columns */
+.counter { position: relative; width: 3.5rem; height: 3.9rem; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .counter:not(.empty) { cursor: help; border-radius: 5px; }
 .counter:not(.empty):hover, .counter:focus-visible { background: rgba(211, 166, 79, .1); outline: 1px solid var(--line-strong); }
 .c-tip { position: absolute; z-index: 20; bottom: calc(100% + .35rem); left: 50%; transform: translateX(-50%); width: max-content; min-width: 11rem; max-width: 15rem; padding: .5rem .65rem; text-align: left; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--panel-solid); box-shadow: var(--shadow); pointer-events: none; }
@@ -369,10 +371,10 @@ table.rank { border-collapse: collapse; width: 100%; font-size: .86rem; }
 .c-tip dd { margin: 0; text-align: right; font-family: var(--mono); }
 .c-tip dd.up { color: var(--green); }
 .c-tip dd.down { color: var(--red); }
-.counter.empty { height: 2.7rem; border: 1px dashed var(--line); border-radius: 5px; opacity: .55; }
+.counter.empty { border: 1px dashed var(--line); border-radius: 5px; opacity: .55; }
 .counter.empty.open { border-color: rgba(211, 166, 79, .45); border-style: solid; opacity: .8; }
-.c-icon { display: block; width: 2.9rem; height: 2.9rem; object-fit: contain; margin: 0 auto .05rem; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .5)); }
-.c-name { display: block; font-family: var(--mono); font-size: .58rem; letter-spacing: .04em; line-height: 1.1; margin-top: .1rem; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+.c-icon { display: block; flex: none; width: 2.9rem; height: 2.9rem; object-fit: contain; margin: 0 auto .05rem; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .5)); }
+.c-name { display: block; max-width: 100%; font-family: var(--mono); font-size: .58rem; letter-spacing: .04em; line-height: 1.1; margin-top: .1rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--muted); }
 
 /* trade-off chart */
 .pareto-axes { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: .5rem; }
@@ -431,7 +433,7 @@ table.rank { border-collapse: collapse; width: 100%; font-size: .86rem; }
 .dz-grid h4 { font-family: var(--mono); font-size: .6rem; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); margin-bottom: .3rem; white-space: nowrap; }
 @media (max-width: 60rem) { .dz-grid { overflow-x: auto; padding-bottom: .2rem; } }
 .dz-support { background: rgba(211, 166, 79, .04); }
-.counter.slot { font: inherit; color: inherit; padding: .15rem 0; min-height: 2.7rem; background: none; border: 1px solid transparent; border-radius: 5px; cursor: pointer; }
+.counter.slot { font: inherit; color: inherit; padding: 0; background: none; border: 1px solid transparent; border-radius: 5px; cursor: pointer; }
 .counter.slot.empty { border: 1px dashed var(--line); opacity: .7; }
 .counter.slot.empty:hover, .counter.slot.empty:focus-visible { border-color: rgba(211, 166, 79, .45); opacity: 1; background: rgba(211, 166, 79, .06); }
 .counter.slot.locked { opacity: .35; cursor: not-allowed; }

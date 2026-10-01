@@ -121,7 +121,7 @@ export default function TemplateGrid({ items, support = [], reg = [], byId, colu
       <div className="tg-cols">
         {shown.map((c, i) => <Column key={i} label={c.label} ids={c.ids} reg={c.reg} byId={byId} size={columnSize} ctx={ctx} />)}
       </div>
-      {columns.length > 0 && <p className="note tg-note">The bottom slot of each column is regimental support. It opens once a column has three battalions.</p>}
+      {columns.length > 0 && <p className="note tg-note">The bottom row (REG) is regimental support: one company per column, which opens once the column has three battalions.</p>}
       {support.length > 0 && (
         <div className="tg-row">
           <h4>Divisional support</h4>
