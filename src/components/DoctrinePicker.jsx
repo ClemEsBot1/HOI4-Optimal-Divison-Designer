@@ -1,6 +1,7 @@
 import React from 'react';
 import { rewardCount } from '../lib/game.js';
 import { describeReward, describeMods } from '../lib/describe.js';
+import { doctrineIcon } from '../lib/icons.js';
 import './TechPicker.css';
 
 const FOLDERS = [
@@ -44,7 +45,7 @@ export default function DoctrinePicker({ game, doctrine, setDoctrine }) {
         if (!options.length) return null;
         return (
           <fieldset key={f.id} className="dp-folder">
-            <legend>{f.label}</legend>
+            <legend>{grand && doctrineIcon(grand.id) && <img className="dp-icon" src={doctrineIcon(grand.id)} alt="" />}{f.label}</legend>
             <select value={gid} onChange={(e) => setGrand(f.id, e.target.value)} aria-label={f.label}>
               <option value="">None</option>
               {options.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -76,6 +77,7 @@ function TrackSlots({ game, doctrine, track, grand, slotCount, setSlot, setProgr
         const n = sub ? rewardCount(game, sid, doctrine) : 0;
         return (
           <div key={i} className="dp-slot">
+            {sub && doctrineIcon(sid) && <img className="dp-icon" src={doctrineIcon(sid)} alt="" />}
             <select value={sid} onChange={(e) => setSlot(track, i, e.target.value)} aria-label={`${trackName} subdoctrine ${i + 1}`}>
               <option value="">Empty</option>
               {options.filter((o) => o.id === sid || !chosen.includes(o.id)).map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}

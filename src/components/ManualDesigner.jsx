@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { evaluate, fmt, STAT_BY_KEY } from '../lib/stats.js';
+import { unitIcon } from '../lib/icons.js';
+
+const UnitIcon = ({ id }) => (unitIcon(id) ? <img className="unit-icon" src={unitIcon(id)} alt="" /> : null);
 
 const COMPARE = [
   ['width', 'Width'], ['sa', 'Soft attack'], ['ha', 'Hard attack'], ['brk', 'Breakthrough'],
@@ -76,9 +79,9 @@ export default function ManualDesigner({ units, columnSize, mods, opts, best, de
         </label>
       </div>
       <div className="manual-lists">
-        <div><b>Line</b>{items.length ? <ul>{[...new Set(items)].map((id) => <li key={id}><button type="button" className="mini-remove" aria-label={`Remove one ${byId.get(id)?.name}`} onClick={() => setItems((x) => removeOne(x, id))}>−</button><button type="button" className="mini-remove mini-add" aria-label={`Add one ${byId.get(id)?.name}`} onClick={() => setItems((x) => addOne(x, id))}>+</button> {items.filter((x) => x === id).length}× {byId.get(id)?.name}</li>)}</ul> : <p className="note">Add battalions above.</p>}</div>
-        <div><b>Support</b>{divSupport.length ? <ul>{divSupport.map((id) => <li key={id}><button type="button" className="mini-remove" onClick={() => setDivSupport((x) => x.filter((y) => y !== id))}>−</button> {byId.get(id)?.name}</li>)}</ul> : <p className="note">No divisional support.</p>}</div>
-        <div><b>Regimental</b>{regSupport.length ? <ul>{regSupport.map((id) => <li key={id}><button type="button" className="mini-remove" onClick={() => setRegSupport((x) => x.filter((y) => y !== id))}>−</button> {byId.get(id)?.name}</li>)}</ul> : <p className="note">No regimental support.</p>}</div>
+        <div><b>Line</b>{items.length ? <ul>{[...new Set(items)].map((id) => <li key={id}><button type="button" className="mini-remove" aria-label={`Remove one ${byId.get(id)?.name}`} onClick={() => setItems((x) => removeOne(x, id))}>−</button><button type="button" className="mini-remove mini-add" aria-label={`Add one ${byId.get(id)?.name}`} onClick={() => setItems((x) => addOne(x, id))}>+</button> {items.filter((x) => x === id).length}× <UnitIcon id={id} />{byId.get(id)?.name}</li>)}</ul> : <p className="note">Add battalions above.</p>}</div>
+        <div><b>Support</b>{divSupport.length ? <ul>{divSupport.map((id) => <li key={id}><button type="button" className="mini-remove" onClick={() => setDivSupport((x) => x.filter((y) => y !== id))}>−</button> <UnitIcon id={id} />{byId.get(id)?.name}</li>)}</ul> : <p className="note">No divisional support.</p>}</div>
+        <div><b>Regimental</b>{regSupport.length ? <ul>{regSupport.map((id) => <li key={id}><button type="button" className="mini-remove" onClick={() => setRegSupport((x) => x.filter((y) => y !== id))}>−</button> <UnitIcon id={id} />{byId.get(id)?.name}</li>)}</ul> : <p className="note">No regimental support.</p>}</div>
       </div>
       {!stats && <p className="note">Add at least one line battalion to evaluate your design.</p>}
       {stats && <>
