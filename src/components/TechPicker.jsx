@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { canResearch, researchTech, unresearchTech } from '../lib/game.js';
 import { describeTech } from '../lib/describe.js';
 import { TECH_PRESETS, techPreset, sameSet } from '../lib/presets.js';
@@ -42,14 +42,38 @@ export default function TechPicker({ game, techs, setTechs }) {
   );
 }
 
-/** The technology tree. `inline` renders it in the page; otherwise it is a full-screen dialog. */
-export function TechTree({ game, techs, setTechs, onClose, inline = false }) {
-  const [tab, setTab] = useState(TABS[0].id);
+/**
+ * The technology tree. `inline` renders it in the page; otherwise it is a dialog. `fullscreen` makes the dialog
+ * take the whole screen and shrinks the tree to fit its height, so the wheel only ever has to scroll sideways.
+ * `onExpand(tab)` adds a full-screen button to the inline tree.
+ */
+export function TechTree({ game, techs, setTechs, onClose, onExpand, inline = false, fullscreen = false, initialTab }) {
+  const [tab, setTab] = useState(initialTab && TABS.some((t) => t.id === initialTab) ? initialTab : TABS[0].id);
   const [query, setQuery] = useState('');
   const [researchSummary, setResearchSummary] = useState(null);
   const closeRef = useRef(null);
   const scrollRef = useRef(null);
-  useWheelToHorizontal(scrollRef);
+  const overlayRef = useRef(null);
+  useWheelToHorizontal(scrollRef, fullscreen);
+  const closeLatest = useRef(onClose);
+  closeLatest.current = onClose;
+
+  // Ask the browser for real full screen too. Leaving it (Esc, F11) closes the dialog, so there is no half state.
+  useEffect(() => {
+    const el = overlayRef.current;
+    if (!fullscreen || !el?.requestFullscreen) return undefined;
+    let entered = false;
+    const onChange = () => {
+      if (document.fullscreenElement === el) entered = true;
+      else if (entered) closeLatest.current?.();
+    };
+    document.addEventListener('fullscreenchange', onChange);
+    el.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
+    return () => {
+      document.removeEventListener('fullscreenchange', onChange);
+      if (document.fullscreenElement === el) document.exitFullscreen().catch(() => {});
+    };
+  }, [fullscreen]);
 
   useEffect(() => {
     if (inline) return undefined;
@@ -135,7 +159,7 @@ export function TechTree({ game, techs, setTechs, onClose, inline = false }) {
   };
 
   return (
-    <div className={inline ? 'tp-inline' : 'tp-overlay'} role={inline ? undefined : 'dialog'} aria-modal={inline ? undefined : 'true'} aria-label="Technology tree">
+    <div ref={overlayRef} className={inline ? 'tp-inline' : 'tp-overlay' + (fullscreen ? ' tp-full' : '')} role={inline ? undefined : 'dialog'} aria-modal={inline ? undefined : 'true'} aria-label="Technology tree">
       <div className="tp-panel">
         <header className="tp-head">
           <h2>{inline ? 'Tree' : 'Technology'}</h2>
@@ -143,7 +167,8 @@ export function TechTree({ game, techs, setTechs, onClose, inline = false }) {
           <button type="button" className="ghost" onClick={researchTab}>{q ? 'Research matching technologies' : 'Research all in this tab'}</button>
           <button type="button" className="ghost" onClick={clearTab}>Clear this tab</button>
           <button type="button" className="ghost" onClick={clearEverything}>Clear everything</button>
-          {!inline && <button type="button" ref={closeRef} onClick={onClose}>Done</button>}
+          {inline && onExpand && <button type="button" className="tp-expand" onClick={() => onExpand(tab)}>Full screen</button>}
+          {!inline && <button type="button" ref={closeRef} onClick={onClose}>{fullscreen ? 'Exit full screen' : 'Done'}</button>}
         </header>
         <div className="tp-tabs" role="tablist">
           {TABS.filter((t) => (byTab.get(t.id) || []).length).map((t) => {
@@ -168,7 +193,7 @@ export function TechTree({ game, techs, setTechs, onClose, inline = false }) {
             ? <p className="note tp-no-matches" role="status">No technologies in this tab match “{query.trim()}”. Try another search or clear the search field.</p>
             : <>
               {q && <p className="note tp-match-count" role="status">{matchingCount} {matchingCount === 1 ? 'technology matches' : 'technologies match'} “{query.trim()}”. Other technologies are dimmed.</p>}
-              <TreeGrid game={game} list={tabTechs} folder={tab} techs={techs} toggle={toggle} matches={matches} />
+              <TreeGrid game={game} list={tabTechs} folder={tab} techs={techs} toggle={toggle} matches={matches} fit={fullscreen} />
             </>}
         </div>
       </div>
@@ -181,7 +206,7 @@ export function TechTree({ game, techs, setTechs, onClose, inline = false }) {
  * Once the tree reaches either end the wheel falls through to the page, and trackpad or shift-wheel sideways
  * scrolling stays native.
  */
-function useWheelToHorizontal(ref) {
+function useWheelToHorizontal(ref, evenIfTall = false) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return undefined;
@@ -198,7 +223,7 @@ function useWheelToHorizontal(ref) {
       if (e.ctrlKey || e.shiftKey || Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;
       const max = el.scrollWidth - el.clientWidth;
       // Leave the wheel alone when the tree also scrolls vertically (the dialog on short screens) or does not overflow.
-      if (max <= 1 || el.scrollHeight - el.clientHeight > 1) return;
+      if (max <= 1 || (!evenIfTall && el.scrollHeight - el.clientHeight > 1)) return;
       const delta = e.deltaY * (e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? el.clientWidth : 1);
       const from = target ?? el.scrollLeft;
       if ((delta < 0 && from <= 0) || (delta > 0 && from >= max - 1)) return;
@@ -218,10 +243,10 @@ function useWheelToHorizontal(ref) {
       el.removeEventListener('pointerdown', cancel);
       el.removeEventListener('keydown', cancel);
     };
-  }, [ref]);
+  }, [ref, evenIfTall]);
 }
 
-function TreeGrid({ game, list, folder, techs, toggle, matches }) {
+function TreeGrid({ game, list, folder, techs, toggle, matches, fit }) {
   const positioned = list.filter((t) => t.x && !t.subOf);
   const loose = list.filter((t) => (!t.x && !t.subOf));
   const hasMatchingSub = (tech) => tech.subs.some((id) => {
@@ -296,10 +321,34 @@ function TreeGrid({ game, list, folder, techs, toggle, matches }) {
       // Label a column only when it moves the timeline forward, so the rail reads as a clean run of years.
       .filter((x, i, all) => all.slice(0, i).every((prev) => prev.year < x.year))
     : [];
+  // In full screen, shrink the tree (down to 75%) so every row fits on screen and the wheel only has to scroll sideways.
+  // Very tall trees still scroll vertically below that.
+  const wrapRef = useRef(null);
+  const [zoom, setZoom] = useState(1);
+  useLayoutEffect(() => {
+    const wrap = wrapRef.current;
+    const box = fit && wrap ? wrap.closest('.tp-scroll') : null;
+    if (!box || !wrap) { setZoom(1); return undefined; }
+    const measure = () => {
+      const pad = parseFloat(getComputedStyle(box).paddingBottom) || 0;
+      // Measure the tree at its natural size, then scale it into the room left below anything above it.
+      const prev = wrap.style.zoom;
+      wrap.style.zoom = '';
+      const natural = wrap.offsetHeight;
+      const room = box.getBoundingClientRect().bottom - wrap.getBoundingClientRect().top - pad;
+      wrap.style.zoom = prev;
+      setZoom(natural > 0 && room > 0 ? Math.max(.75, Math.min(1, room / natural)) : 1);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(box);
+    return () => ro.disconnect();
+  }, [fit, folder, rows, cols]);
+
   return (
     <>
       {layout && (
-        <div className={`tp-tree-wrap tp-folder-${folder}`} style={{ '--tp-cols': cols, '--tp-rows': rows }}>
+        <div ref={wrapRef} className={`tp-tree-wrap tp-folder-${folder}`} style={{ '--tp-cols': cols, '--tp-rows': rows, zoom: zoom === 1 ? undefined : zoom }}>
           <div className="tp-years" aria-hidden="true">{colYears.map((x) => <span key={x.col} style={{ '--tp-col': x.col }}>{x.year}</span>)}</div>
           <div className="tp-grid" style={{ gridTemplateColumns: `repeat(${cols}, var(--tp-cw))`, gridTemplateRows: `repeat(${rows}, var(--tp-rh))` }}>
             <svg className="tp-lines" viewBox={`0 0 ${cols} ${rows}`} preserveAspectRatio="none" aria-hidden="true">

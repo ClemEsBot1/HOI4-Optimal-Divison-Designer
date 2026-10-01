@@ -3,7 +3,8 @@
  *
  * A template is { items: string[]  line battalion ids,
  *                 support: string[] divisional support company ids (one of each type, up to 5),
- *                 reg: string[]     regimental support company ids (up to one per column) }.
+ *                 reg: string[]     regimental support company ids (up to one per column),
+ *                 columns?: [{ type, items, reg }] battalions placed by hand; when present the layout is taken as given }.
  * Columns are derived: infantry, artillery, mobile, mobile-artillery and armor each use their own column family, with at most `columnSize` battalions per column.
  * A division has at most 5 columns. A column needs at least 3 battalions before it can take a regimental support
  * company, so the layout (how many columns each type is spread over) is planned to make the regimental companies fit.
@@ -188,6 +189,37 @@ export function assignRegimentalColumns(reg, layout, byId) {
 }
 
 /**
+ * Layout of a template whose columns were placed by hand (the manual designer's grid) rather than planned.
+ * `columns` is [{ type, items: (id|null)[], reg: id|null }]; empty columns are ignored. The layout is only ok when
+ * every battalion sits in a column of its own family, no column is over size, there are at most five columns, and
+ * the columns hold exactly the template's battalions. A regimental company counts only in a column with three or more
+ * battalions of a family it fits.
+ */
+export function explicitLayout(columns, items, reg, byId, columnSize = 5) {
+  const used = columns.map((c) => ({ ...c, ids: (c.items || []).filter(Boolean) })).filter((c) => c.ids.length);
+  const sizes = Object.fromEntries(COLUMN_TYPES.map((t) => [t, []]));
+  const assignments = new Map();
+  let ok = used.length <= MAX_COLUMNS;
+  for (const c of used) {
+    if (!COLUMN_TYPES.includes(c.type) || c.ids.length > columnSize || c.ids.some((id) => byId.get(id)?.cat !== c.type)) ok = false;
+    const index = (sizes[c.type] ||= []).length;
+    sizes[c.type].push(c.ids.length);
+    const company = c.reg && byId.get(c.reg);
+    if (company && c.ids.length >= REG_MIN_BATTALIONS && regFitsColumn(company, c.type)) {
+      assignments.set(`${c.type}:${index}`, { id: c.reg, type: c.type, index, battalions: c.ids.length, key: `${c.type}:${index}` });
+    }
+  }
+  if (used.flatMap((c) => c.ids).sort().join() !== [...items].sort().join()) ok = false;
+  const placedRegs = [...assignments.values()].map((a) => a.id).sort();
+  if (placedRegs.join() !== [...reg].sort().join()) ok = false;
+  const counts = Object.fromEntries(COLUMN_TYPES.map((t) => [t, sizes[t].length]));
+  const elig = (t) => sizes[t].filter((n) => n >= REG_MIN_BATTALIONS).length;
+  const armorSlots = elig('armor');
+  const otherSlots = COLUMN_TYPES.filter((t) => t !== 'armor').reduce((n, t) => n + elig(t), 0);
+  return { layout: { ...counts, ok, slots: armorSlots + otherSlots, armorSlots, otherSlots, sizes, explicit: true }, assignments };
+}
+
+/**
  * Evaluate a template. Returns null for an empty template, otherwise an object keyed by STAT_KEYS
  * plus `width`, `n`, `cols`, `valid`.
  */
@@ -205,8 +237,9 @@ export function evaluate(tpl, byId, mods = {}, opts = DEFAULT_OPTS, columnSize =
   const cnt = Object.fromEntries(COLUMN_TYPES.map((t) => [t, 0]));
   for (const u of line) cnt[u.cat]++;
   const armorRegs = reg.filter((id) => byId.get(id).tank).length;
-  const layout = planColumns(cnt, columnSize, armorRegs, reg.length - armorRegs);
-  const regAssignments = assignRegimentalColumns(reg, layout, byId);
+  const fixed = tpl.columns ? explicitLayout(tpl.columns, items, reg, byId, columnSize) : null;
+  const layout = fixed ? fixed.layout : planColumns(cnt, columnSize, armorRegs, reg.length - armorRegs);
+  const regAssignments = fixed ? fixed.assignments : assignRegimentalColumns(reg, layout, byId);
 
   // Support companies lift whole categories; regimental bonuses scale with the battalion count in their column.
   const boost = new Map();

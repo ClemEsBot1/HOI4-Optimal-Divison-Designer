@@ -18,6 +18,11 @@ const LIST_LABEL = { items: 'Battalion', support: 'Divisional support', reg: 'Re
 /** Rows for the hover card: every stat this unit moves by a visible amount, signed and coloured by whether it helps. */
 function ContributionTip({ unit, ctx, list, index }) {
   const delta = unitContribution(ctx.tpl, list, index, ctx.byId, ctx.mods, ctx.opts, ctx.columnSize);
+  return <DeltaTip unit={unit} kind={LIST_LABEL[list]} delta={delta} />;
+}
+
+/** Hover card for a unit given what it changes in the division (`delta`, as from unitContribution). */
+export function DeltaTip({ unit, kind, delta, hint }) {
   const rows = delta ? Object.entries(delta).filter(([k, v]) => {
     const dp = STAT_BY_KEY[k]?.dp ?? 0;
     return Math.abs(v) >= 0.5 / 10 ** dp;
@@ -25,7 +30,7 @@ function ContributionTip({ unit, ctx, list, index }) {
   return (
     <div className="c-tip" role="tooltip">
       <b>{unit.name}</b>
-      <small>{LIST_LABEL[list]} · adds to the division</small>
+      <small>{kind} · adds to the division</small>
       {rows.length ? (
         <dl>
           {rows.map(([k, v]) => {
@@ -39,6 +44,7 @@ function ContributionTip({ unit, ctx, list, index }) {
           })}
         </dl>
       ) : <small>No measurable change.</small>}
+      {hint && <small className="c-hint">{hint}</small>}
     </div>
   );
 }
