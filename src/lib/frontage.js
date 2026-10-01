@@ -6,8 +6,8 @@
  * width is the share of the frontage that whole divisions fill, averaged over the theatre's terrain and over
  * one- and two-direction attacks.
  *
- * The terrain widths are the values introduced with the Barbarossa update; they are editable in the theatre menu
- * because Paradox has changed them before.
+ * The terrain widths are the values introduced with the Barbarossa update. They live in this one table because
+ * Paradox has changed them before. Going over the combat width (allowed with a penalty) is not modelled.
  */
 
 export const TERRAINS = [

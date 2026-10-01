@@ -172,7 +172,7 @@ function NavyTab({ year, requestShip }) {
     <>
       <div className="callout">
         <strong>Ship designer data</strong>
-        <p>Hulls, modules and naval technology from {naval.meta.source} (game version {naval.meta.gameVersion}). Every legal module combination is considered for each role; options another module beats on every scored stat are skipped, and the answer is the best to within 0.5%. Re-run <code>node scripts/extract-designers.mjs</code> on a current install for the latest values.</p>
+        <p>Hulls, modules and naval technology from {naval.meta.source} (game version {naval.meta.gameVersion}). Every legal module combination is considered for each role and the answer is proven best: modules another module beats on every scored stat are skipped, and a bound that relaxes the score slot by slot rules out the rest without scoring them. Re-run <code>node scripts/extract-designers.mjs</code> on a current install for the latest values.</p>
       </div>
       <div className="row-between">
         <p className="note">Designs for {navalYear}. Change the year from the command bar.</p>

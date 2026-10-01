@@ -109,8 +109,7 @@ export function hullsFor(data, role, year) {
   });
 }
 
-function shipType(hull, modules, data) {
-  const cats = Object.values(modules).filter(Boolean).map((id) => data.modules[id]?.cat);
+function shipType(hull, modules) {
   if (hull.startsWith('ship_hull_light')) return 'destroyer';
   if (hull.startsWith('ship_hull_cruiser')) return Object.values(modules).some((id) => /^ship_medium_battery_/.test(id || '')) ? 'heavy_cruiser' : 'light_cruiser';
   if (/super_heavy/.test(hull)) return 'super_heavy_battleship';
@@ -141,7 +140,7 @@ export function shipStats(data, variant, modules, year) {
   }
   for (const [k, vs] of Object.entries(avg)) s[k] = (s[k] || 0) + vs.reduce((a, b) => a + b, 0) / vs.length;
   for (const [k, v] of Object.entries(mul)) s[k] = (s[k] || 0) * (1 + v);
-  const type = shipType(variant.id, modules, data);
+  const type = shipType(variant.id, modules);
   for (const [k, v] of Object.entries(typeBonuses(data, type, year))) if (k in s) s[k] *= 1 + v;
   if (s.reliability != null) s.reliability = Math.max(0, Math.min(1, s.reliability));
   s.type = type;
@@ -162,12 +161,14 @@ const scoreOf = (s, weights) => {
  * stat are dropped first (it can never lose to drop them), interchangeable custom slots are filled in a fixed order,
  * and every remaining combination is scored.
  */
-export function bestShip(data, role, year, { budget = 6e5 } = {}) {
+export function bestShip(data, role, year, { budget = 6e5, gap = 0 } = {}) {
   const hulls = hullsFor(data, role, year);
   let best = null; let evaluated = 0; let truncated = false; let nodes = 0;
+  let bestX = null; // the incumbent's scored stats, where the relaxation takes its tangents
   const keys = Object.keys(role.weights);
-  // proven to within a 0.5% gain on every scored stat, like the division search
-  const tol = 0.005 * keys.reduce((a, k) => a + Math.abs(role.weights[k]), 0);
+  const reqCats = role.require || [];
+  // gap 0.005 would accept a design within a 0.5% gain on every scored stat of the best; 0 proves the exact best
+  const tol = gap * keys.reduce((a, k) => a + Math.abs(role.weights[k]), 0);
   const dirOf = (k) => (role.weights[k] < 0 ? -1 : 1);
   const modsBy = (cats) => Object.values(data.modules).filter((m) => cats.includes(m.cat) && m.year <= year);
   const allowed = (m) => !(role.batteryOk && /battery/.test(m.cat) && !role.batteryOk.test(m.id));
@@ -209,73 +210,157 @@ export function bestShip(data, role, year, { budget = 6e5 } = {}) {
       return [k, { addHi: Math.max(...adds), addLo: Math.min(...adds), mulHi: Math.max(...muls), mulLo: Math.min(...muls), avgHi: avgs.length ? Math.max(...avgs) : null, avgLo: avgs.length ? Math.min(...avgs) : null }];
     })));
     // technology bonuses for any type this hull could become
-    const types = hull.id.startsWith('ship_hull_cruiser') ? ['light_cruiser', 'heavy_cruiser'] : hull.id.startsWith('ship_hull_heavy') && !/super/.test(hull.id) ? ['battleship', 'battle_cruiser'] : [shipType(hull.id, {}, data)];
+    const types = hull.id.startsWith('ship_hull_cruiser') ? ['light_cruiser', 'heavy_cruiser'] : hull.id.startsWith('ship_hull_heavy') && !/super/.test(hull.id) ? ['battleship', 'battle_cruiser'] : [shipType(hull.id, {})];
     const tb = types.map((t) => typeBonuses(data, t, year));
     const typeHi = Object.fromEntries(keys.map((k) => [k, Math.max(...tb.map((b) => b[k] || 0))]));
     const typeLo = Object.fromEntries(keys.map((k) => [k, Math.min(...tb.map((b) => b[k] || 0))]));
 
     const nS = slotNames.length; const nK = keys.length;
-    // suffix sums of the per-slot ranges, so the bound costs one pass over the scored stats
+    const W = keys.map((k) => role.weights[k]);
+    const FL = keys.map((k) => FLOOR[k] ?? 1);
+    const B = keys.map((k) => hull.stats[k] || 0);
+    const isRel = keys.map((k) => k === 'reliability');
+    const tLo = keys.map((k) => 1 + typeLo[k]); const tHi = keys.map((k) => 1 + typeHi[k]);
+    const tbBy = Object.fromEntries(types.map((t, i) => [t, tb[i]]));
+    // suffix sums over the remaining slots: least and most they can add or multiply, and their averaged values
     const suf = keys.map((k) => {
-      const up = dirOf(k) > 0;
-      const add = new Float64Array(nS + 1); const mul = new Float64Array(nS + 1); const avg = new Array(nS + 1).fill(null);
+      const aL = new Float64Array(nS + 1); const aU = new Float64Array(nS + 1); const mL = new Float64Array(nS + 1); const mU = new Float64Array(nS + 1);
+      const vL = new Array(nS + 1).fill(null); const vU = new Array(nS + 1).fill(null);
       for (let j = nS - 1; j >= 0; j--) {
         const r = range[j][k];
-        add[j] = add[j + 1] + (up ? r.addHi : r.addLo); mul[j] = mul[j + 1] + (up ? r.mulHi : r.mulLo);
-        const c = up ? r.avgHi : r.avgLo; const n = avg[j + 1];
-        avg[j] = c == null ? n : n == null ? c : up ? Math.max(c, n) : Math.min(c, n);
+        aL[j] = aL[j + 1] + r.addLo; aU[j] = aU[j + 1] + r.addHi; mL[j] = mL[j + 1] + r.mulLo; mU[j] = mU[j + 1] + r.mulHi;
+        vL[j] = r.avgLo == null ? vL[j + 1] : vL[j + 1] == null ? r.avgLo : Math.min(r.avgLo, vL[j + 1]);
+        vU[j] = r.avgHi == null ? vU[j + 1] : vU[j + 1] == null ? r.avgHi : Math.max(r.avgHi, vU[j + 1]);
       }
-      return { up, add, mul, avg };
+      return { aL, aU, mL, mU, vL, vU };
     });
+    const optAdd = options.map((ids) => ids.map((id) => Float64Array.from(keys, (k) => (id ? data.modules[id].add[k] || 0 : 0))));
+    const optMul = options.map((ids) => ids.map((id) => Float64Array.from(keys, (k) => (id ? data.modules[id].mul[k] || 0 : 0))));
+    const optAvg = options.map((ids) => ids.map((id) => keys.map((k) => (id && k in data.modules[id].avg ? data.modules[id].avg[k] : null))));
     const pAdd = new Float64Array(nK); const pMul = new Float64Array(nK); const pAvgSum = new Float64Array(nK); const pAvgN = new Float64Array(nK);
-    const modVec = new Map();
-    for (const ids of options) for (const id of ids) if (id && !modVec.has(id)) {
-      const m = data.modules[id];
-      modVec.set(id, keys.map((k) => [m.add[k] || 0, m.mul[k] || 0, k in m.avg ? m.avg[k] : null]));
-    }
-    const apply = (id, sign) => {
-      if (!id) return;
-      const v = modVec.get(id);
-      for (let q = 0; q < nK; q++) { pAdd[q] += sign * v[q][0]; pMul[q] += sign * v[q][1]; if (v[q][2] != null) { pAvgSum[q] += sign * v[q][2]; pAvgN[q] += sign; } }
+    const apply = (j, o, sign) => {
+      const a = optAdd[j][o]; const m = optMul[j][o]; const v = optAvg[j][o];
+      for (let q = 0; q < nK; q++) { pAdd[q] += sign * a[q]; pMul[q] += sign * m[q]; if (v[q] != null) { pAvgSum[q] += sign * v[q]; pAvgN[q] += sign; } }
     };
-    const stB = {};
-    const bound = (i) => {
+    const ca = new Float64Array(nK); const cm = new Float64Array(nK);
+    const corners = new Float64Array(8);
+    /*
+     * Upper bound on every completion of the current partial design that is separable over the remaining slots. For
+     * each scored stat x = T (A + a)(M + m), where a and m are what the remaining slots add and multiply:
+     *  - a stat the role maximizes: ln is concave, so its tangent (taken at the incumbent) lies above it;
+     *  - a stat it minimizes: -ln is convex, so the chord across the stat's possible range lies above it;
+     *  - the product a·m is bounded by its McCormick envelope over the remaining slots' ranges.
+     * What is left is a constant plus a linear function of each remaining slot's module, so each slot can take its own
+     * best module. Returns the constant and fills ca / cm with the weight of each stat's added and multiplied amount.
+     */
+    const relax = (i) => {
+      let C = 0;
       for (let q = 0; q < nK; q++) {
-        const k = keys[q]; const S = suf[q];
-        const cur = pAvgN[q] > 0 ? pAvgSum[q] / pAvgN[q] : null; const rem = S.avg[i];
-        const av = cur == null ? rem : rem == null ? cur : S.up ? Math.max(cur, rem) : Math.min(cur, rem);
-        let v = ((hull.stats[k] || 0) + pAdd[q] + S.add[i] + (av || 0)) * (1 + pMul[q] + S.mul[i]) * (1 + (S.up ? typeHi[k] : typeLo[k]));
-        if (k === 'reliability') v = Math.max(0, Math.min(1, v));
-        stB[k] = v;
+        const w = W[q]; const F = FL[q]; const S = suf[q];
+        const aRL = S.aL[i]; const aRU = S.aU[i]; const mRL = S.mL[i]; const mRU = S.mU[i];
+        const remL = S.vL[i]; const remU = S.vU[i];
+        let vLo; let vHi;
+        if (pAvgN[q] > 0) {
+          const cur = pAvgSum[q] / pAvgN[q];
+          vLo = remL == null ? cur : Math.min(cur, remL); vHi = remU == null ? cur : Math.max(cur, remU);
+        } else {
+          vLo = remL == null ? 0 : Math.min(0, remL); vHi = remU == null ? 0 : Math.max(0, remU);
+        }
+        const A0 = B[q] + pAdd[q]; const M0 = 1 + pMul[q];
+        const ALo = A0 + aRL + vLo; const AHi = A0 + aRU + vHi; const MLo = M0 + mRL; const MHi = M0 + mRU;
+        corners[0] = ALo * MLo * tLo[q]; corners[1] = ALo * MLo * tHi[q]; corners[2] = ALo * MHi * tLo[q]; corners[3] = ALo * MHi * tHi[q];
+        corners[4] = AHi * MLo * tLo[q]; corners[5] = AHi * MLo * tHi[q]; corners[6] = AHi * MHi * tLo[q]; corners[7] = AHi * MHi * tHi[q];
+        let xLo = corners[0]; let xHi = corners[0];
+        for (let c = 1; c < 8; c++) { if (corners[c] < xLo) xLo = corners[c]; if (corners[c] > xHi) xHi = corners[c]; }
+        ca[q] = 0; cm[q] = 0;
+        if (isRel[q]) { xLo = Math.max(0, Math.min(1, xLo)); xHi = Math.max(0, Math.min(1, xHi)); }
+        if (isRel[q] || MLo <= 0 || xLo < 0 || tLo[q] <= 0) {
+          // outside what the linearization covers: the stat's best value over the box
+          C += w > 0 ? w * Math.log(Math.max(0, xHi) + F) : w * Math.log(Math.max(0, xLo) + F);
+          continue;
+        }
+        let c; let c0;
+        if (w > 0) {
+          const x0 = Math.min(xHi, Math.max(xLo, bestX[q])) + F;
+          c = w / x0; c0 = w * Math.log(x0) + c * (F - x0);
+        } else {
+          const fL = w * Math.log(xLo + F); const fH = w * Math.log(xHi + F);
+          c = xHi - xLo > 1e-9 ? (fH - fL) / (xHi - xLo) : 0; c0 = fL - c * xLo;
+        }
+        if (c === 0) { C += c0; continue; }
+        const up = c > 0; const T = up ? tHi[q] : tLo[q]; const A = A0 + (up ? vHi : vLo); const aX = up ? aRU : aRL;
+        C += c0 + c * T * (A * M0 - aX * mRL);
+        ca[q] = c * T * (M0 + mRL); cm[q] = c * T * (A + aX);
       }
-      return scoreOf(stB, role.weights);
+      return C;
     };
-    const chosen = new Array(slotNames.length).fill(null);
+    const valAt = Array.from({ length: nS }, (_, j) => new Float64Array(options[j].length));
+    const maxAt = new Float64Array(nS + 1);
+    const leafScore = (type) => {
+      const tbt = tbBy[type] || {};
+      let sc = 0;
+      for (let q = 0; q < nK; q++) {
+        let v = (B[q] + pAdd[q] + (pAvgN[q] > 0 ? pAvgSum[q] / pAvgN[q] : 0)) * (1 + pMul[q]);
+        const t = tbt[keys[q]]; if (t) v *= 1 + t;
+        if (isRel[q]) v = Math.max(0, Math.min(1, v));
+        sc += W[q] * Math.log(Math.max(0, v) + FL[q]);
+      }
+      return sc;
+    };
+    const chosen = new Array(nS).fill(null);
+    const order = Array.from({ length: nS }, (_, j) => options[j].map((_, o) => o));
+    let hullNodes = 0; let stop = false;
     const rec = (i) => {
-      if (++nodes > budget) { truncated = true; return; }
-      if (i === slotNames.length) {
-        const cats = chosen.filter(Boolean).map((id) => data.modules[id].cat);
-        if ((role.require || []).some((c) => !cats.includes(c))) return;
+      nodes++;
+      if (++hullNodes > budget) { stop = true; truncated = true; return; }
+      if (i === nS) {
+        for (const c of reqCats) if (!chosen.some((id) => id && data.modules[id].cat === c)) return;
         if (role.needBattery && !chosen.some((id) => id && role.needBattery.test(id))) return;
+        const type = shipType(hull.id, chosen);
+        if (role.type && type !== role.type) return;
+        evaluated++;
+        if (best && leafScore(type) <= best.score + 1e-12) return;
         const mods = Object.fromEntries(slotNames.map((n, k) => [n, chosen[k]]));
         const st = shipStats(data, hull, mods, year);
-        if (role.type && st.type !== role.type) return;
-        evaluated++;
         const sc = scoreOf(st, role.weights);
-        if (!best || sc > best.score + 1e-12) best = { score: sc, hull: hull.id, hullName: hull.name, modules: mods, stats: st };
+        if (!best || sc > best.score + 1e-12) {
+          best = { score: sc, hull: hull.id, hullName: hull.name, modules: mods, stats: st };
+          bestX = keys.map((k) => Math.max(0, st[k] || 0));
+        }
         return;
       }
-      if (best && bound(i) <= best.score + tol) return;
+      let idx = order[i];
+      let C = 0;
+      if (best) {
+        C = relax(i);
+        maxAt[nS] = 0;
+        for (let j = nS - 1; j >= i; j--) {
+          const vals = valAt[j]; let mx = -Infinity;
+          for (let o = 0; o < vals.length; o++) {
+            const a = optAdd[j][o]; const m = optMul[j][o]; let x = 0;
+            for (let q = 0; q < nK; q++) x += ca[q] * a[q] + cm[q] * m[q];
+            vals[o] = x; if (x > mx) mx = x;
+          }
+          maxAt[j] = maxAt[j + 1] + mx;
+        }
+        if (C + maxAt[i] <= best.score + tol) return;
+        // best-first: the module the relaxation likes most is tried first
+        const vals = valAt[i];
+        idx = order[i].slice().sort((x, y) => vals[y] - vals[x]);
+      }
       let prevIdx = Infinity;
       for (let j = i - 1; j >= 0; j--) if (sig[j] && sig[j] === sig[i]) { prevIdx = options[j].indexOf(chosen[j]); break; }
-      for (let k = 0; k < options[i].length; k++) {
+      const childVal = best ? valAt[i].slice() : null;
+      const rest = best ? C + maxAt[i + 1] : 0;
+      for (const k of idx) {
         if (sig[i] && k > prevIdx) continue;
+        if (childVal && best && rest + childVal[k] <= best.score + tol) continue;
         chosen[i] = options[i][k];
         if (!limitsOk(chosen, i + 1)) continue;
-        apply(chosen[i], 1);
+        apply(i, k, 1);
         rec(i + 1);
-        apply(chosen[i], -1);
-        if (truncated) break;
+        apply(i, k, -1);
+        if (stop) break;
       }
       chosen[i] = null;
     };

@@ -12,6 +12,23 @@ Working out a strong template by hand means juggling battalion stats, support co
 tank designs all at once. This tool does that arithmetic from the game's own data and searches the space for you, so you
 can compare designs on the trade-offs that matter to you instead of copying a template from a guide.
 
+## Views
+
+The top bar switches between five views, with a fade between them. The command bar under it holds three menus that apply
+everywhere: theatre, research year and designer mode. Every panel folds away, and each view has expand/collapse all.
+
+- **Designer**: the template search, in three modes: optimal search, manual design (draft a template by hand and measure it
+  against the best) and compare (up to four templates side by side, from the ranked list, your saved templates or the draft).
+- **Research**: research by year, plus the full tech tree inline.
+- **Doctrine**: recommended doctrines for the role and the full doctrine setup.
+- **Equipment**: three tabs. Tanks (the designs in your template, then the best design for every tank role: main battle,
+  breakthrough, light, infantry support, tank destroyer, self-propelled gun and anti-air), Aircraft (a role guide for
+  fighters, interceptors, heavy fighters, CAS, tactical, naval, torpedo, patrol, strategic, transport, carrier and jet roles,
+  by stage of the war) and Ships (the proven-best design for every ship role: screen, anti-submarine, torpedo, anti-air and
+  mine destroyers, light attack, anti-air, torpedo and minelaying cruisers, heavy cruiser, battleship, battlecruiser,
+  super-heavy battleship, fleet and armored carriers, and convoy-raider, minelaying and long-range submarines).
+- **Field manual**: where the numbers come from, how the searches work and what they leave out.
+
 ## Features
 
 - **Exact search.** Branch and bound over every legal template, with the limits as hard constraints. The same setup
@@ -44,7 +61,15 @@ can compare designs on the trade-offs that matter to you instead of copying a te
   list shows different kinds of division rather than tweaks of one.
 - **Trade-off chart and Pareto front.** Plot any two stats to see what improving one costs in the other; templates on the
   Pareto front of all your priorities are highlighted. Click a point to open that template.
-- **Shareable setups.** The whole setup (goal, limits, research, doctrine) is stored in the link.
+- **Theatre fit.** Pick a theatre and the menu scores every width by how much of the frontage whole divisions fill, averaged
+  over that theatre's terrain and one- and two-direction attacks. Optionally the search only considers widths that fit well.
+- **Ship designer.** Hulls, modules and naval technology are extracted from the game files. For each role the search is
+  exact: a bound that relaxes the score slot by slot (tangents for maximized stats, chords for costs, McCormick envelopes
+  for added × multiplied amounts) rules out almost every combination unscored, so all roles solve in about a second.
+- **Reliable tanks.** Stacked reliability penalties can push a tank design to 0%; recommended designs keep at least 60%
+  whenever any legal design can.
+- **Saved templates, copy as text.** Save any result or draft (kept in your browser) and copy a template as plain text.
+- **Shareable setups.** The whole setup (goal, limits, research, doctrine, theatre, view) is stored in the link.
 - **Manual bonuses.** Type in percentage bonuses for leaders, national spirits and anything else the data does not model.
 
 ## How the numbers work
@@ -69,13 +94,18 @@ and 910 infantry equipment. A case for the Panzer screenshot is in the file, wai
 
 ## Known limits
 
-Check a result in game before you rely on it. These rules are assumptions, and the app lists them under "Data and assumptions":
+Check a result in game before you rely on it. These rules are assumptions, and the app lists them in the Field manual:
 
 - One regimental support company per column, and which column types each can attach to. (A column needs three battalions first.)
 - Whether support companies count in the organization average (there is a switch).
 - Whether doctrine supply bonuses are fractions of a unit's supply.
 - Tank modules are chosen automatically. There is no hand editor yet.
 - The matchup model ignores terrain, entrenchment, planning, air support and width penalties.
+
+- Ship data comes from the patch 1.7 game files (the newest set reachable when it was added); re-run `npm run designers`
+  on a current install to refresh it.
+- Aircraft are a role guide, not a computed optimum, until the aircraft designer files are extracted.
+- Terrain combat widths are the Barbarossa-update values; going over the combat width (allowed with a penalty) is not modelled.
 
 Not modelled: national focus techs, leaders, terrain, the land cruiser, flame tanks and amphibious tank roles.
 
@@ -96,6 +126,15 @@ npm run check
 `extract` rewrites `src/data/game.json` from `common/units`, `common/technologies`, `common/doctrines` and
 `localisation/english`. `check` runs sanity checks on the engine. Commit the new `game.json` and push.
 
+Ship hulls and modules come from a separate extractor:
+
+```
+npm run designers -- "<HOI4 install folder>" --version <patch number> --source "<where the files came from>"
+```
+
+It reads `common/units/equipment` (hulls and modules), `common/technologies` (naval technology bonuses) and the English
+equipment localisation, and rewrites `src/data/designers.json`.
+
 ## Deploy
 
 The app is a static Vite build with no server and no environment variables. On Vercel: import the repository, keep the
@@ -103,13 +142,14 @@ Vite preset (build command `npm run build`, output directory `dist`) and leave t
 
 ## Project layout
 
-- `scripts/`: `paradox.mjs` and `extract.mjs` (game files to JSON), `selfcheck.mjs`, `golden.mjs`.
-- `src/data/game.json`: the extracted game data.
+- `scripts/`: `paradox.mjs`, `extract.mjs` and `extract-designers.mjs` (game files to JSON), `selfcheck.mjs`, `golden.mjs`.
+- `src/data/game.json`, `src/data/designers.json`: the extracted game data; `src/data/air.js`: the aircraft role guide.
 - `src/lib/`: the engine (`game.js` units and exhaustive tank designs, `stats.js` template stats, `score.js` the score,
-  `optimizer.js` branch and bound, `design.js` designs tuned to the division, `combat.js` the matchup model), the search
-  worker, presets, share links and text helpers.
+  `optimizer.js` branch and bound, `design.js` designs tuned to the division, `combat.js` the matchup model, `naval.js` the
+  ship designer, `tankRoles.js` tank designs by role, `frontage.js` theatre fit), the search worker, presets, share links
+  and text helpers.
 - `tests/golden.json` and `scripts/golden.mjs`: numbers from in-game screenshots.
-- `src/components/`: template view, trade-off chart, tech tree and doctrine pickers.
-- `src/App.jsx`: the page.
+- `src/components/`: template view, trade-off chart, tech tree and doctrine pickers, collapsible panels and menus.
+- `src/views/`: the five views. `src/App.jsx`: navigation, command bar and shared state.
 
 Hearts of Iron IV is a trademark of Paradox Interactive. This is an unofficial fan tool and is not affiliated with Paradox.

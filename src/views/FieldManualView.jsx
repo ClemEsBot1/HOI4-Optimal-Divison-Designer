@@ -3,6 +3,7 @@ import Section from '../components/Section.jsx';
 import { GAP_SHARE } from '../lib/optimizer.js';
 import { TERRAINS } from '../lib/frontage.js';
 import naval from '../data/designers.json';
+import { MIN_DESIGN_RELIABILITY } from '../lib/game.js';
 
 export default function FieldManualView({ version, meta }) {
   return (
@@ -34,7 +35,14 @@ export default function FieldManualView({ version, meta }) {
             <li>Ranked alternatives are the best template of each other kind of division (column types used and lead battalion).</li>
           </ul>
         </Section>
-        <Section id="fm-rules" kicker="Section 3" title="Rules as implemented">
+        <Section id="fm-equipment" kicker="Section 3" title="Equipment designers">
+          <ul className="rules">
+            <li>Tanks: every chassis that can fill a role gets an exhaustive module search with that role's priorities. Stacked reliability penalties can push a design to 0%, which in game means constant breakdowns, so a recommended design keeps at least {MIN_DESIGN_RELIABILITY * 100}% reliability whenever any legal design can.</li>
+            <li>Ships: a stat is (hull + modules + the average of averaged modules) × (1 + module multipliers) × (1 + naval technology for the ship type). Each role scores the sum of priority × ln(stat), so it trades percentages like the division search.</li>
+            <li>The ship search is exact. At every step it bounds the best finish of the partial design: each maximized stat is replaced by its tangent at the best design so far, each minimized stat (cost, visibility) by its chord, and the product of added and multiplied amounts by its envelope. The bound then splits slot by slot, so each remaining slot can take its own best module, and whole branches are dropped without scoring them.</li>
+          </ul>
+        </Section>
+        <Section id="fm-rules" kicker="Section 4" title="Rules as implemented">
           <ul className="rules">
             <li>Up to five columns; infantry, artillery, mobile, mobile artillery and armor use separate columns of five battalions (more with doctrine milestones).</li>
             <li>A column needs three battalions before it takes a regimental support company; battalion groups are planned to unlock regimental slots (ten infantry show as 3-3-3-1).</li>
@@ -44,7 +52,7 @@ export default function FieldManualView({ version, meta }) {
             <li>The opponent matchup compares how fast each side breaks the other on the same frontage: attacks against hardness, defense or breakthrough blocking, and half damage when armor beats piercing. Terrain, entrenchment, planning and air are left out.</li>
           </ul>
         </Section>
-        <Section id="fm-theatre" kicker="Section 4" title="Theatres and frontage">
+        <Section id="fm-theatre" kicker="Section 5" title="Theatres and frontage">
           <p>A battle's combat width depends on the terrain, plus an extra amount for each extra attack direction. A division width that does not divide it evenly leaves part of the frontage empty. The theatre menu scores every width by how much of its frontage whole divisions fill, averaged over the theatre's terrain and one- and two-direction attacks, and can restrict the search to widths that fit well.</p>
           <div className="table-scroll">
             <table className="rank compact">
@@ -52,9 +60,9 @@ export default function FieldManualView({ version, meta }) {
               <tbody>{TERRAINS.map((t) => <tr key={t.id}><td className="txt">{t.name}</td><td>{t.width}</td><td>+{t.extra}</td></tr>)}</tbody>
             </table>
           </div>
-          <p className="note">Values from the Barbarossa update; check them in game if a later patch has changed them.</p>
+          <p className="note">Values from the Barbarossa update; check them in game if a later patch has changed them. Going over the combat width, which the game allows with a penalty, is not modelled.</p>
         </Section>
-        <Section id="fm-limits" kicker="Section 5" title="Known limits">
+        <Section id="fm-limits" kicker="Section 6" title="Known limits">
           <ul className="rules">
             <li>Not verified against the game: the exact regimental-company scaling for every stat, which column types each company can attach to, and whether doctrine supply bonuses are fractions of a unit's supply.</li>
             <li>Not modelled: national focus technologies, leaders, terrain modifiers on attack, entrenchment, the land cruiser, flame tanks, amphibious tank roles and hand-editing a tank design.</li>
