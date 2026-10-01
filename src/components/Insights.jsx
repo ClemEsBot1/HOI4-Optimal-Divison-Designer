@@ -3,6 +3,7 @@ import { fmt } from '../lib/stats.js';
 import { OPPONENTS, ENEMY_KEYS, matchup } from '../lib/combat.js';
 
 const signed = (x, dp = 2) => `${x > 0 ? '+' : ''}${x.toFixed(dp)}`;
+const show = (v, key) => (key === 'frontage' ? `${(v * 100).toFixed(1)}%` : fmt(v, key));
 
 /** Why the winner wins: each scored stat's share of the score, compared with the runner-up. */
 export function ScoreExplain({ explain, hasRef }) {
@@ -20,11 +21,11 @@ export function ScoreExplain({ explain, hasRef }) {
       <ul className="explain-rows">
         {explain.map((e) => (
           <li key={e.key}>
-            <span className="ex-label">{e.label} <em>({e.weight > 0 ? '' : 'lower is better, '}priority {Math.abs(e.weight)})</em></span>
+            <span className="ex-label">{e.label} <em>({e.key === 'frontage' ? `share of each battle's width used; weight ${e.weight}, the sum of the combat priorities` : `${e.weight > 0 ? '' : 'lower is better, '}priority ${Math.abs(e.weight)}`})</em></span>
             <span className="ex-bar" aria-hidden="true">
               <i className={e.delta >= 0 ? 'pos' : 'neg'} style={{ width: `${(Math.abs(e.delta) / max) * 50}%`, [e.delta >= 0 ? 'left' : 'right']: '50%' }} />
             </span>
-            <span className="ex-val">{fmt(e.value, e.key)}{e.refValue != null ? <small> vs {fmt(e.refValue, e.key)}</small> : null}</span>
+            <span className="ex-val">{show(e.value, e.key)}{e.refValue != null ? <small> vs {show(e.refValue, e.key)}</small> : null}</span>
             <span className="ex-delta">{hasRef ? signed(e.delta) : e.score.toFixed(2)}</span>
           </li>
         ))}

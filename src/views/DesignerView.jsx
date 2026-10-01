@@ -8,10 +8,10 @@ import { TdPanel } from '../components/TankCard.jsx';
 import { ScoreExplain, Sensitivity, Logistics, OpponentPicker, MatchupSummary } from '../components/Insights.jsx';
 import { STATS, MOD_KEYS, evaluate, fmt, STAT_BY_KEY } from '../lib/stats.js';
 import { GAP_SHARE } from '../lib/optimizer.js';
-import { ROLES } from '../lib/presets.js';
+import { ROLES, ROLE_GROUPS } from '../lib/presets.js';
 import { describeTemplate, countBy } from '../lib/format.js';
 
-const ROLE_ICONS = { line: 'category_all_infantry', offensive_infantry: 'category_artillery', armor: 'category_all_armor', hunter: 'category_artillery', space_marines: 'category_all_armor' };
+const ROLE_ICONS = { line: 'category_all_infantry', offensive_infantry: 'category_artillery', armor: 'category_all_armor', hunter: 'category_artillery', space_marines: 'category_all_armor', mountaineers: 'category_all_infantry', marines: 'category_all_infantry' };
 const GROUP_ORDER = ['Offense', 'Staying power', 'Mobility', 'Cost', 'Utility'];
 const COST_LABEL = { ic: 'Cheaper to build', mp: 'Uses less manpower', sup: 'Uses less supply', trucks: 'Needs fewer trucks' };
 export const RESULT_LABEL = {
@@ -82,18 +82,24 @@ function Rail(ctx) {
         <button type="button" className="ghost small" onClick={() => setAllCollapsed(ids, true)}>Collapse all</button>
       </div>
       <Section id="dz-role" kicker="Orders" title="Role">
-        <div className="roles" role="radiogroup" aria-label="Role presets">
-          {ROLES.map((r) => (
-            <button key={r.id} type="button" role="radio" aria-checked={roleId === r.id} className={'role' + (roleId === r.id ? ' on' : '')} onClick={() => applyRole(r)}>
-              <span className="role-title">
-                <img src={`/hoi4/icons/${ROLE_ICONS[r.id] || 'category_all_infantry'}.png`} alt="" />
-                <strong>{r.name}</strong>
-                <em>{roleId === r.id ? 'Active' : 'Select'}</em>
-              </span>
-              <span className="role-blurb">{r.blurb}</span>
-            </button>
-          ))}
-        </div>
+        {ROLE_GROUPS.map((g) => (
+          <div key={g.id} className="role-group">
+            {g.id !== 'regular' && <h3 className="role-group-title">{g.name}</h3>}
+            <div className="roles" role="radiogroup" aria-label={g.name}>
+              {ROLES.filter((r) => r.group === g.id).map((r) => (
+                <button key={r.id} type="button" role="radio" aria-checked={roleId === r.id} className={'role' + (roleId === r.id ? ' on' : '')} onClick={() => applyRole(r)}>
+                  <span className="role-title">
+                    <img src={`/hoi4/icons/${ROLE_ICONS[r.id] || 'category_all_infantry'}.png`} alt="" />
+                    <strong>{r.name}</strong>
+                    <em>{roleId === r.id ? 'Active' : 'Select'}</em>
+                  </span>
+                  <span className="role-blurb">{r.blurb}</span>
+                  {r.constraints.metaWidths?.length > 0 && <span className="role-meta">Meta width {r.constraints.metaWidths.join(' or ')}</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
       </Section>
       <Section id="dz-limits" kicker="Hard limits" title="Limits">
         <div className="fields">
@@ -108,10 +114,23 @@ function Rail(ctx) {
           <label className="wide">Production cost at most (0 for no limit)
             <input type="number" min="0" step="100" value={constraints.maxIc} onChange={(e) => setCons('maxIc', Math.max(0, Number(e.target.value) || 0))} /></label>
         </div>
+        <div className="fields">
+          <label>Meta widths
+            <input type="text" inputMode="numeric" value={(constraints.metaWidths || []).join(', ')} placeholder="e.g. 20, 15"
+              onChange={(e) => setCons('metaWidths', e.target.value.split(/[ ,;]+/).map(Number).filter((x) => x > 0 && x <= 60))} /></label>
+          <label>Pull toward them
+            <select value={constraints.metaPull ?? 0.05} onChange={(e) => setCons('metaPull', Number(e.target.value))}>
+              <option value={0}>Off</option>
+              <option value={0.02}>Light (2% a width step)</option>
+              <option value={0.05}>Normal (5% a width step)</option>
+              <option value={0.1}>Strong (10% a width step)</option>
+            </select></label>
+        </div>
         <label className="check">
           <input type="checkbox" checked={!!constraints.perWidth} onChange={(e) => setCons('perWidth', e.target.checked)} />
-          Compare designs per combat width, so a wider division is not favoured just for being bigger
+          Score per frontage: stats per width times how much of a battle's width whole divisions use (over-width costs 2% per 1% over, up to 33%), so the widest division is not picked just for being bigger
         </label>
+        <p className="note">The width range is a hard limit; inside it the search goes for the width that scores best, usually a meta width, not the widest.</p>
         {theatre.mix && (
           <p className="note theatre-note">
             {ctx.theatreState.fitOnly
