@@ -9,6 +9,7 @@ const COLS = [
   { id: 'armor', label: 'Armor' },
 ];
 const MIN_FOR_REG = 3; // a column needs three battalions before it can take a regimental company
+const TEMPLATE_COLUMNS = 5; // the game's designer always shows five battalion columns
 
 /** HOI4-style unit counter using the game's branch icon instead of NATO symbols. */
 function Counter({ unit }) {
@@ -43,7 +44,7 @@ function Column({ label, ids, reg, byId, size }) {
   const canReg = ids.length >= MIN_FOR_REG;
   return (
     <div className="tg-col">
-      <h4>{label}</h4>
+      <h4>{label || '\u00a0'}</h4>
       {slots.map((id, i) => (id ? <Counter key={i} unit={byId.get(id)} /> : <div key={i} className="counter empty" aria-hidden="true" />))}
       <div className="tg-reg">
         {reg ? <Counter unit={byId.get(reg)} /> : <div className={'counter empty' + (canReg ? ' open' : '')} title={canReg ? 'Free regimental support slot' : 'Needs three battalions for regimental support'} aria-hidden="true" />}
@@ -70,10 +71,12 @@ export default function TemplateGrid({ items, support = [], reg = [], byId, colu
   }
   const assignments = assignRegimentalColumns(reg, layout, byId);
   for (const c of columns) c.reg = assignments.get(`${c.type}:${c.index}`)?.id || null;
+  const shown = [...columns];
+  while (shown.length < TEMPLATE_COLUMNS) shown.push({ label: '', ids: [], reg: null });
   return (
     <div className="tg" role="img" aria-label={`Template with ${items.length} battalions in ${columns.length} columns`}>
       <div className="tg-cols">
-        {columns.map((c, i) => <Column key={i} label={c.label} ids={c.ids} reg={c.reg} byId={byId} size={columnSize} />)}
+        {shown.map((c, i) => <Column key={i} label={c.label} ids={c.ids} reg={c.reg} byId={byId} size={columnSize} />)}
       </div>
       {columns.length > 0 && <p className="note tg-note">The bottom slot of each column is regimental support. It opens once a column has three battalions.</p>}
       {support.length > 0 && (
