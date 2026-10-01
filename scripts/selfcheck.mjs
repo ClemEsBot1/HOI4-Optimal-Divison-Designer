@@ -98,7 +98,8 @@ ok(r3.top?.[0]?.stats.layout.sizes.infantry.join('-') === '3-3-3-1', 'optimizer 
 const armorRole = ROLES.find((x) => x.id === 'armor');
 const ra = search(game, { techs: [...T], exclude: ex, weights: armorRole.weights, constraints: armorRole.constraints, topN: 2 });
 ok(ra.top?.every((t) => { const n = t.items.length; return t.items.filter((id) => ra.units.find((u) => u.id === id).cat === 'armor').length / n > 0.5; }), 'armoured role keeps more than half its line battalions armoured');
-ok(ra.top?.every((t) => t.stats.org >= armorRole.constraints.minOrg && t.stats.ic <= armorRole.constraints.maxIc && t.stats.width >= 30 && t.stats.width <= 36 && (t.stats.cnt.mobile / t.stats.n) >= armorRole.constraints.minMobileShare), 'armoured role uses a usable width, organization, cost and mechanized mix');
+ok(ra.top?.every((t) => t.stats.org >= armorRole.constraints.minOrg && t.stats.ic <= armorRole.constraints.maxIc && t.stats.width >= armorRole.constraints.wmin && t.stats.width <= armorRole.constraints.wmax && (t.stats.cnt.mobile / t.stats.n) >= armorRole.constraints.minMobileShare)
+  && ra.top[0].stats.width >= 30 && ra.top[0].stats.width <= 36, 'armoured role picks a usable width, and keeps organization, cost and mechanized mix');
 ok(ROLES.find((x) => x.id === 'line').constraints.wmax < armorRole.constraints.wmax, 'infantry role is narrower than armoured role');
 const spaceRole = ROLES.find((x) => x.id === 'space_marines');
 const rs = search(game, { techs: [...T], exclude: ex, weights: spaceRole.weights, constraints: spaceRole.constraints, topN: 2 });

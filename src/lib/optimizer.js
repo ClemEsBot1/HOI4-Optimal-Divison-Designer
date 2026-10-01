@@ -59,6 +59,7 @@ const I = Object.fromEntries(SK.map((k, i) => [k, i]));
 const K = SK.length;
 const PERKS = ['engineer', 'hospital', 'logistics', 'maintenance', 'signal', 'police'];
 const BOOST_STATS = ['sa', 'ha', 'def', 'brk', 'pier', 'air'];
+const AVERAGED = new Set(['arm', 'pier', 'hard', 'rel']); // terms whose forms are already per battalion (see termForms)
 const MOD_STATS = { sa: 'sa', ha: 'ha', def: 'def', brk: 'brk', hp: 'hp', org: 'org', arm: 'arm', pier: 'pier' };
 
 function lineVec(u) {
@@ -132,6 +133,8 @@ function termForms(term, ctx) {
 }
 
 // ---------------------------------------------------------------- search
+const seedStats = new WeakMap(); // resolved unit set -> template key -> evaluate() result
+
 function rankInsert(list, entry, cap) {
   // keeps `list` sorted by score, best first, at most `cap` long
   let i = list.length;
@@ -143,7 +146,11 @@ function rankInsert(list, entry, cap) {
 
 /**
  * One branch-and-bound run over a resolved unit set.
- * opts: { topN, window, nodeLimit, seeds: [{items, support, reg}] (known good templates to start from) }
+ * opts: { topN, window, nodeLimit, seeds: [{items, support, reg}] (known good templates to start from), tight }
+ * tight: also bound the line search by the organization floor, the armor and mobile counts and each whole width on
+ * its own (see limitsBound). It only prunes branches that cannot win, but a run that stops at its node budget stops
+ * somewhere else with it, so only the proof uses it: the tank-design rounds, which do stop at theirs, keep finding
+ * the same templates and so settle on the same designs.
  */
 function branchAndBound(resolved, P, run) {
   const { byId, columnSize: cs } = resolved;
@@ -338,6 +345,16 @@ function branchAndBound(resolved, P, run) {
   const formCache = new Map();
   const boundLo = new Float64Array(K); const boundHi = new Float64Array(K);
   const tanHiBuf = new Float64Array(K);
+  // what the width-only terms (frontage fit, meta widths) add at best for a final width in [lo, hi], as linearBound has it
+  const widthTerms = terms.some((t) => t.kind === 'frontage' || t.kind === 'meta');
+  const widthScore = (lo, hi) => {
+    let x = 0;
+    for (const t of terms) {
+      if (t.kind === 'frontage') x += termScore(t, hi - lo < 1e-9 ? fitOf(t, lo) || 1 : bestFitIn(t, lo, hi));
+      else if (t.kind === 'meta') x += termScore(t, metaDistanceIn(t, lo, hi));
+    }
+    return x;
+  };
   const linearBound = (Pp, lo, hi, N, ext, convexOut = null, tangentHi = null) => {
     const c = new Float64Array(K);
     let c0 = 0;
@@ -379,6 +396,8 @@ function branchAndBound(resolved, P, run) {
       const [nLo, nHi] = formRange(num, Slo, Shi, num.b + maxLo, num.b + maxHi);
       if (t.dir > 0) {
         let x = tangentFrom ? formValue(num, tangentFrom.S, tangentFrom.N, tangentFrom.armMax, tangentFrom.pierMax, forms.mk) : nHi;
+        // sums grow with the battalion count (averages do not): take the tangent where the incumbent would be at this N
+        if (tangentFrom && run.tight && !AVERAGED.has(t.key)) x *= N / tangentFrom.N;
         // an incumbent at the bottom of the range (a stat it lacks) gives a needlessly steep tangent
         let top = nHi;
         if (tangentHi) { for (let s = 0; s < K; s++) tanHiBuf[s] = Pp[s] + tangentHi[s]; top = Math.max(nLo, formRange(num, Slo, tanHiBuf, num.b + maxLo, num.b + maxHi)[1]); if (top <= nLo * (1 + 1e-9)) top = nHi; }
@@ -480,8 +499,7 @@ function branchAndBound(resolved, P, run) {
     };
 
     const layouts = layoutsFor(ct);
-    const maxMult = Math.max(3, cs);
-        const regVecAt = (j, mult) => {
+    const regVecAt = (j, mult) => {
       const v = new Float64Array(K);
       const base = regBase[j];
       for (let s = 0; s < K; s++) v[s] = base[s] * mult;
@@ -489,23 +507,40 @@ function branchAndBound(resolved, P, run) {
       v[I.regs] = 1;
       return v;
     };
-    const nSup = supports.length;
+    // Slots of one kind and size offer the same companies with the same vectors, so each (pool, size) is built once
+    // per set of battalions and shared by every layout and slot that has it.
+    const vecCache = new Map();
+    const vecAt = (j, b) => { const key = j * 64 + b; let v = vecCache.get(key); if (!v) { v = regVecAt(j, b); vecCache.set(key, v); } return v; };
+    const slotKinds = new Map(); // pool and size -> { b, pool, vecs, lo, hi: the most and least one company adds }
+    const slotKind = (b, pool) => {
+      const key = (pool === regArmor ? 1000 : 0) + b;
+      let x = slotKinds.get(key);
+      if (!x) {
+        const vecs = pool.map((j) => vecAt(j, b));
+        const lo = new Float64Array(K); const hi = new Float64Array(K);
+        for (let s = 0; s < K; s++) { let mx = 0; let mn = 0; for (const v of vecs) { mx = Math.max(mx, v[s]); mn = Math.min(mn, v[s]); } hi[s] = mx; lo[s] = mn; }
+        x = { b, pool, vecs, lo, hi };
+        slotKinds.set(key, x);
+      }
+      return x;
+    };
     // what regimental companies can add, per sum: the best layout for each sum, each slot at its own size
     const regLoAll = new Float64Array(K); const regHiAll = new Float64Array(K);
-    const slotLists = layouts.map((L) => [...L.other.map((b) => ({ b, pool: regOther })), ...L.armor.map((b) => ({ b, pool: regArmor }))]);
-    const slotVecs = slotLists.map((sl) => sl.map((x) => x.pool.map((j) => regVecAt(j, x.b))));
+    const slotLists = layouts.map((L) => [...L.other.map((b) => slotKind(b, regOther)), ...L.armor.map((b) => slotKind(b, regArmor))]);
     for (let s = 0; s < K; s++) {
-      for (const vs of slotVecs) {
+      for (const sl of slotLists) {
         let h = 0; let l = 0;
-        for (const opts of vs) { let mx = 0; let mn = 0; for (const v of opts) { mx = Math.max(mx, v[s]); mn = Math.min(mn, v[s]); } h += mx; l += mn; }
+        for (const x of sl) { h += x.hi[s]; l += x.lo[s]; }
         regHiAll[s] = Math.max(regHiAll[s], h); regLoAll[s] = Math.min(regLoAll[s], l);
       }
     }
+    const kinds = [...slotKinds.values()];
     const regGainBound = (c) => {
+      for (const x of kinds) { let mx = 0; for (const v of x.vecs) mx = Math.max(mx, dot(c, v)); x.gain = mx; }
       let best = 0;
-      for (const vs of slotVecs) {
+      for (const sl of slotLists) {
         let g = 0;
-        for (const opts of vs) { let mx = 0; for (const v of opts) mx = Math.max(mx, dot(c, v)); g += mx; }
+        for (const x of sl) g += x.gain;
         best = Math.max(best, g);
       }
       return best;
@@ -575,27 +610,22 @@ function branchAndBound(resolved, P, run) {
 
     // regimental stage: for each layout, fill the first slots in order with distinct companies
     // per layout: each slot's candidate companies with their vectors at that slot's size, and what the slots from
-    // k onwards can add at most / least (ignoring that a company can only be used once, which only loosens it)
-    const vecCache = new Map();
-    const vecAt = (j, b) => { const key = j * 64 + b; let v = vecCache.get(key); if (!v) { v = regVecAt(j, b); vecCache.set(key, v); } return v; };
-    const plans = layouts.map((L) => {
-      const slots = [...L.other.map((b) => ({ b, pool: regOther })), ...L.armor.map((b) => ({ b, pool: regArmor }))]
-        .map((x) => ({ ...x, vecs: x.pool.map((j) => vecAt(j, x.b)) }));
+    // k onwards can add at most / least (ignoring that a company can only be used once, which only loosens it).
+    // Built on first use: most sets of battalions never get past the support stage.
+    let plans = null;
+    const buildPlans = () => slotLists.map((slots) => {
       const sufLo = []; const sufHi = [];
       for (let k = slots.length; k >= 0; k--) {
         const lo = new Float64Array(K); const hi = new Float64Array(K);
         if (k < slots.length) {
-          for (let s = 0; s < K; s++) {
-            let mn = 0; let mx = 0;
-            for (const v of slots[k].vecs) { if (v[s] < mn) mn = v[s]; if (v[s] > mx) mx = v[s]; }
-            lo[s] = sufLo[0][s] + mn; hi[s] = sufHi[0][s] + mx;
-          }
+          for (let s = 0; s < K; s++) { lo[s] = sufLo[0][s] + slots[k].lo[s]; hi[s] = sufHi[0][s] + slots[k].hi[s]; }
         }
         sufLo.unshift(lo); sufHi.unshift(hi);
       }
       return { slots, sufLo, sufHi };
     });
     const regStage = () => {
+      if (!plans) plans = buildPlans();
       for (const { slots, sufLo, sufHi } of plans) {
         if (aborted) return;
         const used = new Set();
@@ -652,12 +682,27 @@ function branchAndBound(resolved, P, run) {
   // ---- seeds: known templates give the search a score to beat (and a point to take its bounds at) from the start ----
   // Cheap starting points so the bar is not empty: one or two line units filling the width, with or without the
   // best-looking single support company. They only speed the search up; they never decide the answer.
+  // The seed templates overlap a lot (and each is looked at more than once, by every run on the same units), so
+  // their stats are worked out once.
+  let evalCache = seedStats.get(resolved);
+  if (!evalCache || evalCache.mods !== P.mods || evalCache.opts !== P.opts) {
+    evalCache = Object.assign(new Map(), { mods: P.mods, opts: P.opts });
+    seedStats.set(resolved, evalCache);
+  }
+  const evalSeed = (tpl) => {
+    const key = `${tpl.items.join(',')}|${tpl.support.join(',')}|${tpl.reg.join(',')}`;
+    if (!evalCache.has(key)) evalCache.set(key, evaluate(tpl, byId, P.mods, P.opts, cs));
+    return evalCache.get(key);
+  };
   const heuristicSeeds = () => {
     const out = [];
+    const colOf = new Map(line.map((u) => [u.id, COLUMN_TYPES.indexOf(u.cat)]));
+    const colCt = new Array(COLUMN_TYPES.length);
     const colsOk = (items) => {
-      const ct = Object.fromEntries(COLUMN_TYPES.map((t) => [t, 0]));
-      for (const id of items) ct[byId.get(id).cat]++;
-      return COLUMN_TYPES.reduce((n, t) => n + Math.ceil(ct[t] / cs), 0) <= MAX_COLUMNS;
+      colCt.fill(0);
+      for (const id of items) colCt[colOf.get(id)]++;
+      let n = 0; for (const x of colCt) n += Math.ceil(x / cs);
+      return n <= MAX_COLUMNS;
     };
     // fill to the widest legal width and to each meta width in range
     const caps = [...new Set([C.wmax, ...(C.metaWidths || []).filter((m) => m >= C.wmin - 1e-9 && m <= C.wmax + 1e-9)])];
@@ -676,21 +721,21 @@ function branchAndBound(resolved, P, run) {
     for (const a of line) for (const items of fills(a, a, 0)) {
       for (const sup of supportOpts) {
         const tpl = { items, support: sup, reg: [] };
-        const st = evaluate(tpl, byId, P.mods, P.opts, cs);
+        const st = evalSeed(tpl);
         scored.push({ a, st, tpl, ok: st && st.valid && feasible(st) && shareOk(st.cnt, st.n, C) });
       }
     }
     const top = [...new Set(scored.sort((x, y) => (y.st ? utility(y.st, terms, enemy) : -1e9) - (x.st ? utility(x.st, terms, enemy) : -1e9)).map((x) => x.a))].slice(0, 8);
     // the best few also get a greedy pass over support and regimental companies
     const improve = (tpl) => {
-      let cur = tpl; let st = evaluate(cur, byId, P.mods, P.opts, cs); let sc = st && st.valid && feasible(st) ? utility(st, terms, enemy) : -Infinity;
+      let cur = tpl; let st = evalSeed(cur); let sc = st && st.valid && feasible(st) ? utility(st, terms, enemy) : -Infinity;
       for (let round = 0; round < 10; round++) {
         let bestT = null; let bestS = sc;
         const tries = [];
         for (const u of regs) if (!cur.reg.includes(u.id)) tries.push({ ...cur, reg: [...cur.reg, u.id] });
         for (const u of supports) if (!cur.support.includes(u.id) && cur.support.length < MAX_SUPPORT && cur.support.every((id) => !supportConflict(byId.get(id), u))) tries.push({ ...cur, support: [...cur.support, u.id] });
         for (const t of tries) {
-          const s2 = evaluate(t, byId, P.mods, P.opts, cs);
+          const s2 = evalSeed(t);
           if (!s2 || !s2.valid || !feasible(s2)) continue;
           const v = utility(s2, terms, enemy);
           if (v > bestS + 1e-12) { bestS = v; bestT = t; }
@@ -709,7 +754,7 @@ function branchAndBound(resolved, P, run) {
     }
     // the best few feasible ones also get a greedy pass over support and regimental companies
     const ranked0 = out.map((tpl) => {
-      const st = evaluate(tpl, byId, P.mods, P.opts, cs);
+      const st = evalSeed(tpl);
       return { tpl, v: st && st.valid && feasible(st) && shareOk(st.cnt, st.n, C) ? utility(st, terms, enemy) : -Infinity };
     }).filter((x) => x.v > -Infinity).sort((a, b) => b.v - a.v);
     for (const x of ranked0.slice(0, 6)) out.push(improve(x.tpl));
@@ -719,7 +764,7 @@ function branchAndBound(resolved, P, run) {
   const seedPool = [];
   for (const seed of [...(run.seeds || []), ...hs]) {
     if (!seed.items.every((id) => byId.has(id)) || !seed.support.every((id) => byId.has(id)) || !seed.reg.every((id) => byId.has(id))) continue;
-    const st = evaluate(seed, byId, P.mods, P.opts, cs);
+    const st = evalSeed(seed);
     if (!st || !st.valid || !feasible(st) || !shareOk(st.cnt, st.n, C)) continue;
     const score = utility(st, terms, enemy);
     const entry = { score, tpl: seed, st, archetype: archetypeOf(seed.items, byId), seed: true };
@@ -744,6 +789,7 @@ function branchAndBound(resolved, P, run) {
   const Nmax = Math.min(MAX_COLUMNS * cs, minW > 0 && Number.isFinite(minW) ? Math.floor((C.wmax + 1e-9) / minW) : MAX_COLUMNS * cs);
   const Nmin = Math.max(1, maxW > 0 ? Math.ceil((C.wmin - 1e-9) / maxW) : 1);
   const lvec = line.map(lineVec);
+  const intWidths = line.every((u) => Number.isInteger(u.width));
 
   // company bound pieces that do not depend on the line
   const supHiBase = new Float64Array(K); const supLoBase = new Float64Array(K);
@@ -769,27 +815,47 @@ function branchAndBound(resolved, P, run) {
    * The best use of that room is a fractional knapsack, which bounds what companies can add.
    */
   const orgFloor = C.minOrg && dilutes ? C.minOrg / mods.org : 0;
+  // Organization the line battalions must average on their own: companies can only pull the average down when none
+  // of them reaches the floor (or when they do not count towards it at all).
+  const orgLine = C.minOrg && mods.org > 0 && !(dilutes && mods.org * companyOrgRatio >= C.minOrg - 1e-9) ? (C.minOrg - 1e-9) / mods.org : 0;
+  // scratch space for the knapsack: it runs at every node, so it allocates nothing
+  const kG = new Float64Array(supports.length + regs.length); const kW = new Float64Array(kG.length); const kCap = new Float64Array(kG.length);
+  const kCostly = [];
+  const kByRatio = (a, b) => kG[b] / kW[b] - kG[a] / kW[a];
   const roomBound = (room, supGain, regGainPerBattalion, regBattalions, supWeight, regWeight) => {
-    const items = [];
-    for (let j = 0; j < supports.length; j++) { const g = supGain(j); if (g > 0) items.push({ g, w: supWeight(j), cap: 1 }); }
-    for (let j = 0; j < regs.length; j++) { const g = regGainPerBattalion(j); if (g > 0) items.push({ g, w: regWeight(j), cap: regBattalions }); }
+    let n = 0;
+    for (let j = 0; j < supports.length; j++) { const g = supGain[j]; if (g > 0) { kG[n] = g; kW[n] = supWeight[j]; kCap[n] = 1; n++; } }
+    for (let j = 0; j < regs.length; j++) { const g = regGainPerBattalion[j]; if (g > 0) { kG[n] = g; kW[n] = regWeight[j]; kCap[n] = regBattalions; n++; } }
     let total = 0; let left = Math.max(0, room);
-    const costly = [];
-    for (const it of items) { if (it.w <= 0) total += it.g * it.cap; else costly.push(it); }
-    costly.sort((a, b) => b.g / b.w - a.g / a.w);
-    for (const it of costly) { if (left <= 0) break; const x = Math.min(it.cap, left / it.w); total += x * it.g; left -= x * it.w; }
+    kCostly.length = 0;
+    for (let i = 0; i < n; i++) { if (kW[i] <= 0) total += kG[i] * kCap[i]; else kCostly.push(i); }
+    kCostly.sort(kByRatio);
+    for (const i of kCostly) { if (left <= 0) break; const x = Math.min(kCap[i], left / kW[i]); total += x * kG[i]; left -= x * kW[i]; }
     return total;
   };
+  const supOrgW = supports.map((u) => orgFloor - u.org); const regOrgW = regs.map((u) => orgFloor - u.org);
+  const supIcW = supports.map((u) => u.ic); const regIcW = regs.map((u) => u.ic);
+  // supGain and regGainPerBattalion are arrays indexed like supports and regs
   const orgRoomBound = (room, supGain, regGainPerBattalion, regBattalions) => (orgFloor
-    ? roomBound(room, supGain, regGainPerBattalion, regBattalions, (j) => orgFloor - supports[j].org, (j) => orgFloor - regs[j].org)
+    ? roomBound(room, supGain, regGainPerBattalion, regBattalions, supOrgW, regOrgW)
     : Infinity);
   // the same with the cost cap: companies must fit in the production cost the battalions leave free
   const icRoomBound = (room, supGain, regGainPerBattalion, regBattalions) => (C.maxIc
-    ? roomBound(room, supGain, regGainPerBattalion, regBattalions, (j) => supports[j].ic, (j) => regs[j].ic)
+    ? roomBound(room, supGain, regGainPerBattalion, regBattalions, supIcW, regIcW)
     : Infinity);
-  const supportGainBound = (gainOf) => {
-    const g = supGroups.map((grp) => Math.max(...grp.map(gainOf))).filter((x) => x > 0).sort((a, b) => b - a);
-    let t = 0; for (let k = 0; k < Math.min(MAX_SUPPORT, g.length); k++) t += g[k];
+  // the best MAX_SUPPORT groups, one company from each; gain is an array indexed like supports
+  const topGain = new Float64Array(MAX_SUPPORT);
+  const supportGainBound = (gain) => {
+    let n = 0;
+    for (const grp of supGroups) {
+      let x = -Infinity; for (const j of grp) if (gain[j] > x) x = gain[j];
+      if (!(x > 0)) continue;
+      // keep the largest MAX_SUPPORT, largest first
+      let p = n < MAX_SUPPORT ? n++ : MAX_SUPPORT;
+      while (p > 0 && topGain[p - 1] < x) { if (p < MAX_SUPPORT) topGain[p] = topGain[p - 1]; p--; }
+      if (p < MAX_SUPPORT) topGain[p] = x;
+    }
+    let t = 0; for (let k = 0; k < n; k++) t += topGain[k];
     return t;
   };
   const maxMultAll = Math.max(3, cs);
@@ -857,8 +923,53 @@ function branchAndBound(resolved, P, run) {
     // scratch buffers for the bound (reused at every node)
     const MAXC = 2 * terms.length + 2;
     const conv = []; const Lp = new Float64Array(MAXC); const compX = new Float64Array(MAXC); const Lmax = new Float64Array(MAXC); const slopeB = new Float64Array(MAXC);
-    const gsB = new Float64Array(T); const wsB = new Float64Array(T); const dLB = new Float64Array(T * MAXC);
+    const gsB = new Float64Array(T); const wsB = new Float64Array(T);
+    // every vertex of the line bound: its value and the one or two units it takes
+    const vA = new Float64Array(T + T * T); const vO = new Float64Array(T + T * T);
+    const vI = new Int32Array(T + T * T); const vJ = new Int32Array(T + T * T); const vXi = new Float64Array(T + T * T); const vXj = new Float64Array(T + T * T);
+    /*
+     * One linear limit on the mix of vertices: its slack vO (>= 0 where the limit holds) is linear in the mix. Every
+     * multiplier lambda >= 0 gives the bound max over vertices of vA + lambda * vO, and the best one sits where a vertex
+     * that meets the limit and one that breaks it give the same value (the best mix of the two that just meets it).
+     * Folds that multiplier into vA, so limits taken one after another bound the node together, and returns the new
+     * max of vA (-Infinity when no mix can meet the limit).
+     */
+    const mixLimit = (nv) => {
+      let feas = -Infinity;
+      for (let a = 0; a < nv; a++) if (vO[a] >= 0 && vA[a] > feas) feas = vA[a];
+      if (feas === -Infinity) return -Infinity;
+      let ub = feas; let lambda = 0;
+      for (let b = 0; b < nv; b++) {
+        if (vO[b] >= 0 || vA[b] <= ub) continue;
+        for (let a = 0; a < nv; a++) {
+          if (vO[a] < 0 || vA[a] >= vA[b]) continue;
+          const m = (vA[a] * -vO[b] + vA[b] * vO[a]) / (vO[a] - vO[b]);
+          if (m > ub) { ub = m; lambda = (vA[b] - vA[a]) / (vO[a] - vO[b]); }
+        }
+      }
+      if (lambda > 0) {
+        let mx = -Infinity;
+        for (let a = 0; a < nv; a++) { vA[a] += lambda * vO[a]; if (vA[a] > mx) mx = vA[a]; }
+        return mx;
+      }
+      return ub;
+    };
+    // Each convex term's linear form, applied to every line unit and company. The forms are the same at every node of
+    // one N, so these are computed once (and again only if the forms ever change).
+    let convA = []; const dL = new Float64Array(T * MAXC);
+    const supX = new Float64Array(supports.length * MAXC); const regX = new Float64Array(regs.length * MAXC);
+    const formOn = (a, v) => { let x = 0; for (const [s2, w] of a) x += w * v[s2]; return x; };
+    const convSync = () => {
+      if (convA.length === conv.length && conv.every((f, k) => f.a === convA[k])) return;
+      convA = conv.map((f) => f.a);
+      for (let k = 0; k < conv.length; k++) {
+        for (let p = 0; p < T; p++) dL[p * MAXC + k] = formOn(convA[k], L[p].v);
+        for (let j = 0; j < supports.length; j++) supX[j * MAXC + k] = formOn(convA[k], supVec[j]);
+        for (let j = 0; j < regs.length; j++) regX[j * MAXC + k] = formOn(convA[k], regBase[j]);
+      }
+    };
     const nzB = new Int32Array(K); const supAdj = new Float64Array(supports.length); const regAdj = new Float64Array(regs.length);
+    const regPer = new Float64Array(regs.length);
     for (let s2 = 0; s2 < K; s2++) { compLo[s2] = supLoBase[s2] + regLoBase[s2]; compHi[s2] = supHiBase[s2] + regHiBase[s2]; }
     const cnt = new Array(T).fill(0);
     const ct = [0, 0, 0, 0, 0];
@@ -870,13 +981,15 @@ function branchAndBound(resolved, P, run) {
     const colsUsed = () => { let n = 0; for (let t = 0; t < 5; t++) n += Math.ceil(ct[t] / cs); return n; };
 
     // at a complete set of battalions: bound over every company choice before searching them
+    const leafGain = new Float64Array(supports.length);
     const lineLeafBound = () => {
       for (let s = 0; s < K; s++) { lo[s] = supLoBase[s] + regLoBase[s]; hi[s] = supHiBase[s] + regHiBase[s]; }
       if (infeasible(S, lo, hi, -Infinity)) return -Infinity;
       const ext = { armHi: armMax, armLo: armMax, pierHi: pierMax + (anyPierBoost ? pierMax : 0), pierLo: pierMax, spdHi: spdMin < Infinity ? spdMin : 0 };
       const { c, c0 } = linearBound(S, lo, hi, N, ext);
       let ub = c0;
-      ub += supportGainBound((j) => dot(c, supVec[j]));
+      for (let j = 0; j < supports.length; j++) leafGain[j] = dot(c, supVec[j]);
+      ub += supportGainBound(leafGain);
       // regimental companies on the slots this set of battalions actually has
       let rg = 0;
       for (const L of layoutsFor(ct)) {
@@ -938,6 +1051,7 @@ function branchAndBound(resolved, P, run) {
       for (let s2 = 0; s2 < K; s2++) lineHi[s2] = r * sq.max[s2];
       const { c, c0 } = linearBound(S, lo, hi, N, ext, conv, lineHi);
       const nC = conv.length;
+      convSync();
       for (let k = 0; k < nC; k++) {
         const f = conv[k];
         let lp = f.b; let clo = 0; let chi = 0;
@@ -952,9 +1066,10 @@ function branchAndBound(resolved, P, run) {
         for (let z = 0; z < nnz; z++) g += c[nzB[z]] * v[nzB[z]];
         if (anyBoost) g += dot(c, L[p].boost);
         gsB[i] = g; wsB[i] = L[p].u.width;
-        for (let k = 0; k < nC; k++) { let x = 0; for (const [s2, a] of conv[k].a) x += a * L[p].v[s2]; dLB[i * MAXC + k] = x; }
       }
+      const dLB = q ? dL.subarray(q * MAXC) : dL;
       let lineUb = -Infinity;
+      let nv = 0;
       const vertex = (g, i, xi, j, xj) => {
         let v = g;
         for (let k = 0; k < nC; k++) {
@@ -963,6 +1078,7 @@ function branchAndBound(resolved, P, run) {
           if (x > Lmax[k]) Lmax[k] = x;
         }
         if (v > lineUb) lineUb = v;
+        vA[nv] = v; vI[nv] = i; vXi[nv] = xi; vJ[nv] = j; vXj[nv] = xj; nv++;
       };
       let anyWide = false;
       for (let i = 0; i < nT; i++) {
@@ -981,14 +1097,42 @@ function branchAndBound(resolved, P, run) {
         }
       }
       if (lineUb === -Infinity) return;
+      // Limits that are linear in how many of each unit we add (the organization the battalions must bring, the armor
+      // and mobile counts) cut the vertices' hull down: limitsBound takes them one after another (see mixLimit).
+      // Overwrites vA.
+      const limitsBound = (ub) => {
+        let m = Infinity;
+        if (orgLine) {
+          for (let a = 0; a < nv; a++) vO[a] = vXi[a] * L[q + vI[a]].v[I.org] + (vJ[a] >= 0 ? vXj[a] * L[q + vJ[a]].v[I.org] : 0) - (orgLine * N - S[I.org]);
+          m = mixLimit(nv);
+        }
+        const shareLimit = (col, sign, room) => {
+          if (m === -Infinity) return;
+          for (let a = 0; a < nv; a++) vO[a] = sign * ((L[q + vI[a]].col === col ? vXi[a] : 0) + (vJ[a] >= 0 && L[q + vJ[a]].col === col ? vXj[a] : 0)) - room;
+          m = mixLimit(nv);
+        };
+        if (armorMin > ct[armorCol]) shareLimit(armorCol, 1, armorMin - ct[armorCol]);
+        if (armorMax < ct[armorCol] + r) shareLimit(armorCol, -1, ct[armorCol] - armorMax);
+        if (mobileMin > ct[mobileCol]) shareLimit(mobileCol, 1, mobileMin - ct[mobileCol]);
+        if (mobileMax < ct[mobileCol] + r) shareLimit(mobileCol, -1, ct[mobileCol] - mobileMax);
+        return Math.min(ub, m);
+      };
+      if (run.tight) {
+        lineUb = limitsBound(lineUb);
+        if (lineUb === -Infinity) return;
+      }
       // companies: their share of the convex terms is bounded by the flattest chord any vertex allows
       for (let k = 0; k < nC; k++) slopeB[k] = compX[k] > 1e-12 ? -conv[k].w * (Math.log(Lmax[k] + compX[k]) - Math.log(Lmax[k] > 1e-9 ? Lmax[k] : 1e-9)) / compX[k] : 0;
-      const adj = (v) => { let g = dot(c, v); for (let k = 0; k < nC; k++) { let x = 0; for (const [s2, a] of conv[k].a) x += a * v[s2]; g += slopeB[k] * x; } return g; };
-      for (let j = 0; j < supports.length; j++) supAdj[j] = adj(supVec[j]);
-      for (let j = 0; j < regs.length; j++) regAdj[j] = adj(regBase[j]);
+      const adj = (v, X, j) => {
+        let g = 0; for (let z = 0; z < nnz; z++) g += c[nzB[z]] * v[nzB[z]];
+        for (let k = 0; k < nC; k++) g += slopeB[k] * X[j * MAXC + k];
+        return g;
+      };
+      for (let j = 0; j < supports.length; j++) supAdj[j] = adj(supVec[j], supX, j);
+      for (let j = 0; j < regs.length; j++) regAdj[j] = adj(regBase[j], regX, j);
       let compUb = 0;
       {
-        compUb += supportGainBound((j) => supAdj[j]);
+        compUb += supportGainBound(supAdj);
         // regimental companies scale with the battalions in their column, and no battalion is in two columns
         const slotsMax = Math.min(MAX_COLUMNS, Math.floor(N / 3));
         let perBattalion = 0; let perCompany = 0;
@@ -996,20 +1140,53 @@ function branchAndBound(resolved, P, run) {
         if (slotsMax > 0) perCompany = Math.max(0, c[I.regs]);
         const regBattalions = Math.min(N, slotsMax * maxMultAll);
         compUb += perBattalion * regBattalions + perCompany * slotsMax;
-        const regPer = (j) => regAdj[j] + (slotsMax ? perCompany / 3 : 0);
+        for (let j = 0; j < regs.length; j++) regPer[j] = regAdj[j] + (slotsMax ? perCompany / 3 : 0);
         // the organization floor may leave room for far fewer companies
         if (orgFloor) {
-          const knap = orgRoomBound(S[I.org] + remOrg - N * orgFloor, (j) => supAdj[j], regPer, regBattalions);
+          const knap = orgRoomBound(S[I.org] + remOrg - N * orgFloor, supAdj, regPer, regBattalions);
           if (knap < compUb) compUb = knap;
         }
         if (C.maxIc) {
-          const knap2 = icRoomBound(C.maxIc - S[I.ic] - r * sq.min[I.ic], (j) => supAdj[j], regPer, regBattalions);
+          const knap2 = icRoomBound(C.maxIc - S[I.ic] - r * sq.min[I.ic], supAdj, regPer, regBattalions);
           if (knap2 < compUb) compUb = knap2;
         }
         if (anyBoost) for (let s2 = 0; s2 < K; s2++) if (c[s2] > 0) compUb += c[s2] * placedBoost[s2];
       }
-      const nodeUb = c0 + lineUb + compUb;
+      let nodeUb = c0 + lineUb + compUb;
       if (nodeUb <= threshold() + tol) return;
+      if (run.tight && widthTerms && intWidths) {
+        // The frontage and meta terms above took the best width in reach, whatever the battalions it takes. Bound
+        // each whole width the battalions can end on instead, with the vertices that end exactly there.
+        const Wlo = Math.max(Math.ceil(C.wmin - 1e-9), S[I.width] + r * sq.wMin);
+        const Whi = Math.min(Math.floor(C.wmax + 1e-9), S[I.width] + r * sq.wMax);
+        const base = c0 - widthScore(S[I.width] + lo[I.width], S[I.width] + hi[I.width]) + compUb;
+        const bar = threshold() + tol;
+        let best = -Infinity;
+        for (let W = Wlo; W <= Whi; W++) {
+          if (!widthOk(W)) continue;
+          const hW = widthScore(W, W);
+          if (base + hW + lineUb <= bar) continue;
+          const room = W - S[I.width];
+          const avg = room / r;
+          nv = 0; let ubW = -Infinity;
+          const keep = lineUb; lineUb = -Infinity;
+          for (let i = 0; i < nT; i++) if (Math.abs(r * wsB[i] - room) < 1e-9) vertex(r * gsB[i], i, r, -1, 0);
+          for (let i = 0; i < nT; i++) {
+            if (wsB[i] <= avg + 1e-9) continue;
+            for (let j = 0; j < nT; j++) {
+              if (wsB[j] >= avg - 1e-9) continue;
+              const x1 = (room - r * wsB[j]) / (wsB[i] - wsB[j]); const x2 = r - x1;
+              vertex(x1 * gsB[i] + x2 * gsB[j], i, x1, j, x2);
+            }
+          }
+          ubW = lineUb; lineUb = keep;
+          if (ubW === -Infinity) continue;
+          ubW = limitsBound(ubW);
+          if (base + hW + ubW > best) best = base + hW + ubW;
+          if (best > bar) break; // the node stays open; its bound is the one above
+        }
+        if (best <= bar) return;
+      }
       if (aborted) { leaveOpen(nodeUb); return; }
 
       const x0 = L[q];
@@ -1101,12 +1278,12 @@ function proofRun(resolved, P, { nodeLimit, seeds, tolerance, onTick }) {
   const all = [...seeds];
   let used = 0;
   for (const w of probes) {
-    const r = branchAndBound(resolved, { ...P, C: { ...C, wmin: w, wmax: w } }, { topN: 1, window: 0, nodeLimit: META_PROBE_NODES, seeds, tolerance });
+    const r = branchAndBound(resolved, { ...P, C: { ...C, wmin: w, wmax: w } }, { topN: 1, window: 0, nodeLimit: META_PROBE_NODES, seeds, tolerance, tight: true });
     used += r.nodes;
     if (r.ranked[0]) all.push(r.ranked[0].tpl);
   }
   return branchAndBound(resolved, P, {
-    topN: 1, window: 0, nodeLimit: Math.max(META_PROBE_NODES, nodeLimit - used), seeds: all, tolerance,
+    topN: 1, window: 0, nodeLimit: Math.max(META_PROBE_NODES, nodeLimit - used), seeds: all, tolerance, tight: true,
     onTick: onTick ? (n) => onTick(used + n) : undefined,
   });
 }
