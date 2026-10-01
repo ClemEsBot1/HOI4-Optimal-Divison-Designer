@@ -354,18 +354,22 @@ function designSpace(game, chassisId, role, open) {
 /** Drop items whose oriented vector is no better than another's everywhere (keeps the first of equal ones). */
 function paretoKeep(items, vec) {
   const vs = items.map(vec);
-  const order = items.map((_, i) => i).sort((a, b) => vs[b].reduce((x, y) => x + y, 0) - vs[a].reduce((x, y) => x + y, 0));
+  const sums = vs.map((v) => v.reduce((x, y) => x + y, 0));
+  const order = items.map((_, i) => i).sort((a, b) => sums[b] - sums[a]);
+  // the kept vectors, packed, so the dominance test runs over one typed array
+  const D = vs.length ? vs[0].length : 0;
+  const kept = new Float64Array(items.length * D);
   const keep = [];
+  let first = 0; // the dimension that last told two vectors apart is the likeliest to do it again: test it first
   for (const i of order) {
     const v = vs[i];
     let dominated = false;
-    for (const j of keep) {
-      const w = vs[j];
+    for (let q = 0, off = 0; q < keep.length; q++, off += D) {
       let ge = true;
-      for (let d = 0; d < v.length; d++) if (w[d] < v[d] - 1e-12) { ge = false; break; }
+      for (let e = 0, d = first; e < D; e++, d = d + 1 === D ? 0 : d + 1) if (kept[off + d] < v[d] - 1e-12) { ge = false; first = d; break; }
       if (ge) { dominated = true; break; }
     }
-    if (!dominated) keep.push(i);
+    if (!dominated) { kept.set(v, keep.length * D); keep.push(i); }
   }
   return keep.map((i) => items[i]);
 }
@@ -405,10 +409,20 @@ export function designSearch(game, techSet, chassisId, role, open, score, dirs =
   const add = (ids, k) => { let x = 0; for (const id of ids) if (id) x += num(game.raw.modules[id].add[k]); return x; };
   const mul = (ids, k) => { let x = 0; for (const id of ids) if (id) x += num(game.raw.modules[id].mul[k]); return x; };
   // oriented (addition, multiplier) vector over the stats that matter; 'both' stats must match exactly
+  const raw = new Map(); // module id -> its additions and multipliers over R
+  const rawOf = (id) => {
+    let x = raw.get(id);
+    if (!x) { const m = game.raw.modules[id]; x = { a: R.map((k) => num(m.add[k])), m: R.map((k) => num(m.mul[k])) }; raw.set(id, x); }
+    return x;
+  };
   const oriented = (ids) => {
+    const xs = [];
+    for (const id of ids) if (id) xs.push(rawOf(id));
     const v = [];
-    for (const k of R) {
-      const a = add(ids, k); const m = mul(ids, k);
+    for (let i = 0; i < R.length; i++) {
+      const k = R[i];
+      let a = 0; let m = 0;
+      for (const x of xs) { a += x.a[i]; m += x.m[i]; }
       if (dirs[k] === 'both') v.push(a, -a, m, -m);
       else v.push(dirs[k] * a, dirs[k] * m);
     }
