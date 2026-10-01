@@ -471,3 +471,12 @@ table.rank { border-collapse: collapse; width: 100%; font-size: .86rem; }
   .type-group { grid-template-columns: 1fr; gap: .25rem; }
   .type-group-name { padding-top: 0; }
 }
+.note.warn-note { color: var(--warn); }
+.panel.crash .panel-body { padding: 1.2rem 1.4rem; }
+.crash-detail { margin: .8rem 0; padding: .6rem .8rem; border: 1px solid var(--line); border-radius: 8px; font-family: var(--mono); font-size: .78rem; white-space: pre-wrap; overflow-wrap: anywhere; color: #ef9b8f; }
+.mini-add { color: var(--green); margin-right: .2rem; }
+.rank tbody tr.pickable { cursor: pointer; }
+.saved-list { list-style: none; margin: 0 0 .6rem; padding: 0; display: grid; gap: .45rem; }
+.saved-list li { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.saved-list input { flex: 1 1 14rem; min-width: 0; }
+.saved-list small { color: var(--dim); font-family: var(--mono); font-size: .7rem; }

@@ -49,6 +49,15 @@ ok(collectModifiers(game, T, { grands: [], slots: {}, progress: {} }).columnBonu
 const st = { r: 'line', w: { sa: 5 }, c: { wmin: 20 }, t: [...T], d: doctrine, m: {}, o: {}, ax: ['sa', 'def'] };
 const back = decodeState(encodeState(st, game), game);
 ok(back.t && back.t.size === T.size && [...T].every((x) => back.t.has(x)), 'share link keeps every researched tech');
+{
+  const withView = decodeState(encodeState({ ...st, v: 'equipment' }, game), game);
+  ok(withView.v === 'equipment' && withView.t && withView.t.size === T.size, 'share link keeps the open view');
+  // a link from before the data stamp moved out of `v` still restores its research
+  const json = JSON.parse(Buffer.from(encodeState(st, game).replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString());
+  const legacy = Buffer.from(JSON.stringify({ ...json, ds: undefined, v: json.ds })).toString('base64');
+  const old = decodeState(legacy, game);
+  ok(old.t && old.t.size === T.size && old.v === undefined, 'an older share link still restores its research');
+}
 
 // search result matches a fresh evaluation
 const r = search(game, { techs: [...T], weights: { sa: 5, def: 8, org: 6, ic: 4 }, constraints: { wmin: 20, wmax: 20 }, topN: 3 });

@@ -84,8 +84,8 @@ everywhere: theatre, research year and designer mode. Every panel folds away, an
   keeps its chassis, hull or airframe and what the design must carry, and the search runs again.
 - **Reliable tanks.** Stacked reliability penalties can push a tank design to 0%; recommended designs keep at least 60%
   whenever any legal design can.
-- **Saved templates, copy as text.** Save any result or draft (kept in your browser) and copy a template as plain text.
-- **Shareable setups.** The whole setup (goal, limits, research, doctrine, theatre, view) is stored in the link.
+- **Saved templates, copy as text.** Save any result or draft (kept in your browser), rename it, reopen it as a manual draft, and copy a template as plain text.
+- **Shareable setups.** The whole setup (goal, limits, research, doctrine, theatre, view) is stored in the link. Reset in the command bar goes back to the defaults.
 - **Manual bonuses.** Type in percentage bonuses for leaders, national spirits and anything else the data does not model.
 
 ## How the numbers work
@@ -133,6 +133,8 @@ Not modelled: national focus techs, leaders, terrain, the land cruiser, flame ta
 npm install
 npm run dev
 ```
+
+GitHub Actions runs `npm run check` and `npm run build` on every pull request.
 
 ## Update the data after a patch
 
