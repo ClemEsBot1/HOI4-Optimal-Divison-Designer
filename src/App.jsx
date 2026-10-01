@@ -275,13 +275,14 @@ export default function App() {
     setSaved((cur) => { const next = [entry, ...cur].slice(0, 40); writeStore('dd.saved', next); return next; });
     flash('saved');
   };
+  const renameSaved = (id, name) => setSaved((cur) => { const next = cur.map((s) => (s.id === id ? { ...s, name } : s)); writeStore('dd.saved', next); return next; });
   const removeSaved = (id) => setSaved((cur) => { const next = cur.filter((s) => s.id !== id); writeStore('dd.saved', next); return next; });
 
   const version = /^unknown/.test(game.meta.gameVersion) ? null : game.meta.gameVersion;
   const ctx = {
     game, mode, setMode: switchMode, roleId, applyRole, weights, setWeight, constraints, setCons, enemy, setEnemy, exclude, setExclude,
     mods, setMods, opts, setOpts, scale, setScale, res, result, running, tick, selected, setSelected, byId, shown, why, topKeys,
-    axisX, setAxisX, axisY, setAxisY, copyLink, copyText, copied, saveTemplate, saved, removeSaved, manual, setManual, role,
+    axisX, setAxisX, axisY, setAxisY, copyLink, copyText, copied, saveTemplate, saved, removeSaved, renameSaved, manual, setManual, role,
     theatre, theatreState, fitOf, fitWidths, go, designsUsed, pickKey,
   };
 

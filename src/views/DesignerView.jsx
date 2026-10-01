@@ -299,7 +299,7 @@ function SearchMain(ctx) {
                   const d = describeTemplate(t, byId);
                   const on = selected?.key === t.key;
                   return (
-                    <tr key={t.key} className={on ? 'on' : ''}>
+                    <tr key={t.key} className={'pickable' + (on ? ' on' : '')} onClick={() => pickTemplate(t)}>
                       <td><button type="button" className="rowbtn" aria-pressed={on} onClick={() => pickTemplate(t)}>{i + 1}</button></td>
                       <td className="txt">{t.archetypeLabel || ''}</td>
                       <td className="txt">{d.combat}</td>
@@ -367,7 +367,7 @@ function ManualMain(ctx) {
 const COMPARE_KEYS = ['width', 'sa', 'ha', 'brk', 'def', 'org', 'hp', 'arm', 'pier', 'hard', 'spd', 'rel', 'ic', 'mp', 'sup', 'trucks'];
 
 function CompareMain(ctx) {
-  const { res, result, byId, saved, removeSaved, manual, fitOf, theatre } = ctx;
+  const { res, result, byId, saved, removeSaved, renameSaved, manual, setManual, setMode, fitOf, theatre } = ctx;
   const candidates = useMemo(() => {
     if (!res?.top || !byId) return [];
     const list = res.top.map((t, i) => ({ id: `top:${t.key}`, label: `#${i + 1} ${t.archetypeLabel || ''}`, tpl: t }));
@@ -399,6 +399,23 @@ function CompareMain(ctx) {
         </div>
         {!saved.length && <p className="note">Save templates from the designer or the manual draft to compare them here; saved templates stay in this browser.</p>}
       </Section>
+      {saved.length > 0 && (
+        <Section id="cp-saved" kicker="Archive" title="Saved templates" defaultOpen={false}>
+          <ul className="saved-list">
+            {saved.map((s) => (
+              <li key={s.id}>
+                <input type="text" aria-label="Template name" defaultValue={s.name}
+                  onBlur={(e) => { const name = e.target.value.trim(); if (name && name !== s.name) renameSaved(s.id, name); else e.target.value = s.name; }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} />
+                <small>{s.savedAt ? new Date(s.savedAt).toLocaleDateString() : ''}</small>
+                <button type="button" className="ghost small" onClick={() => { setManual({ items: s.items.slice(), support: (s.support || []).slice(), reg: (s.reg || []).slice() }); setMode('manual'); }}>Edit as draft</button>
+                <button type="button" className="ghost small" onClick={() => removeSaved(s.id)}>Delete</button>
+              </li>
+            ))}
+          </ul>
+          <p className="note">Rename a template by editing its name. Edit as draft opens it in Manual design.</p>
+        </Section>
+      )}
       <Section id="cp-table" kicker="Side by side" title="Comparison">
         <div className="table-scroll">
           <table className="rank compare">
