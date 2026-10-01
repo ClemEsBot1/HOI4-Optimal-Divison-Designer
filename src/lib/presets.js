@@ -57,8 +57,11 @@ export const ROLES = [
   {
     id: 'mountaineers', group: 'special', name: 'Mountaineers', blurb: 'Mountain infantry for hills and mountains: attack and defense where regular infantry bogs down.',
     weights: { def: 8, sa: 7, org: 9, hp: 6, brk: 3, ic: 6, mp: 3, engineer: 7, logistics: 3 },
-    // a mountain battle is 75 wide plus 25 per direction, which 25 and 15 divide exactly
-    constraints: { wmin: 12, wmax: 27, minOrg: 45, minArm: 0, maxIc: 6000, perWidth: true, metaWidths: [25, 15] },
+    // A mountain battle is 75 wide plus 25 per direction, so three, four or five 25-width divisions fill it exactly.
+    // 25 is the only meta width: with a second, smaller one the per-width score (support companies take no width)
+    // pulls the division down to 14-15. Width-reducing doctrines (Special Forces' -0.2 per mountaineer battalion)
+    // fit more battalions into the same 25.
+    constraints: { wmin: 20, wmax: 27, minOrg: 45, minArm: 0, maxIc: 6000, perWidth: true, metaWidths: [25] },
     units: { allow: ['mountaineers'], deny: REGULAR_LINE },
   },
   {
