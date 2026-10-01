@@ -9,6 +9,7 @@ import { encodeState, decodeState } from './lib/format.js';
 import { THEATRES, TERRAINS, frontageFit, fitTable, fittingWidths } from './lib/frontage.js';
 import { readStore, writeStore } from './lib/storage.js';
 import Menu from './components/Menu.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 import DesignerView, { templateText } from './views/DesignerView.jsx';
 import ResearchView from './views/ResearchView.jsx';
 import DoctrineView from './views/DoctrineView.jsx';
@@ -42,13 +43,18 @@ function withMatchup(weights, enemy) {
   return { ...weights, mAtk: on && enemy.focus !== 'defend' ? w : 0, mDef: on && enemy.focus !== 'attack' ? w : 0 };
 }
 
-function loadInitial() {
-  const base = {
+/** The setup a first visit starts from. */
+function defaults() {
+  return {
     roleId: ROLES[0].id, weights: { ...ZERO_WEIGHTS, ...ROLES[0].weights }, constraints: { ...DEFAULT_CONSTRAINTS, ...ROLES[0].constraints },
     techs: defaultTech(game), doctrine: { ...EMPTY_DOCTRINE, slotCount: 1 }, exclude: defaultExclude(game), mods: {}, opts: { ...DEFAULT_OPTS },
     axes: ROLE_AXES[ROLES[0].id], enemy: { ...DEFAULT_ENEMY }, scale: { ...DEFAULT_SCALE }, theatre: { ...DEFAULT_THEATRE },
     view: 'designer', mode: 'search', equipTab: 'tanks',
   };
+}
+
+function loadInitial() {
+  const base = defaults();
   try {
     const m = /#s=(.+)$/.exec(window.location.hash);
     const s = m && decodeState(m[1], game);
@@ -130,7 +136,7 @@ export default function App() {
   // ---- theatre ----
   const theatre = THEATRES.find((t) => t.id === theatreState.id) || THEATRES[0];
   const fitOf = useCallback((w) => frontageFit(w, theatre), [theatre]);
-  const fitWidths = useMemo(() => (theatre.mix && theatreState.fitOnly ? fittingWidths(theatre, constraints.wmin, constraints.wmax, theatreState.minFit) : null), [theatre, theatreState, constraints.wmin, constraints.wmax]);
+  const fitWidths = useMemo(() => (theatre.mix && theatreState.fitOnly ? fittingWidths(theatre, Math.min(constraints.wmin, constraints.wmax), Math.max(constraints.wmin, constraints.wmax), theatreState.minFit) : null), [theatre, theatreState, constraints.wmin, constraints.wmax]);
 
   // ---- search worker: long-lived, replaced only when a search must be cancelled ----
   const workerRef = useRef(null);
@@ -168,7 +174,9 @@ export default function App() {
         setRunning(false);
       };
       const enemyParam = enemy.id && enemy.id !== 'none' ? enemy : null;
-      const cons = { ...constraints, frontMix: theatre.mix, ...(fitWidths && fitWidths.length ? { widths: fitWidths } : {}) };
+      // a "from" above "to" would leave nothing to search; read the two ends either way round
+      const wmin = Math.min(constraints.wmin, constraints.wmax), wmax = Math.max(constraints.wmin, constraints.wmax);
+      const cons = { ...constraints, wmin, wmax, frontMix: theatre.mix, ...(fitWidths && fitWidths.length ? { widths: fitWidths } : {}) };
       w.postMessage({ id, type: 'search', params: { techs: [...techs], doctrine, exclude, weights: withMatchup(weights, enemy), constraints: cons, mods, opts, enemy: enemyParam, topN: 10 } });
     }, 400);
     return () => clearTimeout(timer);
@@ -246,6 +254,14 @@ export default function App() {
     const ax = ROLE_AXES[r.id];
     setAxisX(ax[0]); setAxisY(ax[1]);
   };
+  /** Back to a first visit's setup. Saved templates, the manual draft and the open view stay. */
+  const resetSetup = () => {
+    if (!window.confirm('Reset role, limits, research, doctrine, theatre and bonuses to the defaults?')) return;
+    const d = defaults();
+    setRoleId(d.roleId); setWeights(d.weights); setConstraints(d.constraints); setTechs(d.techs); setDoctrine(d.doctrine);
+    setExclude(d.exclude); setMods(d.mods); setOpts(d.opts); setAxisX(d.axes[0]); setAxisY(d.axes[1]);
+    setEnemy(d.enemy); setScale(d.scale); setTheatreState(d.theatre);
+  };
   const setWeight = (k, v) => { setRoleId('custom'); setWeights((w) => ({ ...w, [k]: v })); };
   const setCons = (k, v) => { setRoleId('custom'); setConstraints((c) => ({ ...c, [k]: v })); };
   const pickKey = (key) => { const { items, support, reg } = parseKey(key); setSelected({ items, support, reg, key }); };
@@ -319,15 +335,18 @@ export default function App() {
             </div>
           )}
         </Menu>
+        <button type="button" className="ghost small commandbar-reset" onClick={resetSetup} title="Reset the setup to the defaults">Reset</button>
         <span className="commandbar-note">{role ? role.name : 'Custom priorities'}{saved.length ? ` · ${saved.length} saved` : ''}{copied === 'saved' ? ' · Saved' : ''}</span>
       </div>
 
       <main className={'stage ' + phase} aria-live="polite">
-        {shownView === 'designer' && <DesignerView {...ctx} />}
-        {shownView === 'research' && <ResearchView game={game} techs={techs} setTechs={setTechs} />}
-        {shownView === 'doctrine' && <DoctrineView game={game} doctrine={doctrine} setDoctrine={setDoctrine} recommendations={doctrineRecommendations(game, result?.roleId)} roleName={role?.name} />}
-        {shownView === 'equipment' && <EquipmentView game={game} tab={equipTab} setTab={setEquipTab} year={ry.year} techsKey={techsKey} designsUsed={designsUsed} requestTanks={requestTanks} requestShip={requestShip} requestPlane={requestPlane} requestTankRole={requestTankRole} />}
-        {shownView === 'manual' && <FieldManualView version={version} meta={game.meta} />}
+        <ErrorBoundary resetKey={shownView}>
+          {shownView === 'designer' && <DesignerView {...ctx} />}
+          {shownView === 'research' && <ResearchView game={game} techs={techs} setTechs={setTechs} />}
+          {shownView === 'doctrine' && <DoctrineView game={game} doctrine={doctrine} setDoctrine={setDoctrine} recommendations={doctrineRecommendations(game, result?.roleId)} roleName={role?.name} />}
+          {shownView === 'equipment' && <EquipmentView game={game} tab={equipTab} setTab={setEquipTab} year={ry.year} techsKey={techsKey} designsUsed={designsUsed} requestTanks={requestTanks} requestShip={requestShip} requestPlane={requestPlane} requestTankRole={requestTankRole} />}
+          {shownView === 'manual' && <FieldManualView version={version} meta={game.meta} />}
+        </ErrorBoundary>
       </main>
       <div className={'veil ' + phase} aria-hidden="true"><span>{VIEWS.find((v) => v.id === view)?.label}</span></div>
 

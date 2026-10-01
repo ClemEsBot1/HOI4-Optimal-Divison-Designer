@@ -131,6 +131,9 @@ function Rail(ctx) {
           <input type="checkbox" checked={!!constraints.perWidth} onChange={(e) => setCons('perWidth', e.target.checked)} />
           Score per frontage: stats per width times how much of a battle's width whole divisions use (over-width costs 2% per 1% over, up to 33%), so the widest division is not picked just for being bigger
         </label>
+        {constraints.wmin > constraints.wmax && (
+          <p className="note warn-note" role="status">"From" is above "to", so the search uses widths {constraints.wmax} to {constraints.wmin}.</p>
+        )}
         <p className="note">The width range is a hard limit; inside it the search goes for the width that scores best, usually a meta width, not the widest.</p>
         {theatre.mix && (
           <p className="note theatre-note">
