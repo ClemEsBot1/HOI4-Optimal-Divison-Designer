@@ -10,25 +10,23 @@
 .tp-tabs button.on { background: var(--accent, #1f4e79); color: #fff; border-color: var(--accent, #1f4e79); }
 .tp-tabcount { opacity: .7; font-size: .8em; margin-left: .25rem; }
 .tp-hint { padding: 0 1rem; margin: .5rem 0; }
-.tp-scroll { overflow: auto; padding: .5rem 1rem 1rem; flex: 1; }
+.tp-scroll { overflow: auto; padding: .5rem 1rem 1rem; flex: 1; overscroll-behavior-x: contain; }
 /* Keep the tree backdrop anchored and scaled with the horizontally scrollable tree. */
-.tp-tree-wrap { position: relative; min-width: max(100%, calc(var(--tp-cols) * 5.2rem)); min-height: calc(var(--tp-rows) * 6rem + 1.5rem); padding: .35rem; background-color: #182124; background-repeat: no-repeat; background-position: center top; background-size: 100% auto; overflow: visible; }
+.tp-tree-wrap { --tp-cw: 6.6rem; --tp-rh: 7rem; position: relative; box-sizing: border-box; width: max-content; min-width: 100%; padding: 1.9rem .6rem .6rem; background-color: #182124; background-repeat: no-repeat; background-position: left center; background-size: cover; overflow: visible; }
 .tp-folder-infantry_folder { background-image: linear-gradient(rgba(24,33,36,.3), rgba(24,33,36,.72)), url('/hoi4/techtree/infantry_techtree_bg.png'); }
 .tp-folder-support_folder { background-image: linear-gradient(rgba(24,33,36,.3), rgba(24,33,36,.72)), url('/hoi4/techtree/support_techtree_bg.png'); }
 .tp-folder-artillery_folder { background-image: linear-gradient(rgba(24,33,36,.3), rgba(24,33,36,.72)), url('/hoi4/techtree/artillery_techtree_bg.png'); }
 .tp-folder-armour_folder { background-image: linear-gradient(rgba(24,33,36,.25), rgba(24,33,36,.72)), url('/hoi4/techtree/engineering_techtree_bg.png'); }
 .tp-folder-nsb_armour_folder { background-image: linear-gradient(rgba(24,33,36,.25), rgba(24,33,36,.72)), url('/hoi4/techtree/techtree_stripes.png'); }
 .tp-folder-electronics_folder { background-image: linear-gradient(rgba(24,33,36,.25), rgba(24,33,36,.72)), url('/hoi4/techtree/industry_techtree_bg.png'); }
-/* Align the SVG's one-cell viewBox to the grid content area below the reserved year rail. */
-.tp-lines { position: absolute; left: 0; right: 0; top: 1.5rem; bottom: 0; overflow: visible; pointer-events: none; z-index: 0; }
-.tp-years { position: absolute; top: 0; bottom: 0; width: 2.5rem; color: #e1d6b8; font-family: var(--head); font-size: .82rem; pointer-events: none; }
-.tp-years-left { left: -2.5rem; text-align: right; }
-.tp-years-right { left: calc(var(--tp-cols) * 5.2rem + .7rem); right: auto; text-align: left; }
-.tp-years span { position: absolute; display: block; width: 100%; transform: translateY(-50%); }
+/* Years run left to right along a rail above the grid, one label per column. */
+.tp-lines { position: absolute; inset: 0; overflow: visible; pointer-events: none; z-index: 0; }
+.tp-years { position: absolute; top: .45rem; left: .6rem; height: 1.2rem; color: #e1d6b8; font-family: var(--head); font-size: .82rem; pointer-events: none; }
+.tp-years span { position: absolute; left: calc((var(--tp-col) + .5) * var(--tp-cw)); transform: translateX(-50%); white-space: nowrap; }
 .tp-lines path { fill: none; stroke: #b9b8ae; stroke-width: .085; stroke-linecap: square; opacity: .92; vector-effect: non-scaling-stroke; }
 .tp-lines path:hover { stroke: var(--accent); }
 .tp-grid { position: relative; z-index: 1; display: grid; gap: 0; align-items: center; }
-.tp-grid > .tp-lines { position: absolute; left: 0; top: 1.5rem; width: calc(var(--tp-cols) * 5.2rem); height: calc(var(--tp-rows) * 6rem); }
+.tp-grid > .tp-lines { width: calc(var(--tp-cols) * var(--tp-cw)); height: calc(var(--tp-rows) * var(--tp-rh)); }
 .tp-grid > .tp-cell { z-index: 1; }
 .tp-match-count, .tp-research-status { padding: .4rem .65rem; border-left: 2px solid var(--accent); background: rgba(196,154,74,.08); }
 .tp-research-status { position: sticky; top: 0; z-index: 2; margin: 0 0 .5rem; }
@@ -55,6 +53,8 @@
 .tp-card.on::before { background-image: url('/hoi4/techtree/technology_researched_item_bg.png'); }
 .tp-icon { width: 4.05rem; height: 4.05rem; object-fit: cover; display: block; border-radius: 4px; }
 .tp-main strong { display: none; }
+/* Two lines of name under the icon keep every card the same height so rows never overlap; the full name is in the tooltip. */
+.tp-label { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin-top: .15rem; font-size: .72rem; line-height: 1.15; text-align: center; overflow-wrap: anywhere; }
 .tp-card.on { box-shadow: 0 0 .65rem rgba(196,154,74,.75); }
 .tp-card.on .tp-icon { outline: 2px solid #d4b56e; outline-offset: 1px; }
 .tp-card.open .tp-icon { outline: 1px solid #d4b56e; outline-offset: 1px; }
@@ -119,4 +119,3 @@
 .tp-inline .tp-head h2 { font-family: var(--head); letter-spacing: .04em; }
 .tp-tabs button.on { color: var(--accent-ink); }
 .tp-panel { background: var(--panel-solid); }
-.tp-tree-wrap { margin-left: 2.6rem; }
