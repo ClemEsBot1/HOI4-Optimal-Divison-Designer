@@ -13,14 +13,21 @@ function removeOne(ids, id) {
   return i < 0 ? ids : ids.slice(0, i).concat(ids.slice(i + 1));
 }
 
-export default function ManualDesigner({ units, columnSize, mods, opts, best }) {
+/**
+ * Build a template by hand and compare it with the search's best. The design can be controlled from outside
+ * (`design`, `setDesign`) so it survives switching views.
+ */
+export default function ManualDesigner({ units, columnSize, mods, opts, best, design, setDesign, onSave }) {
   const byId = useMemo(() => new Map(units.map((u) => [u.id, u])), [units]);
   const line = useMemo(() => units.filter((u) => u.role === 'line'), [units]);
   const support = useMemo(() => units.filter((u) => u.role === 'div'), [units]);
   const reg = useMemo(() => units.filter((u) => u.role === 'reg'), [units]);
-  const [items, setItems] = useState([]);
-  const [divSupport, setDivSupport] = useState([]);
-  const [regSupport, setRegSupport] = useState([]);
+  const [local, setLocal] = useState({ items: [], support: [], reg: [] });
+  const cur = design || local;
+  const write = setDesign || setLocal;
+  const items = cur.items; const divSupport = cur.support; const regSupport = cur.reg;
+  const lift = (key) => (f) => write((d) => ({ ...d, [key]: typeof f === 'function' ? f(d[key]) : f }));
+  const setItems = lift('items'); const setDivSupport = lift('support'); const setRegSupport = lift('reg');
   const [unitChoice, setUnitChoice] = useState('');
   const [supportChoice, setSupportChoice] = useState('');
   const [regChoice, setRegChoice] = useState('');
@@ -39,13 +46,14 @@ export default function ManualDesigner({ units, columnSize, mods, opts, best }) 
   const bestStats = best?.stats;
   const toggleSupport = (id) => setDivSupport((cur) => cur.includes(id) ? cur.filter((x) => x !== id) : cur.length < 5 ? cur.concat(id) : cur);
   return (
-    <section className="block wide-block manual">
+    <div className="manual">
       <div className="section-heading">
-        <div>
-          <h2>Design your own division</h2>
-          <p className="note">Build a template from the researched units, then compare it directly with the current top result.</p>
+        <p className="note">Build a template from the researched units, then compare it directly with the current top result.</p>
+        <div className="seg">
+          {best && <button type="button" className="ghost" onClick={() => write({ items: best.items.slice(), support: best.support.slice(), reg: (best.reg || []).slice() })}>Start from the best result</button>}
+          {onSave && items.length > 0 && <button type="button" className="ghost" onClick={() => onSave({ items, support: divSupport, reg: regSupport })}>Save design</button>}
+          <button type="button" className="ghost" onClick={() => write({ items: [], support: [], reg: [] })}>Clear design</button>
         </div>
-        <button type="button" className="ghost" onClick={() => { setItems([]); setDivSupport([]); setRegSupport([]); }}>Clear design</button>
       </div>
       <div className="manual-tools">
         <label>Line battalion
@@ -89,6 +97,6 @@ export default function ManualDesigner({ units, columnSize, mods, opts, best }) 
           })}
         </tbody></table></div>}
       </>}
-    </section>
+    </div>
   );
 }

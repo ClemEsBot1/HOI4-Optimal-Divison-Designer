@@ -14,9 +14,8 @@ const TABS = [
   { id: '__other', label: 'Other' },
 ];
 
-/** Presets in the sidebar plus a full-screen tree editor. */
-export default function TechPicker({ game, techs, setTechs }) {
-  const [open, setOpen] = useState(false);
+/** Research-year presets. */
+export function TechPresets({ game, techs, setTechs }) {
   const preset = useMemo(() => TECH_PRESETS.find((p) => sameSet(techs, techPreset(game, p.year))), [game, techs]);
   return (
     <>
@@ -27,26 +26,38 @@ export default function TechPicker({ game, techs, setTechs }) {
         ))}
       </div>
       <p className="note tp-count">{techs.size} of {game.techs.size} technologies researched{preset ? '' : ' (custom)'}.</p>
-      <button type="button" className="ghost tp-open" onClick={() => setOpen(true)}>Edit the tech tree</button>
-      {open && <TreeDialog game={game} techs={techs} setTechs={setTechs} onClose={() => setOpen(false)} />}
     </>
   );
 }
 
-function TreeDialog({ game, techs, setTechs, onClose }) {
+/** Presets plus a full-screen tree editor (kept for embedding elsewhere). */
+export default function TechPicker({ game, techs, setTechs }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <TechPresets game={game} techs={techs} setTechs={setTechs} />
+      <button type="button" className="ghost tp-open" onClick={() => setOpen(true)}>Edit the tech tree</button>
+      {open && <TechTree game={game} techs={techs} setTechs={setTechs} onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+/** The technology tree. `inline` renders it in the page; otherwise it is a full-screen dialog. */
+export function TechTree({ game, techs, setTechs, onClose, inline = false }) {
   const [tab, setTab] = useState(TABS[0].id);
   const [query, setQuery] = useState('');
   const [researchSummary, setResearchSummary] = useState(null);
   const closeRef = useRef(null);
 
   useEffect(() => {
+    if (inline) return undefined;
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     if (closeRef.current) closeRef.current.focus();
     return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
-  }, [onClose]);
+  }, [onClose, inline]);
 
   const byTab = useMemo(() => {
     const m = new Map(TABS.map((t) => [t.id, []]));
@@ -122,15 +133,15 @@ function TreeDialog({ game, techs, setTechs, onClose }) {
   };
 
   return (
-    <div className="tp-overlay" role="dialog" aria-modal="true" aria-label="Technology tree">
+    <div className={inline ? 'tp-inline' : 'tp-overlay'} role={inline ? undefined : 'dialog'} aria-modal={inline ? undefined : 'true'} aria-label="Technology tree">
       <div className="tp-panel">
         <header className="tp-head">
-          <h2>Technology</h2>
+          <h2>{inline ? 'Tree' : 'Technology'}</h2>
           <input type="search" className="tp-search" placeholder="Find a technology" value={query} onChange={(e) => { setQuery(e.target.value); setResearchSummary(null); }} aria-label="Find a technology" />
           <button type="button" className="ghost" onClick={researchTab}>{q ? 'Research matching technologies' : 'Research all in this tab'}</button>
           <button type="button" className="ghost" onClick={clearTab}>Clear this tab</button>
           <button type="button" className="ghost" onClick={clearEverything}>Clear everything</button>
-          <button type="button" ref={closeRef} onClick={onClose}>Done</button>
+          {!inline && <button type="button" ref={closeRef} onClick={onClose}>Done</button>}
         </header>
         <div className="tp-tabs" role="tablist">
           {TABS.filter((t) => (byTab.get(t.id) || []).length).map((t) => {

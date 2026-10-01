@@ -100,3 +100,11 @@
 .tg-reg { margin-top: .35rem; padding-top: .35rem; border-top: 1px solid var(--line, #c9c9c9); }
 .tg-note { max-width: 22rem; }
 .counter.empty.open { border-style: solid; opacity: .8; }
+
+/* Inline tree (Research view) */
+.tp-inline .tp-panel { width: 100%; max-height: min(78vh, 60rem); background: var(--inset); border-color: var(--line); border-radius: 10px; }
+.tp-inline .tp-head { background: rgba(255, 240, 200, .02); }
+.tp-inline .tp-head h2 { font-family: var(--head); letter-spacing: .04em; }
+.tp-tabs button.on { color: var(--accent-ink); }
+.tp-panel { background: var(--panel-solid); }
+.tp-tree-wrap { margin-left: 2.6rem; }
