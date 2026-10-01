@@ -13,6 +13,7 @@ import DesignerView, { templateText } from './views/DesignerView.jsx';
 import ResearchView from './views/ResearchView.jsx';
 import DoctrineView from './views/DoctrineView.jsx';
 import EquipmentView from './views/EquipmentView.jsx';
+import NavyView from './views/NavyView.jsx';
 import FieldManualView from './views/FieldManualView.jsx';
 
 const game = buildGame(raw);
@@ -22,6 +23,7 @@ const VIEWS = [
   { id: 'research', label: 'Research', icon: '/hoi4/icons/category_artillery.png' },
   { id: 'doctrine', label: 'Doctrine', icon: '/hoi4/icons/category_all_armor.png' },
   { id: 'equipment', label: 'Equipment', icon: '/hoi4/technologies/basic_medium_tank_chassis.png' },
+  { id: 'navy', label: 'Navy', icon: '/icons/navy.svg' },
   { id: 'manual', label: 'Field manual', icon: '/hoi4/technologies/tech_support.png' },
 ];
 const MODES = [
@@ -195,7 +197,7 @@ export default function App() {
     if (!tankCache.current.has(techsKey)) tankCache.current.set(techsKey, askEquip({ type: 'tanks', techs: [...techs] }));
     return tankCache.current.get(techsKey);
   }, [techsKey, techs, askEquip]);
-  const requestShip = useCallback((role, year, weights, keep) => askEquip({ type: 'ship', role, year, weights, keep }), [askEquip]);
+  const requestShip = useCallback((role, year, weights, keep, minStats) => askEquip({ type: 'ship', role, year, weights, keep, minStats }), [askEquip]);
   const requestPlane = useCallback((role, year, weights, keep) => askEquip({ type: 'plane', role, year, weights, keep }), [askEquip]);
   const requestTankRole = useCallback((role, objective) => askEquip({ type: 'tankRole', techs: [...techs], role, objective }), [askEquip, techs]);
 
@@ -327,6 +329,7 @@ export default function App() {
         {shownView === 'research' && <ResearchView game={game} techs={techs} setTechs={setTechs} />}
         {shownView === 'doctrine' && <DoctrineView game={game} doctrine={doctrine} setDoctrine={setDoctrine} recommendations={doctrineRecommendations(game, result?.roleId)} roleName={role?.name} />}
         {shownView === 'equipment' && <EquipmentView game={game} tab={equipTab} setTab={setEquipTab} year={ry.year} techsKey={techsKey} designsUsed={designsUsed} requestTanks={requestTanks} requestShip={requestShip} requestPlane={requestPlane} requestTankRole={requestTankRole} />}
+        {shownView === 'navy' && <NavyView year={ry.year} requestShip={requestShip} />}
         {shownView === 'manual' && <FieldManualView version={version} meta={game.meta} />}
       </main>
       <div className={'veil ' + phase} aria-hidden="true"><span>{VIEWS.find((v) => v.id === view)?.label}</span></div>

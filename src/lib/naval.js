@@ -141,13 +141,14 @@ export function shipStats(data, variant, modules, year) {
 
 /**
  * Exact search for one role (see designSearch.js): every legal module combination on every hull the role can use is
- * either scored or ruled out by a bound, so the answer is proven best.
+ * either scored or ruled out by a bound, so the answer is proven best. minStats ({ naval_speed: 28 }) only accepts
+ * designs that reach those values, such as a fleet's speed floor.
  */
-export function bestShip(data, role, year, { budget = 6e5, gap = 0, weights = role.weights, keep = 1 } = {}) {
+export function bestShip(data, role, year, { budget = 6e5, gap = 0, weights = role.weights, keep = 1, minStats } = {}) {
   const allowed = (m) => !(role.batteryOk && /battery/.test(m.cat) && !role.batteryOk.test(m.id));
   const reqCats = role.require || [];
   const res = exactDesign({
-    modules: data.modules, weights, floor: FLOOR, budget, gap, keep,
+    modules: data.modules, weights, floor: FLOOR, budget, gap, keep, minStats,
     hulls: [...hullsFor(data, role, year)].sort((x, y) => y.year - x.year),
     slotOptions: (hull, n, slot) => {
       let mods = Object.values(data.modules).filter((m) => slot.cats.includes(m.cat) && m.year <= year).filter(allowed);

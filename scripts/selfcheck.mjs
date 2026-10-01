@@ -15,6 +15,7 @@ import { MIN_DESIGN_RELIABILITY } from '../src/lib/game.js';
 import { SHIP_ROLES, bestShip, hullsFor, shipStats } from '../src/lib/naval.js';
 import { PLANE_ROLES, bestPlane, framesFor, planeStats, hasPlaneData, FLOOR as PLANE_FLOOR } from '../src/lib/air.js';
 import { THEATRES, frontageFit, fitTable, fittingWidths, battleFill } from '../src/lib/frontage.js';
+import { FLEETS, fleetSlots, composeFleet, planDockyards, buildBalance, lineItems, fitScale, SCREENS_PER_SHIP, MAX_CARRIERS } from '../src/lib/fleet.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const game = buildGame(JSON.parse(fs.readFileSync(path.join(here, '../src/data/game.json'), 'utf8')));
@@ -232,7 +233,7 @@ ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id
 {
   const FLOOR = { reliability: 0.05, naval_speed: 1, build_cost_ic: 50, naval_range: 100 };
   const scoreOf = (st, w) => Object.entries(w).reduce((x, [k, v]) => x + v * Math.log(Math.max(0, st[k] || 0) + (FLOOR[k] ?? 1)), 0);
-  const brute = (role, year) => {
+  const brute = (role, year, minSpeed = 0) => {
     let best = -Infinity; let n = 0;
     for (const hull of hullsFor(naval, role, year)) {
       const names = Object.keys(hull.slots).filter((x) => hull.slots[x]);
@@ -258,6 +259,7 @@ ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id
           if (role.needBattery && !ch.some((id) => id && role.needBattery.test(id))) return;
           const st = shipStats(naval, hull, Object.fromEntries(names.map((nm, k) => [nm, ch[k]])), year);
           if (role.type && st.type !== role.type) return;
+          if (st.naval_speed < minSpeed - 1e-9) return;
           best = Math.max(best, scoreOf(st, role.weights));
           return;
         }
@@ -272,6 +274,14 @@ ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id
     const b = brute(role, year);
     const s = bestShip(naval, role, year);
     ok(s && !s.truncated && Math.abs(s.score - b.best) < 1e-9, `ship designer finds the exact best ${role.name.toLowerCase()} (${year}) among ${b.n.toLocaleString('en-GB')} designs`);
+  }
+  // a speed floor (a fleet sails at its slowest ship) keeps the search exact, and reports no design when none is fast enough
+  for (const [id, year, knots] of [['dd_torpedo', 1936, 39], ['ss_raider', 1944, 24], ['cv', 1940, 36.5], ['dd_screen', 1936, 40]]) {
+    const role = SHIP_ROLES.find((r) => r.id === id);
+    const b = brute(role, year, knots);
+    const s = bestShip(naval, role, year, { minStats: { naval_speed: knots } });
+    ok(b.best === -Infinity ? s === null : s && !s.truncated && Math.abs(s.score - b.best) < 1e-9 && s.stats.naval_speed >= knots - 1e-9,
+      `ship designer with a ${knots}-knot floor: ${b.best === -Infinity ? `no ${role.name.toLowerCase()} (${year}) is that fast` : `the exact best ${role.name.toLowerCase()} (${year}) at ${s?.stats.naval_speed.toFixed(1)} knots`}`);
   }
   const t0 = Date.now(); let trunc = 0;
   for (const role of SHIP_ROLES) if (bestShip(naval, role, 1944)?.truncated) trunc++;
@@ -429,6 +439,103 @@ ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id
   }
   const solo = unitContribution({ items: ['infantry'] }, 'items', 0, by);
   ok(Math.abs(solo.sa - evaluate({ items: ['infantry'] }, by).sa) < 1e-9, 'the only battalion contributes the whole division');
+}
+
+// ---- fleets: screening rules per task force, and the dockyard plan is the fastest any split of dockyards reaches ----
+{
+  const bad = [];
+  for (const fleet of FLEETS) {
+    for (const buffer of [0, 0.5, 1, 3]) {
+      let prev = null;
+      for (let n = fleet.scale.min; n <= fleet.scale.max; n++) {
+        const comp = composeFleet(fleet, { scale: n, buffer });
+        const slots = fleetSlots(fleet);
+        if (fleet.members) {
+          if (comp.taskForces.length !== n || slots.some((m) => comp.counts[m.id] !== m.count * n)) bad.push(`${fleet.id} x${n}`);
+        } else {
+          for (const tf of comp.taskForces) {
+            const of = (cls) => slots.filter((x) => x.cls === cls).reduce((a, x) => a + (tf.counts[x.id] || 0), 0);
+            const big = tf.carriers + tf.capitals;
+            if (of('carrier') !== tf.carriers || of('capital') !== tf.capitals || of('screen') !== tf.screens) bad.push(`${fleet.id} x${n} counts`);
+            if (tf.screens < (SCREENS_PER_SHIP + buffer) * big - 1e-9 || tf.carriers > MAX_CARRIERS || (fleet.carriers && tf.capitals < tf.carriers)) bad.push(`${fleet.id} x${n} +${buffer}`);
+          }
+          const led = comp.taskForces.reduce((a, tf) => a + (fleet.carriers ? tf.carriers : tf.capitals), 0);
+          if (led !== n) bad.push(`${fleet.id} x${n} scale`);
+        }
+        if (prev && slots.some((x) => comp.counts[x.id] < prev.counts[x.id])) bad.push(`${fleet.id} x${n} shrinks`);
+        prev = comp;
+      }
+    }
+  }
+  ok(!bad.length, `every fleet at every size: 3+ screens per capital ship and carrier in each task force, at most ${MAX_CARRIERS} carriers and a capital ship per carrier, and scaling up never drops a ship${bad.length ? ` (${bad.slice(0, 4).join(', ')})` : ''}`);
+
+  // brute force: every multiset of line sizes for each ship type and every share of its ships between those lines
+  const split = (e, lines, output) => {
+    let best = Infinity;
+    const rec = (j, left, worst) => {
+      if (j === lines.length - 1) { best = Math.min(best, Math.max(worst, (left * e.cost) / (lines[j] * output))); return; }
+      for (let k = 0; k <= left; k++) rec(j + 1, left - k, Math.max(worst, (k * e.cost) / (lines[j] * output)));
+    };
+    rec(0, e.count, 0);
+    return best;
+  };
+  const finishWith = (e, t, output) => {
+    let best = Infinity;
+    const rec = (left, size, lines) => {
+      if (lines.length) best = Math.min(best, split(e, lines, output));
+      for (let d = Math.min(size, left); d >= 1; d--) { lines.push(d); rec(left - d, d, lines); lines.pop(); }
+    };
+    rec(t, e.cap, []);
+    return best;
+  };
+  const bruteDays = (items, D, output) => {
+    const f = items.map((e) => Array.from({ length: D + 1 }, (_, t) => (t ? finishWith(e, t, output) : Infinity)));
+    let best = Infinity;
+    const rec = (i, left, worst) => {
+      if (worst >= best) return;
+      if (i === items.length) { best = worst; return; }
+      for (let t = 1; t <= left - (items.length - i - 1); t++) rec(i + 1, left - t, Math.max(worst, f[i][t]));
+    };
+    rec(0, D, 0);
+    return best;
+  };
+  let seed = 7;
+  const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+  let cases = 0; const wrong = [];
+  for (let c = 0; c < 60; c++) {
+    const m = 1 + Math.floor(rnd() * 3);
+    const items = Array.from({ length: m }, (_, i) => ({ id: `s${i}`, count: 1 + Math.floor(rnd() * 4), cost: 100 + Math.round(rnd() * 900), cap: 2 + Math.floor(rnd() * 3), cls: i ? 'screen' : 'capital' }));
+    const D = m + Math.floor(rnd() * (9 - m));
+    const plan = planDockyards(items, D, 2.5);
+    const want = bruteDays(items, D, 2.5);
+    const valid = plan.used <= D && plan.lines.every((l) => l.dockyards >= 1 && l.dockyards <= items.find((e) => e.id === l.id).cap)
+      && items.every((e) => plan.lines.filter((l) => l.id === e.id).reduce((a, l) => a + l.ships, 0) === e.count)
+      && Math.abs(plan.days - Math.max(...plan.lines.map((l) => l.ships * items.find((e) => e.id === l.id).cost / (l.dockyards * 2.5)))) < 1e-9;
+    cases++;
+    if (!valid || Math.abs(plan.days - want) > 1e-9) wrong.push(`${JSON.stringify(items.map((e) => [e.count, e.cost, e.cap]))} on ${D}: ${plan.days} vs ${want}`);
+  }
+  ok(!wrong.length, `dockyard plan finishes as early as the best split of dockyards into lines (brute force, ${cases} orders)${wrong.length ? `: ${wrong[0]}` : ''}`);
+  ok(planDockyards([{ id: 'a', count: 2, cost: 100, cap: 5 }, { id: 'b', count: 1, cost: 100, cap: 5 }], 1).short === 2, 'fewer dockyards than ship types: each type needs a line');
+
+  // balance while building: screens afloat per big ship at each launch, and when the fleet is fully screened for good
+  const cls = { bb: 'capital', dd: 'screen' };
+  const b1 = buildBalance({ lines: [{ id: 'bb', ships: 2, every: 10 }, { id: 'dd', ships: 7, every: 3 }] }, cls);
+  const b2 = buildBalance({ lines: [{ id: 'bb', ships: 2, every: 10 }, { id: 'dd', ships: 7, every: 4 }] }, cls);
+  ok(b1.ratio === 3 && b1.day === 10 && b1.from === 0 && b2.ratio === 2 && b2.day === 10 && b2.screens === 2 && b2.from === 24,
+    'build balance: three screens per battleship at every launch, or the low point and the day the screens catch up');
+
+  // a whole fleet with stand-in designs: valid lines, spare dockyards lift the low point, and the largest fleet that fits
+  const fleet = FLEETS.find((f) => f.id === 'carrier');
+  const stand = { cv: ['carrier', 10000], bc: ['battlecruiser', 12000], ca: ['heavy_cruiser', 8000], cl_aa: ['light_cruiser', 4000], cl: ['light_cruiser', 5000], dd: ['destroyer', 1000] };
+  const designs = Object.fromEntries(Object.entries(stand).map(([id, [type, cost]]) => [id, { stats: { type, build_cost_ic: cost, naval_speed: 30 } }]));
+  const comp = composeFleet(fleet, { scale: 4 });
+  const plan = planDockyards(lineItems(fleet, comp, designs), 60);
+  ok(plan.balance && plan.balance.ratio >= SCREENS_PER_SHIP && plan.lines.every((l) => l.dockyards <= (['cv', 'bc', 'ca'].includes(l.id) ? 5 : 10)),
+    `carrier fleet on 60 dockyards: done in ${Math.round(plan.days)} days, capital lines at most 5 dockyards, screened at every launch (${plan.balance?.ratio.toFixed(1)} : 1 at worst)`);
+  const days = 4 * 365;
+  const n = fitScale(fleet, designs, { buffer: fleet.buffer, dockyards: 60, days });
+  const at = (k) => planDockyards(lineItems(fleet, composeFleet(fleet, { scale: k }), designs), 60).days;
+  ok(n > fleet.scale.min && at(n) <= days && (n === fleet.scale.max || at(n + 1) > days), `fit fleet: ${n} carriers is the largest strike force 60 dockyards finish in 4 years`);
 }
 
 // ---- golden numbers from in-game screenshots ----

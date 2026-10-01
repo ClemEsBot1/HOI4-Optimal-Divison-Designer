@@ -14,7 +14,7 @@ can compare designs on the trade-offs that matter to you instead of copying a te
 
 ## Views
 
-The top bar switches between five views, with a fade between them. The command bar under it holds three menus that apply
+The top bar switches between six views, with a fade between them. The command bar under it holds three menus that apply
 everywhere: theatre, research year and designer mode. Every panel folds away, and each view has expand/collapse all.
 
 - **Designer**: the template search, in three modes: optimal search, manual design (draft a template by hand and measure it
@@ -26,6 +26,9 @@ everywhere: theatre, research year and designer mode. Every panel folds away, an
   and it works like the division designer: the proven-best design, priorities you can change, the next best designs
   ranked with their gap, and a trade-off chart with the Pareto front. Aircraft are a role guide until the aircraft
   designer files are extracted.
+- **Navy**: whole fleets. Pick a fleet type (carrier strike force, battle line, cruiser squadron, invasion support,
+  submarine wolfpacks, convoy escort, patrol, minelaying) and scale it up or down; it lists every ship in the fleet,
+  the best design for each at your research level, and the dockyard plan that builds it.
 - **Field manual**: where the numbers come from, how the searches work and what they leave out.
 
 ## Features
@@ -73,6 +76,14 @@ everywhere: theatre, research year and designer mode. Every panel folds away, an
 - **Ship designer.** Hulls, modules and naval technology are extracted from the game files. For each role the search is
   exact: a bound that relaxes the score slot by slot (tangents for maximized stats, chords for costs, McCormick envelopes
   for added × multiplied amounts) rules out almost every combination unscored, so all roles solve in about a second.
+- **Fleet designer.** Fleet types follow the compositions current naval guides recommend (two heavy ships per carrier,
+  at most four carriers per task force, three screens per capital ship and carrier plus a spare, ten submarines per
+  pack), scaled per task force so each one meets the screening rules on its own. Every ship is designed with the
+  fleet's speed floor, since a task force sails at its slowest ship. The dockyard plan is the earliest finish any split
+  of your dockyards into production lines can reach (5 dockyards at most per capital ship or carrier line, 10 per screen
+  or submarine line), checked against brute force; spare dockyards go to the screens so the big ships launch with their screens wherever
+  whole dockyards allow.
+  Fit fleet finds the largest fleet your dockyards finish by a deadline.
 - **Aircraft designer.** The same exact search over airframes and plane modules, with the designer's rules: engines'
   thrust must cover the weight of the airframe and modules, leftover thrust adds speed, and the main weapon decides the
   plane type. Roles cover fighters, interceptors, heavy fighters, CAS, tactical, naval and strategic bombers, maritime
@@ -121,6 +132,8 @@ Check a result in game before you rely on it. These rules are assumptions, and t
   synthetic airframe (`tests/plane-fixture.json`), but no public copy of the patch 1.12+ files was reachable. Run
   `npm run designers` on a current install to switch it on. The excess-thrust speed (3 km/h per point) is a community
   measurement; check it against the game.
+- Fleet compositions are community meta from the guides the Navy view cites, not derived from the game files, and the
+  dockyard plan assumes 2.5 IC a day per dockyard (change it for your output bonuses) and every line starting at once.
 - Terrain combat widths are the Barbarossa-update values (plains and desert 90 +45, forest and jungle 84 +42, hills 80 +40,
   marsh 78 +26, mountain 75 +25, urban 96 +32). Meta widths are community practice, not derived from the game files.
 
@@ -164,10 +177,10 @@ Vite preset (build command `npm run build`, output directory `dist`) and leave t
 - `src/data/game.json`, `src/data/designers.json`: the extracted game data; `src/data/air.js`: the aircraft role guide.
 - `src/lib/`: the engine (`game.js` units and exhaustive tank designs, `stats.js` template stats, `score.js` the score,
   `optimizer.js` branch and bound, `design.js` designs tuned to the division, `combat.js` the matchup model,
-  `designSearch.js` the exact module search shared by `naval.js` (ship designer) and `air.js` (aircraft designer), `tankRoles.js` tank designs by role, `frontage.js` theatre fit), the search worker, presets, share links
+  `designSearch.js` the exact module search shared by `naval.js` (ship designer) and `air.js` (aircraft designer), `tankRoles.js` tank designs by role, `fleet.js` fleet compositions and dockyard plans, `frontage.js` theatre fit), the search worker, presets, share links
   and text helpers.
 - `tests/golden.json` and `scripts/golden.mjs`: numbers from in-game screenshots.
 - `src/components/`: template view, trade-off chart, tech tree and doctrine pickers, collapsible panels and menus.
-- `src/views/`: the five views. `src/App.jsx`: navigation, command bar and shared state.
+- `src/views/`: the six views. `src/App.jsx`: navigation, command bar and shared state.
 
 Hearts of Iron IV is a trademark of Paradox Interactive. This is an unofficial fan tool and is not affiliated with Paradox.

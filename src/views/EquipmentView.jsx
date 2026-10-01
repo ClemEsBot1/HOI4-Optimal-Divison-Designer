@@ -306,7 +306,7 @@ const PLANE_TYPE_LABEL = {
   maritime_patrol: 'Maritime patrol', transport_plane: 'Transport', suicide: 'Suicide craft',
 };
 
-function DesignCard({ kind, d }) {
+export function DesignCard({ kind, d }) {
   const all = kind.stats.filter(([k]) => d.stats[k]);
   return (
     <article className="spec-card ship">
@@ -350,7 +350,7 @@ const TANK = {
   fmt: (k, v) => (k === 'rel' ? `${((v || 0) * 100).toFixed(0)}%` : fmt(v, k)),
   frameOf: (d) => d.chassisName, ranked: (res) => res?.ranked || [],
 };
-const SHIP = {
+export const SHIP = {
   id: 'ship', noun: 'design', frame: 'hull', stats: SHIP_STATS, lower: shipLower,
   levelOf: (role, k) => Math.abs(role.weights[k] || 0),
   toSearch: (levels, lower) => Object.fromEntries(Object.entries(levels).filter(([, v]) => v).map(([k, v]) => [k, lower(k) ? -v : v])),

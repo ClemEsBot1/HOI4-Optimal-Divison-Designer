@@ -19,6 +19,8 @@
  *   accept(hull, chosenIds, type, stats?)  role requirements on a complete design
  *   atLeast                 [[a, b], ...]: a design is legal only when the summed additions of a reach those of b
  *                           (planes: thrust must cover weight); pruned slot by slot
+ *   minStats                stat -> least final value a legal design must have (a fleet's speed floor); pruned slot by
+ *                           slot with the most the remaining slots could still give the stat
  *   keep                    how many of the best designs to return (ranked, best first; default 1)
  *   budget, gap
  *
@@ -27,8 +29,11 @@
  * score slot by slot rules out the rest without scoring them.
  */
 export function exactDesign(spec) {
-  const { modules, hulls, weights, floor = {}, budget = 6e5, gap = 0 } = spec;
+  const { modules, hulls, floor = {}, budget = 6e5, gap = 0 } = spec;
   const atLeast = spec.atLeast || [];
+  // a stat with a minimum is tracked like a scored one with weight 0, so no option that raises it is dropped
+  const minStats = spec.minStats || {};
+  const weights = { ...Object.fromEntries(Object.keys(minStats).map((k) => [k, 0])), ...spec.weights };
   const keys = Object.keys(weights);
   let best = null; let evaluated = 0; let truncated = false; let nodes = 0;
   // the `keep` best designs found so far, best first; the search proves each of them against everything it rules out
@@ -58,6 +63,7 @@ export function exactDesign(spec) {
       const vec = (m) => [
         ...keys.flatMap((k) => { const d = dirOf(k); return [d * (m.add[k] || 0), d * (m.mul[k] || 0), d * (m.avg[k] || 0)]; }),
         ...atLeast.flatMap(([a, b]) => [m.add[a] || 0, -(m.add[b] || 0), m.mul[a] || 0, -(m.mul[b] || 0)]),
+        ...Object.keys(minStats).flatMap((k) => [m.add[k] || 0, m.mul[k] || 0, m.avg[k] || 0]),
       ];
       const kept = mods.filter((m) => !mods.some((o) => o !== m && o.cat === m.cat && !(limited.has(o.id) && !limited.has(m.id)) && (() => {
         const x = vec(o); const y = vec(m); let strict = false;
@@ -199,6 +205,25 @@ export function exactDesign(spec) {
       }
       return sc;
     };
+    // the most a stat with a minimum can still reach: the best corner of what the remaining slots can add, average
+    // and multiply, times the technology bonus of any type the hull can become
+    const minQ = Object.entries(minStats).map(([k, v]) => [keys.indexOf(k), v]);
+    const reachable = (q, i) => {
+      const S = suf[q]; const remL = S.vL[i]; const remU = S.vU[i];
+      let vLo; let vHi;
+      if (pAvgN[q] > 0) {
+        const cur = pAvgSum[q] / pAvgN[q];
+        vLo = remL == null ? cur : Math.min(cur, remL); vHi = remU == null ? cur : Math.max(cur, remU);
+      } else {
+        vLo = remL == null ? 0 : Math.min(0, remL); vHi = remU == null ? 0 : Math.max(0, remU);
+      }
+      const A0 = B[q] + pAdd[q]; const M0 = 1 + pMul[q];
+      let hi = -Infinity;
+      for (const A of [A0 + S.aL[i] + vLo, A0 + S.aU[i] + vHi]) {
+        for (const M of [M0 + S.mL[i], M0 + S.mU[i]]) for (const t of [tLo[q], tHi[q]]) hi = Math.max(hi, A * M * t);
+      }
+      return isRel[q] ? Math.min(1, hi) : hi;
+    };
     const chosen = new Array(nS).fill(null);
     const order = Array.from({ length: nS }, (_, j) => options[j].map((_, o) => o));
     let hullNodes = 0; let stop = false;
@@ -206,6 +231,7 @@ export function exactDesign(spec) {
       nodes++;
       if (++hullNodes > budget) { stop = true; truncated = true; return; }
       for (let c = 0; c < nC; c++) if (pNet[c] + netHi[c][i] < -1e-9) return;
+      for (const [q, v] of minQ) if (reachable(q, i) < v - 1e-9) return;
       if (i === nS) {
         const type = spec.typeOf(hull, chosen);
         if (!spec.accept(hull, chosen, type)) return;
@@ -213,6 +239,7 @@ export function exactDesign(spec) {
         if (top.length >= keep && leafScore(type) <= bar() + 1e-12) return;
         const mods = Object.fromEntries(slotNames.map((n, k) => [n, chosen[k]]));
         const st = spec.stats(hull, mods);
+        if (minQ.some(([q, v]) => (st[keys[q]] || 0) < v - 1e-9)) return;
         if (spec.acceptStats && !spec.acceptStats(st)) return;
         const sc = scoreOf(st);
         if (top.length < keep || sc > bar() + 1e-12) {

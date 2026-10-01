@@ -430,12 +430,18 @@ table.rank { border-collapse: collapse; width: 100%; font-size: .86rem; }
 /* footer */
 .footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem; margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--line); font-family: var(--mono); font-size: .64rem; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
 
-/* narrow screens */
-@media (max-width: 60rem) {
+/* narrow screens: the nav tightens while it shares the top bar, then takes a row of its own */
+@media (max-width: 96rem) {
+  .nav { gap: .15rem; }
+  .nav-item { padding: .5rem .55rem; }
+}
+@media (min-width: 77.01rem) and (max-width: 96rem) { .topbar-status .patch { display: none; } }
+@media (max-width: 77rem) {
   .topbar { grid-template-columns: 1fr auto; }
   .nav { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; margin: 0 -.25rem; }
   .nav-item.on::after { bottom: -.1rem; }
 }
+@media (max-width: 56rem) { .nav-item img { display: none; } }
 @media (max-width: 38rem) {
   .app { padding: 0 1rem 1.5rem; }
   .topbar { margin: 0 -1rem; padding: .5rem 1rem; }
