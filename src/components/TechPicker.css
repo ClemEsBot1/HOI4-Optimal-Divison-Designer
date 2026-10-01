@@ -102,7 +102,11 @@
 .counter.empty.open { border-style: solid; opacity: .8; }
 
 /* Inline tree (Research view) */
-.tp-inline .tp-panel { width: 100%; max-height: min(78vh, 60rem); background: var(--inset); border-color: var(--line); border-radius: 10px; }
+.tp-inline .tp-panel { width: 100%; background: var(--inset); border-color: var(--line); border-radius: 10px; }
+/* The inline tree grows with the page, so the page is the only vertical scroll; wide trees still scroll sideways. */
+.tp-inline .tp-scroll { flex: none; overflow-x: auto; overflow-y: hidden; }
+.tip-up .tp-tooltip { top: auto; bottom: calc(100% + .35rem); }
+.tp-loose:not(.tip-up) { min-height: 18rem; align-content: start; }
 .tp-inline .tp-head { background: rgba(255, 240, 200, .02); }
 .tp-inline .tp-head h2 { font-family: var(--head); letter-spacing: .04em; }
 .tp-tabs button.on { color: var(--accent-ink); }
