@@ -1,4 +1,5 @@
 import React from 'react';
+import NumberInput from './NumberInput.jsx';
 import { fmt } from '../lib/stats.js';
 import { equipmentIcon } from '../lib/icons.js';
 import { OPPONENTS, ENEMY_KEYS, matchup } from '../lib/combat.js';
@@ -119,9 +120,9 @@ export function Logistics({ game, stats, scale, setScale }) {
         <div className="td-panel">
           <h4>Fielding {n || '…'} divisions</h4>
           <div className="fields compact">
-            <label>Divisions<input type="number" min="0" value={scale.divisions} onChange={(e) => setScale((s) => ({ ...s, divisions: e.target.value }))} /></label>
-            <label>Military factories<input type="number" min="0" value={scale.factories} onChange={(e) => setScale((s) => ({ ...s, factories: e.target.value }))} /></label>
-            <label>Efficiency %<input type="number" min="1" max="100" value={scale.efficiency} onChange={(e) => setScale((s) => ({ ...s, efficiency: e.target.value }))} /></label>
+            <label>Divisions<NumberInput min="0" integer value={scale.divisions} onChange={(v) => setScale((s) => ({ ...s, divisions: v }))} /></label>
+            <label>Military factories<NumberInput min="0" integer value={scale.factories} onChange={(v) => setScale((s) => ({ ...s, factories: v }))} /></label>
+            <label>Efficiency %<NumberInput min="1" max="100" value={scale.efficiency} onChange={(v) => setScale((s) => ({ ...s, efficiency: v }))} /></label>
           </div>
           <dl>
             <div><dt>Production cost</dt><dd>{Math.round(totalIc).toLocaleString('en-GB')}</dd></div>
@@ -160,14 +161,14 @@ export function OpponentPicker({ enemy, setEnemy }) {
               </select>
             </label>
             <label>Priority
-              <input type="number" min="1" max="10" value={enemy.weight ?? 8} onChange={(e) => setEnemy((x) => ({ ...x, weight: Math.max(1, Math.min(10, Number(e.target.value) || 1)) }))} />
+              <NumberInput min="1" max="10" integer value={enemy.weight ?? 8} onChange={(v) => setEnemy((x) => ({ ...x, weight: v }))} />
             </label>
           </div>
           {custom && (
             <div className="fields">
               {ENEMY_KEYS.map((k) => (
                 <label key={k}>{({ width: 'Width', sa: 'Soft attack', ha: 'Hard attack', def: 'Defense', brk: 'Breakthrough', org: 'Organization', arm: 'Armor', pier: 'Piercing', hard: 'Hardness %' })[k]}
-                  <input type="number" min="0" value={enemy[k] ?? ''} onChange={(e) => setEnemy((x) => ({ ...x, [k]: e.target.value }))} />
+                  <NumberInput min="0" allowEmpty value={enemy[k] ?? ''} onChange={(v) => setEnemy((x) => ({ ...x, [k]: v }))} />
                 </label>
               ))}
             </div>
