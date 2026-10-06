@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="35%" cy="28%" r="80%">
+      <stop offset="0" stop-color="#3a4630"/>
+      <stop offset="1" stop-color="#0d1210"/>
+    </radialGradient>
+    <linearGradient id="brass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f2d38c"/>
+      <stop offset=".55" stop-color="#d3a64f"/>
+      <stop offset="1" stop-color="#9a7633"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <!-- divisional insignia: diamond with a tactical-symbol cross and three column bars -->
+  <g transform="translate(256 256)">
+    <path d="M0 -150 L150 0 L0 150 L-150 0 Z" fill="none" stroke="url(#brass)" stroke-width="18" stroke-linejoin="round"/>
+    <rect x="-78" y="-46" width="156" height="92" rx="6" fill="none" stroke="url(#brass)" stroke-width="12"/>
+    <path d="M-78 -46 L78 46 M78 -46 L-78 46" stroke="url(#brass)" stroke-width="10" stroke-linecap="round"/>
+    <g fill="url(#brass)">
+      <rect x="-30" y="-98" width="12" height="30" rx="2"/>
+      <rect x="-6" y="-98" width="12" height="30" rx="2"/>
+      <rect x="18" y="-98" width="12" height="30" rx="2"/>
+    </g>
+  </g>
+</svg>
