@@ -1,5 +1,7 @@
 import React from 'react';
+import NumberInput from './NumberInput.jsx';
 import { fmt } from '../lib/stats.js';
+import { equipmentIcon } from '../lib/icons.js';
 import { OPPONENTS, ENEMY_KEYS, matchup } from '../lib/combat.js';
 
 const signed = (x, dp = 2) => `${x > 0 ? '+' : ''}${x.toFixed(dp)}`;
@@ -10,6 +12,9 @@ export function ScoreExplain({ explain, hasRef }) {
   if (!explain?.length) return null;
   const max = Math.max(...explain.map((e) => Math.abs(e.delta)), 1e-9);
   const total = explain.reduce((a, e) => a + e.delta, 0);
+  // against a runner-up, stats where the two are level only add noise: list them in one line under the bars
+  const tied = hasRef ? explain.filter((e) => Math.abs(e.delta) < 0.005) : [];
+  const rows = hasRef ? explain.filter((e) => Math.abs(e.delta) >= 0.005) : explain;
   return (
     <div className="explain">
       <h3>Why this template wins</h3>
@@ -19,7 +24,7 @@ export function ScoreExplain({ explain, hasRef }) {
           : <>Each stat's contribution to the score.</>}
       </p>
       <ul className="explain-rows">
-        {explain.map((e) => (
+        {rows.map((e) => (
           <li key={e.key}>
             <span className="ex-label">{e.label} <em>({e.key === 'frontage' ? `share of each battle's width used; weight ${e.weight}, the sum of the combat priorities` : `${e.weight > 0 ? '' : 'lower is better, '}priority ${Math.abs(e.weight)}`})</em></span>
             <span className="ex-bar" aria-hidden="true">
@@ -30,6 +35,7 @@ export function ScoreExplain({ explain, hasRef }) {
           </li>
         ))}
       </ul>
+      {tied.length > 0 && <p className="note">Level with the runner-up on {tied.map((e) => e.label.toLowerCase()).join(', ')}.</p>}
     </div>
   );
 }
@@ -99,7 +105,7 @@ export function Logistics({ game, stats, scale, setScale }) {
         <div className="td-panel">
           <h4>Equipment per division</h4>
           <dl>
-            {equipment.map(([k, v]) => <div key={k}><dt>{EQUIPMENT_NAME(game, k)}</dt><dd>{Math.round(v).toLocaleString('en-GB')}</dd></div>)}
+            {equipment.map(([k, v]) => <div key={k}><dt>{equipmentIcon(k) && <img className="eq-icon" src={equipmentIcon(k)} alt="" />}{EQUIPMENT_NAME(game, k)}</dt><dd>{Math.round(v).toLocaleString('en-GB')}</dd></div>)}
           </dl>
         </div>
         <div className="td-panel">
@@ -114,9 +120,9 @@ export function Logistics({ game, stats, scale, setScale }) {
         <div className="td-panel">
           <h4>Fielding {n || '…'} divisions</h4>
           <div className="fields compact">
-            <label>Divisions<input type="number" min="0" value={scale.divisions} onChange={(e) => setScale((s) => ({ ...s, divisions: e.target.value }))} /></label>
-            <label>Military factories<input type="number" min="0" value={scale.factories} onChange={(e) => setScale((s) => ({ ...s, factories: e.target.value }))} /></label>
-            <label>Efficiency %<input type="number" min="1" max="100" value={scale.efficiency} onChange={(e) => setScale((s) => ({ ...s, efficiency: e.target.value }))} /></label>
+            <label>Divisions<NumberInput min="0" integer value={scale.divisions} onChange={(v) => setScale((s) => ({ ...s, divisions: v }))} /></label>
+            <label>Military factories<NumberInput min="0" integer value={scale.factories} onChange={(v) => setScale((s) => ({ ...s, factories: v }))} /></label>
+            <label>Efficiency %<NumberInput min="1" max="100" value={scale.efficiency} onChange={(v) => setScale((s) => ({ ...s, efficiency: v }))} /></label>
           </div>
           <dl>
             <div><dt>Production cost</dt><dd>{Math.round(totalIc).toLocaleString('en-GB')}</dd></div>
@@ -155,14 +161,14 @@ export function OpponentPicker({ enemy, setEnemy }) {
               </select>
             </label>
             <label>Priority
-              <input type="number" min="1" max="10" value={enemy.weight ?? 8} onChange={(e) => setEnemy((x) => ({ ...x, weight: Math.max(1, Math.min(10, Number(e.target.value) || 1)) }))} />
+              <NumberInput min="1" max="10" integer value={enemy.weight ?? 8} onChange={(v) => setEnemy((x) => ({ ...x, weight: v }))} />
             </label>
           </div>
           {custom && (
             <div className="fields">
               {ENEMY_KEYS.map((k) => (
                 <label key={k}>{({ width: 'Width', sa: 'Soft attack', ha: 'Hard attack', def: 'Defense', brk: 'Breakthrough', org: 'Organization', arm: 'Armor', pier: 'Piercing', hard: 'Hardness %' })[k]}
-                  <input type="number" min="0" value={enemy[k] ?? ''} onChange={(e) => setEnemy((x) => ({ ...x, [k]: e.target.value }))} />
+                  <NumberInput min="0" allowEmpty value={enemy[k] ?? ''} onChange={(v) => setEnemy((x) => ({ ...x, [k]: v }))} />
                 </label>
               ))}
             </div>

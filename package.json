@@ -11,9 +11,11 @@
     "extract": "node scripts/extract.mjs",
     "designers": "node scripts/extract-designers.mjs",
     "check": "node scripts/selfcheck.mjs",
-    "golden": "node scripts/golden.mjs"
+    "golden": "node scripts/golden.mjs",
+    "bench": "node scripts/bench.mjs"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

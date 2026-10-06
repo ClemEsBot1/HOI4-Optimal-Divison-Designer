@@ -27,6 +27,7 @@ self.addEventListener('fetch', (e) => {
   const sameOrigin = url.origin === self.location.origin;
   const fonts = /fonts\.(googleapis|gstatic)\.com$/.test(url.hostname);
   if (!sameOrigin && !fonts) return;
+  if (sameOrigin && url.pathname.startsWith('/_vercel/')) return; // analytics: never cached
 
   if (req.mode === 'navigate') {
     // network first; offline, the cached app shell (the app reads its state from the URL)

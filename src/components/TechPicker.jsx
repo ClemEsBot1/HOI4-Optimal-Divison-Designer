@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { canResearch, researchTech, unresearchTech } from '../lib/game.js';
 import { describeTech } from '../lib/describe.js';
 import { TECH_PRESETS, techPreset, sameSet } from '../lib/presets.js';
@@ -42,12 +42,38 @@ export default function TechPicker({ game, techs, setTechs }) {
   );
 }
 
-/** The technology tree. `inline` renders it in the page; otherwise it is a full-screen dialog. */
-export function TechTree({ game, techs, setTechs, onClose, inline = false }) {
-  const [tab, setTab] = useState(TABS[0].id);
+/**
+ * The technology tree. `inline` renders it in the page; otherwise it is a dialog. `fullscreen` makes the dialog
+ * take the whole screen and shrinks the tree to fit its height, so the wheel only ever has to scroll sideways.
+ * `onExpand(tab)` adds a full-screen button to the inline tree.
+ */
+export function TechTree({ game, techs, setTechs, onClose, onExpand, inline = false, fullscreen = false, initialTab }) {
+  const [tab, setTab] = useState(initialTab && TABS.some((t) => t.id === initialTab) ? initialTab : TABS[0].id);
   const [query, setQuery] = useState('');
   const [researchSummary, setResearchSummary] = useState(null);
   const closeRef = useRef(null);
+  const scrollRef = useRef(null);
+  const overlayRef = useRef(null);
+  useWheelToHorizontal(scrollRef, fullscreen);
+  const closeLatest = useRef(onClose);
+  closeLatest.current = onClose;
+
+  // Ask the browser for real full screen too. Leaving it (Esc, F11) closes the dialog, so there is no half state.
+  useEffect(() => {
+    const el = overlayRef.current;
+    if (!fullscreen || !el?.requestFullscreen) return undefined;
+    let entered = false;
+    const onChange = () => {
+      if (document.fullscreenElement === el) entered = true;
+      else if (entered) closeLatest.current?.();
+    };
+    document.addEventListener('fullscreenchange', onChange);
+    el.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
+    return () => {
+      document.removeEventListener('fullscreenchange', onChange);
+      if (document.fullscreenElement === el) document.exitFullscreen().catch(() => {});
+    };
+  }, [fullscreen]);
 
   useEffect(() => {
     if (inline) return undefined;
@@ -133,7 +159,7 @@ export function TechTree({ game, techs, setTechs, onClose, inline = false }) {
   };
 
   return (
-    <div className={inline ? 'tp-inline' : 'tp-overlay'} role={inline ? undefined : 'dialog'} aria-modal={inline ? undefined : 'true'} aria-label="Technology tree">
+    <div ref={overlayRef} className={inline ? 'tp-inline' : 'tp-overlay' + (fullscreen ? ' tp-full' : '')} role={inline ? undefined : 'dialog'} aria-modal={inline ? undefined : 'true'} aria-label="Technology tree">
       <div className="tp-panel">
         <header className="tp-head">
           <h2>{inline ? 'Tree' : 'Technology'}</h2>
@@ -141,7 +167,8 @@ export function TechTree({ game, techs, setTechs, onClose, inline = false }) {
           <button type="button" className="ghost" onClick={researchTab}>{q ? 'Research matching technologies' : 'Research all in this tab'}</button>
           <button type="button" className="ghost" onClick={clearTab}>Clear this tab</button>
           <button type="button" className="ghost" onClick={clearEverything}>Clear everything</button>
-          {!inline && <button type="button" ref={closeRef} onClick={onClose}>Done</button>}
+          {inline && onExpand && <button type="button" className="tp-expand" onClick={() => onExpand(tab)}>Full screen</button>}
+          {!inline && <button type="button" ref={closeRef} onClick={onClose}>{fullscreen ? 'Exit full screen' : 'Done'}</button>}
         </header>
         <div className="tp-tabs" role="tablist">
           {TABS.filter((t) => (byTab.get(t.id) || []).length).map((t) => {
@@ -161,12 +188,12 @@ export function TechTree({ game, techs, setTechs, onClose, inline = false }) {
           {researchSummary.skippedSpecial > 0 ? ` ${researchSummary.skippedSpecial} special-project ${researchSummary.skippedSpecial === 1 ? 'technology was' : 'technologies were'} skipped.` : ''}
           {researchSummary.skippedExclusive > 0 ? ` ${researchSummary.skippedExclusive} mutually exclusive or conflicting ${researchSummary.skippedExclusive === 1 ? 'technology was' : 'technologies were'} skipped without replacing existing research.` : ''}
         </p>}
-        <div className="tp-scroll">
+        <div className="tp-scroll" ref={scrollRef}>
           {q && matchingCount === 0
             ? <p className="note tp-no-matches" role="status">No technologies in this tab match “{query.trim()}”. Try another search or clear the search field.</p>
             : <>
               {q && <p className="note tp-match-count" role="status">{matchingCount} {matchingCount === 1 ? 'technology matches' : 'technologies match'} “{query.trim()}”. Other technologies are dimmed.</p>}
-              <TreeGrid game={game} list={tabTechs} folder={tab} techs={techs} toggle={toggle} matches={matches} />
+              <TreeGrid game={game} list={tabTechs} folder={tab} techs={techs} toggle={toggle} matches={matches} fit={fullscreen} />
             </>}
         </div>
       </div>
@@ -174,7 +201,55 @@ export function TechTree({ game, techs, setTechs, onClose, inline = false }) {
   );
 }
 
-function TreeGrid({ game, list, folder, techs, toggle, matches }) {
+/**
+ * Turns the vertical mouse wheel into smooth sideways scrolling over the tree, since the years run left to right.
+ * Once the tree reaches either end the wheel falls through to the page, and trackpad or shift-wheel sideways
+ * scrolling stays native.
+ */
+function useWheelToHorizontal(ref, evenIfTall = false) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    let target = null;
+    let frame = 0;
+    const step = () => {
+      const diff = target - el.scrollLeft;
+      if (Math.abs(diff) < 1) { el.scrollLeft = target; target = null; frame = 0; return; }
+      el.scrollLeft += diff * .2;
+      frame = requestAnimationFrame(step);
+    };
+    const onWheel = (e) => {
+      if (e.ctrlKey || e.shiftKey || Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;
+      const max = el.scrollWidth - el.clientWidth;
+      // Leave the wheel alone when the tree also scrolls vertically (the dialog on short screens) or does not overflow.
+      if (max <= 1 || (!evenIfTall && el.scrollHeight - el.clientHeight > 1)) return;
+      const delta = e.deltaY * (e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? el.clientWidth : 1);
+      const from = target ?? el.scrollLeft;
+      if ((delta < 0 && from <= 0) || (delta > 0 && from >= max - 1)) return;
+      e.preventDefault();
+      target = Math.max(0, Math.min(max, from + delta));
+      if (reduce) { el.scrollLeft = target; target = null; return; }
+      if (!frame) frame = requestAnimationFrame(step);
+    };
+    // A drag or keyboard scroll mid-animation should win over the wheel target.
+    const cancel = () => { if (frame) cancelAnimationFrame(frame); frame = 0; target = null; };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    el.addEventListener('pointerdown', cancel);
+    el.addEventListener('keydown', cancel);
+    return () => {
+      cancel();
+      el.removeEventListener('wheel', onWheel);
+      el.removeEventListener('pointerdown', cancel);
+      el.removeEventListener('keydown', cancel);
+    };
+  }, [ref, evenIfTall]);
+}
+
+/** Rows a tree may use before its branches are folded into another band to the right. */
+const MAX_TREE_ROWS = 8;
+
+function TreeGrid({ game, list, folder, techs, toggle, matches, fit }) {
   const positioned = list.filter((t) => t.x && !t.subOf);
   const loose = list.filter((t) => (!t.x && !t.subOf));
   const hasMatchingSub = (tech) => tech.subs.some((id) => {
@@ -219,47 +294,102 @@ function TreeGrid({ game, list, folder, techs, toggle, matches }) {
     return map;
   }, [positioned]);
 
+  // The game data runs years down the screen; transpose it so years run left to right, like in game, and
+  // drop the empty columns and rows the source grid leaves between branches so the tree stays compact.
+  // Trees with many branches would then be tall and narrow, so their branches are folded into bands placed
+  // side by side (each with its own run of years), which keeps every tree short and wide.
   const layout = useMemo(() => {
     if (!positioned.length) return null;
     const pts = positioned.map((t) => posOf.get(t.id));
-    const minX = Math.min(...pts.map((p) => p.x));
-    const minY = Math.min(...pts.map((p) => p.y));
-    return { minX, minY, cols: Math.max(...pts.map((p) => p.x)) - minX + 1, rows: Math.max(...pts.map((p) => p.y)) - minY + 1 };
+    const index = (vals) => new Map([...new Set(vals)].sort((a, b) => a - b).map((v, i) => [v, i]));
+    const colOf = index(pts.map((p) => p.y));
+    const rowOf = index(pts.map((p) => p.x));
+    const baseCols = colOf.size;
+    const bands = Math.ceil(rowOf.size / MAX_TREE_ROWS);
+    const bandRows = Math.ceil(rowOf.size / bands);
+    // One empty column between bands carries the lines that link branches across them.
+    const bandWidth = baseCols + 1;
+    return { colOf, rowOf, baseCols, bandRows, bandWidth, bands, cols: bands * bandWidth - 1, rows: bandRows };
   }, [positioned, posOf]);
+  const cellOf = (id) => {
+    const p = posOf.get(id);
+    const r = layout.rowOf.get(p.x);
+    const band = Math.floor(r / layout.bandRows);
+    return { col: band * layout.bandWidth + layout.colOf.get(p.y), row: r % layout.bandRows, band };
+  };
 
   const positionedIds = new Set(positioned.map((t) => t.id));
   const edges = positioned.flatMap((t) => t.parents
     .map((p) => game.techs.get(p))
     .filter((p) => p && positionedIds.has(p.id))
     .map((p) => ({ from: p, to: t })));
+  const cols = layout ? layout.cols : 0;
   const rows = layout ? layout.rows : 0;
-  const rowYears = layout
-    ? [...new Set(positioned.map((t) => posOf.get(t.id).y))].map((y) => ({
-        row: y - layout.minY + 1,
-        year: Math.min(...positioned.filter((t) => posOf.get(t.id).y === y).map((t) => t.year || 0).filter(Boolean)),
-      }))
-    : [];
-  const yearsStyle = { height: `${rows * 6 + 1.5}rem` };
-  const yearStyle = (row) => ({ top: `${(row - 1) * 6 + 4.85}rem` });
+  // One label per column holding techs, shown only where it moves that band's timeline forward so each rail reads
+  // as a clean run of years.
+  const colYears = [];
+  if (layout) {
+    const firstYear = new Map();
+    for (const t of positioned) {
+      if (!t.year) continue;
+      const { col, band } = cellOf(t.id);
+      const cur = firstYear.get(col);
+      if (!cur || t.year < cur.year) firstYear.set(col, { col, band, year: t.year });
+    }
+    const latest = new Map();
+    for (const x of [...firstYear.values()].sort((a, b) => a.col - b.col)) {
+      if (x.year > (latest.get(x.band) ?? -Infinity)) { colYears.push(x); latest.set(x.band, x.year); }
+    }
+  }
+  // In full screen, shrink the tree (down to 75%) so every row fits on screen and the wheel only has to scroll sideways.
+  // Very tall trees still scroll vertically below that.
+  const wrapRef = useRef(null);
+  const [zoom, setZoom] = useState(1);
+  useLayoutEffect(() => {
+    const wrap = wrapRef.current;
+    const box = fit && wrap ? wrap.closest('.tp-scroll') : null;
+    if (!box || !wrap) { setZoom(1); return undefined; }
+    const measure = () => {
+      const pad = parseFloat(getComputedStyle(box).paddingBottom) || 0;
+      // Measure the tree at its natural size, then scale it into the room left below anything above it.
+      const prev = wrap.style.zoom;
+      wrap.style.zoom = '';
+      const natural = wrap.offsetHeight;
+      const room = box.getBoundingClientRect().bottom - wrap.getBoundingClientRect().top - pad;
+      wrap.style.zoom = prev;
+      setZoom(natural > 0 && room > 0 ? Math.max(.75, Math.min(1, room / natural)) : 1);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(box);
+    return () => ro.disconnect();
+  }, [fit, folder, rows, cols]);
+
   return (
     <>
       {layout && (
-        <div className={`tp-tree-wrap tp-folder-${folder}`} style={{ '--tp-cols': layout.cols, '--tp-rows': rows }}>
-          <div className="tp-years tp-years-left" style={yearsStyle} aria-hidden="true">{rowYears.map((x) => <span key={x.row} style={yearStyle(x.row)}>{x.year}</span>)}</div>
-          <div className="tp-years tp-years-right" style={yearsStyle} aria-hidden="true">{rowYears.map((x) => <span key={x.row} style={yearStyle(x.row)}>{x.year}</span>)}</div>
-          <div className="tp-grid" style={{ gridTemplateColumns: `repeat(${layout.cols}, 5.2rem)`, gridTemplateRows: `repeat(${rows}, 6rem)`, paddingTop: '1.5rem' }}>
-            <svg className="tp-lines" style={{ '--tp-cols': layout.cols, '--tp-rows': rows }} viewBox={`0 0 ${layout.cols} ${rows}`} preserveAspectRatio="none" aria-hidden="true">
+        <div ref={wrapRef} className={`tp-tree-wrap tp-folder-${folder}`} style={{ '--tp-cols': cols, '--tp-rows': rows, zoom: zoom === 1 ? undefined : zoom }}>
+          <div className="tp-years" aria-hidden="true">{colYears.map((x) => <span key={x.col} style={{ '--tp-col': x.col }}>{x.year}</span>)}</div>
+          <div className="tp-grid" style={{ gridTemplateColumns: `repeat(${cols}, var(--tp-cw))`, gridTemplateRows: `repeat(${rows}, var(--tp-rh))` }}>
+            <svg className="tp-lines" viewBox={`0 0 ${cols} ${rows}`} preserveAspectRatio="none" aria-hidden="true">
               {edges.map(({ from, to }) => {
-                const fp = posOf.get(from.id); const tp = posOf.get(to.id);
-                const x1 = fp.x - layout.minX + .5; const y1 = fp.y - layout.minY + .5;
-                const x2 = tp.x - layout.minX + .5; const y2 = tp.y - layout.minY + .5;
-                return <path key={`${from.id}-${to.id}`} d={`M ${x1} ${y1} H ${x2} V ${y2}`} />;
+                const f = cellOf(from.id); const t = cellOf(to.id);
+                const x1 = f.col + .5; const y1 = f.row + .5;
+                const x2 = t.col + .5; const y2 = t.row + .5;
+                // Links between bands run along the parent's row, down the gap column before the child's band, then in.
+                const d = f.band === t.band
+                  ? `M ${x1} ${y1} V ${y2} H ${x2}`
+                  : `M ${x1} ${y1} H ${Math.max(f.band, t.band) * layout.bandWidth - .5} V ${y2} H ${x2}`;
+                return <path key={`${from.id}-${to.id}`} d={d} />;
               })}
             </svg>
             {positioned.map((t) => {
-              const p = posOf.get(t.id);
+              const { col, row } = cellOf(t.id);
+              // Bottom rows open their tooltip upwards so it stays inside the tree instead of being cut off.
+              const tipUp = rows > 3 && rows - row <= 3;
+              const tipSide = col <= 1 ? ' tip-left' : col >= cols - 2 ? ' tip-right' : '';
               return (
-                <div key={t.id} className="tp-cell" style={{ gridColumn: p.x - layout.minX + 1, gridRow: p.y - layout.minY + 1 }}>
+                <div key={t.id} className={'tp-cell' + (tipUp ? ' tip-up' : '') + tipSide} style={{ gridColumn: col + 1, gridRow: row + 1 }}>
                   <TechCard game={game} tech={t} techs={techs} toggle={toggle} dim={!matches(t) && !hasMatchingSub(t)} matches={matches} />
                 </div>
               );
@@ -268,7 +398,7 @@ function TreeGrid({ game, list, folder, techs, toggle, matches }) {
         </div>
       )}
       {loose.length > 0 && (
-        <div className="tp-loose">
+        <div className={'tp-loose' + (layout ? ' tip-up' : '')}>
           {loose.map((t) => <TechCard key={t.id} game={game} tech={t} techs={techs} toggle={toggle} dim={!matches(t) && !hasMatchingSub(t)} matches={matches} />)}
         </div>
       )}

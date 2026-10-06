@@ -1,0 +1,77 @@
+/* Navy view: fleet controls, order of battle, dockyard timeline. Ship classes keep one colour each throughout. */
+.view-navy { --cls-carrier: var(--brass); --cls-capital: #d0705f; --cls-screen: var(--olive-hi); --cls-sub: #7fb0cf; }
+.view-navy .panel { margin-bottom: 1rem; }
+
+.view-navy .fleet-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.1rem; margin: 0 0 1rem; padding: .6rem .8rem; border: 1px solid var(--line); border-radius: 9px; background: var(--inset); }
+.view-navy .fleet-controls label { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; font-size: .86rem; color: var(--muted); }
+.view-navy .fleet-controls select { color: var(--ink); }
+.view-navy .scale { display: flex; align-items: center; gap: .5rem; margin-right: auto; }
+.view-navy .scale button { white-space: nowrap; }
+.view-navy .scale button:disabled { opacity: .4; cursor: not-allowed; filter: none; transform: none; }
+.view-navy .scale-value { display: grid; min-width: 10rem; text-align: center; line-height: 1.15; }
+.view-navy .scale-value span { font-family: var(--head); font-size: 1.05rem; letter-spacing: .02em; }
+.view-navy .scale-value b { font-size: 1.45rem; color: var(--brass-hi); }
+.view-navy .scale-value small { font-family: var(--mono); font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+@media (max-width: 40rem) {
+  .view-navy .scale { width: 100%; justify-content: space-between; margin-right: 0; }
+  .view-navy .scale-value { min-width: 0; flex: 1; }
+}
+
+.view-navy .cls-dot { display: inline-block; width: .6rem; height: .6rem; margin-right: .45rem; border-radius: 2px; vertical-align: baseline; background: var(--cls-screen); }
+.view-navy .cls-dot.carrier { background: var(--cls-carrier); }
+.view-navy .cls-dot.capital { background: var(--cls-capital); }
+.view-navy .cls-dot.sub { background: var(--cls-sub); }
+
+.view-navy .compo-bar { display: flex; gap: 2px; height: .65rem; margin: 0 0 .9rem; border-radius: 99px; overflow: hidden; background: rgba(255, 240, 200, .05); }
+.view-navy .compo-bar i { display: block; flex-basis: 0; min-width: 3px; background: var(--cls-screen); }
+.view-navy .compo-bar i.carrier { background: var(--cls-carrier); }
+.view-navy .compo-bar i.capital { background: var(--cls-capital); }
+.view-navy .compo-bar i.sub { background: var(--cls-sub); }
+
+.view-navy .fleet-table td.bad { color: #ef9b8f; }
+.view-navy .hull-icon { width: 3.4rem; height: .95rem; margin-right: .45rem; object-fit: contain; object-position: left center; vertical-align: middle; opacity: .85; }
+/* text columns left, numbers right, headers over their columns */
+.view-navy .rank.fleet-table th:first-child, .view-navy .rank.dock-table th:first-child { text-align: left; }
+.view-navy .rank.fleet-table th:nth-child(n+4) { text-align: right; min-width: 0; }
+.view-navy .fleet-table small, .view-navy .dock-table small { color: var(--dim); font-size: .76rem; }
+
+.view-navy .checks { list-style: none; display: grid; gap: .3rem; margin: .9rem 0 0; padding: 0; }
+.view-navy .checks li { display: flex; gap: .5rem; align-items: baseline; font-size: .88rem; color: var(--ink); }
+.view-navy .checks li::before { content: '✔'; flex: none; color: var(--green); font-weight: 700; }
+.view-navy .checks li.warn::before { content: '!'; color: var(--warn); }
+.view-navy .checks li.bad::before { content: '✖'; color: var(--red); }
+
+.view-navy .fleet-design { display: grid; align-content: start; gap: .45rem; }
+.view-navy .fleet-design-head { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; font-family: var(--head); font-size: 1.08rem; letter-spacing: .02em; }
+.view-navy .fleet-design-head b { font-family: var(--mono); font-size: .95rem; color: var(--brass-hi); }
+.view-navy .fleet-design-head .pill { margin-left: auto; font-family: var(--body); }
+
+.view-navy .dock-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; }
+.view-navy .fit-row { display: flex; gap: .4rem; }
+.view-navy .fit-row select { flex: 1; min-width: 0; color: var(--ink); }
+.view-navy .fit-row button:disabled { opacity: .5; cursor: not-allowed; }
+
+.view-navy .gantt { display: grid; gap: .3rem; margin-top: 1rem; }
+.view-navy .gantt-row { display: grid; grid-template-columns: minmax(9rem, 19rem) minmax(0, 1fr); gap: .7rem; align-items: center; font-size: .8rem; }
+.view-navy .gantt-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.view-navy .gantt-label b { color: var(--ink); font-weight: 600; }
+.view-navy .gantt-track { position: relative; height: 1rem; border-radius: 4px; background: rgba(255, 240, 200, .04); }
+.view-navy .gantt-bar { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; border-right: 2px solid var(--cls-screen); background: rgba(152, 168, 104, .26); }
+.view-navy .gantt-bar.carrier { border-color: var(--cls-carrier); background: rgba(211, 166, 79, .24); }
+.view-navy .gantt-bar.capital { border-color: var(--cls-capital); background: rgba(208, 112, 95, .24); }
+.view-navy .gantt-bar.sub { border-color: var(--cls-sub); background: rgba(127, 176, 207, .24); }
+.view-navy .gantt-tick { position: absolute; top: 3px; bottom: 3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--ink); opacity: .5; }
+.view-navy .gantt-axis { margin-top: .1rem; }
+.view-navy .gantt-scale { position: relative; height: 1rem; border-top: 1px solid var(--line); }
+.view-navy .gantt-scale i { position: absolute; top: .15rem; transform: translateX(-50%); font-family: var(--mono); font-size: .6rem; font-style: normal; color: var(--dim); white-space: nowrap; }
+.view-navy .gantt-scale i:first-child { transform: none; }
+@media (max-width: 40rem) {
+  .view-navy .dock-fields { grid-template-columns: 1fr; }
+  .view-navy .gantt-row { grid-template-columns: minmax(0, 1fr); gap: .15rem; }
+  .view-navy .gantt-axis > span:first-child { display: none; }
+}
+
+.view-navy .cite { margin-left: .15rem; font-family: var(--mono); font-size: .66rem; }
+.view-navy .cite a { text-decoration: none; }
+.view-navy .sources { padding-left: 1.4rem; font-size: .86rem; }
+.view-navy .sources li { margin: .25rem 0; color: var(--muted); }

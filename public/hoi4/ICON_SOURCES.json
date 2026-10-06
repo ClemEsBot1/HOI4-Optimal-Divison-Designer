@@ -1,0 +1,1415 @@
+{
+ "note": "Hearts of Iron IV game art (c) Paradox Interactive, converted from the game DDS files to PNG. Used by this unofficial fan tool for identification only.",
+ "icons": [
+  {
+   "file": "airframes/large_airframe.png",
+   "gameFile": "gfx/interface/technologies/heavy_plane_1.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "airframes/medium_airframe.png",
+   "gameFile": "gfx/interface/technologies/medium_plane_1.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "airframes/small_airframe.png",
+   "gameFile": "gfx/interface/technologies/light_plane_3.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "doctrines/air_cavalry.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_air_cavalry.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/armored_cavalry.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_armored_cavalry.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/armored_cavalry_no_lar.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_armored_cavalry.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/armored_infantry_support.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_armored_infantry_support.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/armored_spearhead.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_armored_spearhead_no_lar.dds",
+   "via": "copy of armored_spearhead_no_lar.png"
+  },
+  {
+   "file": "doctrines/armored_spearhead_no_lar.png",
+   "gameFile": "gfx/interface/technologies/armored_spearhead.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "doctrines/assault_infantry.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_assault_infantry.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/deep_battle.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_deep_battle.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/deep_battle_no_lar.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_deep_battle.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/defensive_postures.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_defensive_postures.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/expeditionary_warfare.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_expeditionary_warfare.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/field_engineering.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_field_engineering.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/fire_concentration.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_fire_concentration.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/flying_batteries.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_flying_batteries.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/great_war_infantry.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_great_war_infantry.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/irregulars.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_irregulars.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/last_stand.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_last_stand.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/marines_1.png",
+   "gameFile": "gfx/interface/technologies/marines.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "doctrines/marines_2.png",
+   "gameFile": "gfx/interface/technologies/marines.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "doctrines/mission_type_tactics.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_mission_type_tactics.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/mobile_defense.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_mobile_defense.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/mobile_recon_and_assault.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_mobile_recon_assault.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/mobile_recon_and_assault_no_lar.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_mobile_recon_assault.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/mountaineers_1.png",
+   "gameFile": "gfx/interface/technologies/mountain.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "doctrines/mountaineers_2.png",
+   "gameFile": "gfx/interface/technologies/mountain.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "doctrines/mounted_infantry.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_mounted_infantry.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/paratroopers_1.png",
+   "gameFile": "gfx/interface/technologies/paratroopers.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "doctrines/paratroopers_2.png",
+   "gameFile": "gfx/interface/technologies/paratroopers.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "doctrines/peoples_war.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_peoples_war.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/rangers_1.png",
+   "gameFile": "gfx/interface/technologies/rangers_medium.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "doctrines/rangers_2.png",
+   "gameFile": "gfx/interface/technologies/rangers_medium.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "doctrines/self_propelled_support.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_self_propelled_support.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/siege_artillery.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_siege_artillery.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/special_forces_quality.png",
+   "gameFile": "gfx/interface/technologies/tech_special_forces.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "doctrines/special_forces_quantity.png",
+   "gameFile": "gfx/interface/technologies/tech_special_forces.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "doctrines/streamlined_deployment.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_streamlined_deployment.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "doctrines/tank_destroyer_force.png",
+   "gameFile": "gfx/interface/doctrines/icons/doctrine_tank_destroyer_force.dds",
+   "via": "github.com/World-Ablaze/world-ablaze-beta"
+  },
+  {
+   "file": "equipment/amphibious_mechanized_equipment.png",
+   "gameFile": "gfx/interface/technologies/generic_amphibious_mech_1.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "equipment/anti_air_equipment.png",
+   "gameFile": "gfx/interface/archetypes/archetype_anti_air_equipment.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "equipment/anti_tank_equipment.png",
+   "gameFile": "gfx/interface/archetypes/archetype_anti_tank_equipment.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "equipment/armored_car_equipment.png",
+   "gameFile": "gfx/interface/archetypes/archetype_armored_car_equipment.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "equipment/armored_support_vehicle.png",
+   "gameFile": "gfx/interface/archetypes/archetype_armored_car_equipment.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "equipment/artillery_equipment.png",
+   "gameFile": "gfx/interface/archetypes/archetype_artillery_equipment.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "equipment/helicopter_equipment.png",
+   "gameFile": "gfx/interface/technologies/air/usa/sikorsky.dds",
+   "via": "github.com/Mumiago/MFU-Updated"
+  },
+  {
+   "file": "equipment/infantry_equipment.png",
+   "gameFile": "gfx/interface/archetypes/archetype_infantry_equipment.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "equipment/mechanized_equipment.png",
+   "gameFile": "gfx/interface/technologies/mechanized_equipment_1.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "equipment/motorbike_equipment.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_motorized_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "equipment/motorized_equipment.png",
+   "gameFile": "gfx/interface/archetypes/archetype_motorized_equipment.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "equipment/motorized_rocket_equipment.png",
+   "gameFile": "gfx/interface/archetypes/archetype_motorized_rocket_equipment.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "equipment/rocket_artillery_equipment.png",
+   "gameFile": "gfx/interface/archetypes/archetype_rocket_artillery_equipment.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "equipment/self_propelled_super_heavy_artillery_equipment.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_self_propelled_super_heavy_artillery_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "equipment/super_heavy_artillery_equipment.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_super_heavy_artillery_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "equipment/support_equipment.png",
+   "gameFile": "gfx/interface/archetypes/archetype_support_equipment.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "hulls/ship_hull_carrier.png",
+   "gameFile": "gfx/interface/technologies/basic_carrier.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "hulls/ship_hull_cruiser.png",
+   "gameFile": "gfx/interface/technologies/basic_light_cruiser.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "hulls/ship_hull_heavy.png",
+   "gameFile": "gfx/interface/technologies/basic_battleship.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "hulls/ship_hull_light.png",
+   "gameFile": "gfx/interface/technologies/basic_destroyer.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "hulls/ship_hull_submarine.png",
+   "gameFile": "gfx/interface/technologies/basic_submarine.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/additional_machine_guns.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_additional_machine_guns.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/advanced_flamethrower.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/emi_tank_flamethrower.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/amphibious_drive.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_amphibious_drive.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/armor_skirts.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_add_on_armor.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/auto_loader.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_autoloader.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/carrier_ship_engine_1.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/engine_icn_1.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/carrier_ship_engine_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/engine_icn_2.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/carrier_ship_engine_3.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/engine_icn_3.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/carrier_ship_engine_4.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/engine_icn_4.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/cruiser_ship_engine_1.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/engine_icn_1.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/cruiser_ship_engine_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/engine_icn_2.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/cruiser_ship_engine_3.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/engine_icn_3.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/cruiser_ship_engine_4.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/engine_icn_4.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/dozer_blade.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_dozer_blade.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/dp_light_battery.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/dp_light_battery_icn.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/dp_ship_secondaries.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/secondary_battery_icn.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/easy_maintenance.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_easy_maintenance_access.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/expanded_fuel_tank.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_fuel_drum.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/extra_ammo_storage.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_extra_ammo_storage.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/flamethrower.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_flamethrower.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/heavy_ship_engine_1.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/engine_icn_1.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/heavy_ship_engine_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/engine_icn_2.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/heavy_ship_engine_3.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/engine_icn_3.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/heavy_ship_engine_4.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/engine_icn_4.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/light_ship_engine_1.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/engine_icn_1.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/light_ship_engine_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/engine_icn_2.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/light_ship_engine_3.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/engine_icn_3.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/light_ship_engine_4.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/engine_icn_4.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/secondary_turret_hmg.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_secondary_turret_hmg.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/secondary_turret_small_cannon.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_secondary_turret_small_cannon.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/ship_airplane_launcher_1.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/airplane_launcher_icn_1.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_airplane_launcher_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/airplane_launcher_icn_2.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_anti_air_1.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/anti_air_icn_1.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_anti_air_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/anti_air_icn_2.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_anti_air_3.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/anti_air_icn_3.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_anti_air_4.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/anti_air_icn_4.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_deck_space.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/deck_space_icn.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_depth_charge_1.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/depth_charge_icn_1.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_depth_charge_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/depth_charge_icn_2.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_depth_charge_3.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/depth_charge_icn_3.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_depth_charge_4.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/depth_charge_icn_4.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_extra_fuel_tank.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/fuel_tank_icn.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_fire_control_system_0.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/fire_control_system_icn.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_fire_control_system_1.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/fire_control_system_icn_1.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_fire_control_system_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/fire_control_system_icn_2.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_fire_control_system_3.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/fire_control_system_icn_3.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_heavy_battery_1.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/heavy_battery_icn_1.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_heavy_battery_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/heavy_battery_icn_2.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_heavy_battery_3.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/heavy_battery_icn_3.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_heavy_battery_4.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/heavy_battery_icn_4.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_light_battery_1.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/light_battery_icn_1.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_light_battery_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/light_battery_icn_2.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_light_battery_3.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/light_battery_icn_3.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_light_battery_4.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/light_battery_icn_4.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_light_medium_battery_1.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/medium_light_battery_icn_1.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_light_medium_battery_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/medium_light_battery_icn_2.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_light_medium_battery_3.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/medium_light_battery_icn_3.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_light_medium_battery_4.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/medium_light_battery_icn_4.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_medium_battery_1.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/medium_battery_icn_1.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_medium_battery_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/medium_battery_icn_2.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_medium_battery_3.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/medium_battery_icn_3.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_medium_battery_4.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/medium_battery_icn_4.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_mine_layer_1.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/minelaying_rails_icn.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_mine_layer_sub.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/minelaying_tubes_icn.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_mine_sweeper_1.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/minesweeping_gear_icn.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_radar_1.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/radar_icn_1.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_radar_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/radar_icn_2.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_radar_3.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/radar_icn_3.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_radar_4.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/radar_icn_4.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_secondaries_1.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/secondary_battery_icn_1.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_secondaries_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/secondary_battery_icn_2.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_sonar_1.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/sonar_icn_1.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_sonar_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/sonar_icn_2.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_sub_snorkel_1.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/submarine_snorkel_icn_1.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_sub_snorkel_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/submarine_snorkel_icn_2.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_super_heavy_battery_1.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/heavy_battery_icn.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_torpedo_1.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/ship_torpedo_launcher_icn_1.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_torpedo_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/ship_torpedo_launcher_icn_2.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_torpedo_3.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/ship_torpedo_launcher_icn_3.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_torpedo_4.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/ship_torpedo_launcher_icn_4.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_torpedo_sub_1.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/sub_torpedo_launcher_icn_1.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_torpedo_sub_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/sub_torpedo_launcher_icn_2.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_torpedo_sub_3.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/sub_torpedo_launcher_icn_3.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/ship_torpedo_sub_4.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/sub_torpedo_launcher_icn_4.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/sloped_armor.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_sloped_armor.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/smoke_launchers.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_smoke_launcher.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/squeezebore_adaptor.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_squeezebore_adaptor.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/stabilizer.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_stabilizer.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/sub_ship_engine_1.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/engine_icn_1.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/sub_ship_engine_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/engine_icn_2.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/sub_ship_engine_3.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/engine_icn_3.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/sub_ship_engine_4.png",
+   "gameFile": "gfx/interface/equipmentdesigner/naval/modules/icons/engine_icn_4.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "modules/tank_anti_air_cannon.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_aa_gun.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_anti_air_cannon_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_aa_gun_2.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_anti_air_cannon_3.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_aa_gun_3.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_auto_cannon.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_auto_cannon.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_auto_cannon_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_auto_cannon_2.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_bogie_suspension.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_bogie_suspension.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_cast_armor.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_cast_armor.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_christie_suspension.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_christie_suspension.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_close_support_gun.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_close_support_gun.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_diesel_engine.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_diesel_engine.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_gas_turbine_engine.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_gas_turbine_engine.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_gasoline_engine.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_gasoline_engine.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_half_track_suspension.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_half_track_suspension.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_heavy_cannon.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_heavy_cannon.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_heavy_cannon_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_heavy_cannon_2.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_heavy_cannon_3.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_heavy_cannon_3.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_heavy_fixed_superstructure_turret.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_heavy_fixed_superstructure.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_heavy_howitzer.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_heavy_howitzer.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_heavy_machine_gun.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_heavy_machine_gun.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_heavy_three_man_tank_turret.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_heavy_three_man_turret.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_heavy_two_man_tank_turret.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_heavy_two_man_turret.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_high_velocity_cannon.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_high_velocity_cannon.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_high_velocity_cannon_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_high_velocity_cannon_2.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_high_velocity_cannon_3.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_high_velocity_cannon_3.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_interleaved_suspension.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_interleaved_roadwheels.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_light_fixed_superstructure_turret.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_light_fixed_superstructure.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_light_one_man_tank_turret.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_light_one_man_turret.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_light_three_man_tank_turret.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_light_three_man_turret.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_light_two_man_tank_turret.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_light_two_man_turret.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_medium_cannon.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_medium_cannon.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_medium_cannon_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_medium_cannon_2.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_medium_fixed_superstructure_turret.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_medium_fixed_superstructure.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_medium_howitzer.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_medium_howitzer.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_medium_howitzer_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_medium_howitzer_2.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_medium_one_man_tank_turret.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_medium_one_man_turret.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_medium_three_man_tank_turret.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_medium_three_man_turret.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_medium_two_man_tank_turret.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_medium_two_man_turret.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_modern_tank_turret.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_modern_turret.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_petrol_electric_engine.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_petrol_electric_engine.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_radio_1.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_radio_1.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_radio_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_radio_2.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_radio_3.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_radio_3.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_riveted_armor.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_riveted_armor.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_rocket_launcher.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_rocket_artillery_1.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_rocket_launcher_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_rocket_artillery_2.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_small_cannon.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_small_cannon.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_small_cannon_2.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_small_cannon_2.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_super_heavy_cannon.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_super_heavy_cannon.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_super_heavy_four_man_tank_turret.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_super_heavy_four_man_turret.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_super_heavy_three_man_tank_turret.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_super_heavy_three_man_turret.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_torsion_bar_suspension.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_torsion_bar.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_welded_armor.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_welded_armor.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/tank_wheeled_suspension.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_wheeled_suspension.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "modules/wet_ammo_storage.png",
+   "gameFile": "gfx/interface/equipmentdesigner/tanks/modules/tank_module_wet_ammo_storage.dds",
+   "via": "github.com/chardynamics/vanilla-flood"
+  },
+  {
+   "file": "units/amphibious_armor.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_amphibious_tank_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/amphibious_mechanized.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_amphibious_mechanized_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/anti_air.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_anti_air_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/anti_air_battery.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_anti_air_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/anti_air_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_anti_air_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/anti_tank.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_at_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/anti_tank_battery.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_at_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/anti_tank_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_at_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/armored_car.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_armored_car_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/armored_car_recon.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_armored_car_recon_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/armored_engineer.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_armored_engineer_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/armored_maintenance.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_armored_maintenance_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/armored_signal.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_armored_signal_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/artillery.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_art_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/artillery_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_art_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/cavalry.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_cavalry_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/engineer.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_engineer_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/field_guns.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_field_guns_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/field_hospital.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_field_hospital_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/fire_support.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_fire_support_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/heavy_armor.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_heavy_armor_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/heavy_sp_anti_air_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_heavy_armor_antiair_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/heavy_sp_anti_air_support.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_heavy_spaa_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/heavy_sp_artillery_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_heavy_armor_artillery_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/heavy_tank_destroyer_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_heavy_armor_at_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/heavy_tank_destroyer_support.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_heavy_tank_destroyer_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/helicopter_field_hospital.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_helicopter_field_hospital_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/helicopter_recon.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_helicopter_recon_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/helicopter_transport.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_helicopter_transport_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/infantry.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_infantry_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/light_armor.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_light_tank_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/light_sp_anti_air_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_light_tank_antiair_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/light_sp_anti_air_support.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_light_spaa_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/light_sp_artillery_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_light_tank_artillery_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/light_tank_destroyer_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_light_tank_at_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/light_tank_destroyer_support.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_light_tank_destroyer_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/light_tank_recon.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_armored_recon_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/logistics_company.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_logistics_company_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/maintenance_company.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_maintenance_company_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/marine.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_marine_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/mechanized.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_mechanized_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/medium_armor.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_medium_tank_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/medium_sp_anti_air_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_medium_tank_antiair_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/medium_sp_anti_air_support.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_medium_spaa_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/medium_sp_artillery_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_medium_tank_artillery_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/medium_tank_destroyer_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_medium_tank_at_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/medium_tank_destroyer_support.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_medium_tank_destroyer_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/military_police.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_military_police_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/modern_armor.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_modern_armor_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/modern_sp_anti_air_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_modern_armor_antiair_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/modern_sp_anti_air_support.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_modern_spaa_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/modern_sp_artillery_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_modern_armor_artillery_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/modern_tank_destroyer_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_modern_armor_at_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/modern_tank_destroyer_support.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_modern_tank_destroyer_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/mot_anti_air_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_mot_anti_air_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/mot_anti_tank_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_mot_at_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/mot_artillery_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_mot_art_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/mot_fire_support.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_mot_fire_support_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/mot_recon.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_motorized_recon_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/mot_rocket_artillery_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_mot_rocket_art_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/motorized.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_motorized_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/motorized_military_police.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_motorized_military_police_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/motorized_rocket_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_motorized_rocket_brigade_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/mountaineers.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_mountain_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/paratrooper.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_paratroop_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/ranger_battalion.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_ranger_battalion_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/recon.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_recon_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/rocket_artillery.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_rocket_art_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/rocket_artillery_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_rocket_art_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/rocket_battery.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_rocket_art_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/signal_company.png",
+   "gameFile": "gfx/interface/counters/divisions_large/support_unit_signal_company_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/super_heavy_armor.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_super_heavy_armor_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/super_heavy_sp_anti_air_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_super_heavy_armor_antiair_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/super_heavy_sp_artillery_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_super_heavy_armor_artillery_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  },
+  {
+   "file": "units/super_heavy_tank_destroyer_brigade.png",
+   "gameFile": "gfx/interface/counters/divisions_large/unit_super_heavy_armor_at_icon.dds",
+   "via": "github.com/chardynamics/vanilla-training-wheels"
+  }
+ ]
+}

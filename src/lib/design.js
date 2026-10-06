@@ -81,7 +81,7 @@ export function coDesign(game, setup, baseResolved, runBest, P) {
     }
     log.push({ round: round + 1, changed, score: best.score });
     if (!changed) break;
-    resolved = resolve(game, { techs: setup.techs, doctrine: setup.doctrine, exclude: setup.exclude, design: setup.weights, designs: next });
+    resolved = resolve(game, { techs: setup.techs, doctrine: setup.doctrine, exclude: setup.exclude, terrain: setup.terrain, design: setup.weights, designs: next });
     best = runBest(resolved, [best.tpl]) || best;
   }
   return { resolved, best, log };

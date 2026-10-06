@@ -61,9 +61,12 @@ const loc = {};
 for (const f of walk(P.loc).filter((x) => x.endsWith('.yml'))) {
   for (const line of fs.readFileSync(f, 'utf8').split(/\r?\n/)) {
     const m = /^\s+([A-Za-z0-9_.'\-]+):\d*\s+"(.*)"\s*(#.*)?$/.exec(line);
-    if (m) loc[m[1]] = m[2].replace(/§./g, '').replace(/\\n/g, ' ').replace(/\$[A-Za-z_]+\$/g, '').trim();
+    if (m) loc[m[1]] = m[2].replace(/§./g, '').replace(/\\n/g, ' ');
   }
 }
+// `$key$` points at another entry (e.g. a tech named after the equipment it unlocks); anything left is a scripted value.
+const deref = (v, depth = 0) => v.replace(/\$([A-Za-z0-9_.]+)\$/g, (_, k) => (depth < 5 && loc[k] !== undefined ? deref(loc[k], depth + 1) : ''));
+for (const k of Object.keys(loc)) loc[k] = deref(loc[k]).replace(/\s+/g, ' ').trim();
 const nameOf = (id, ...alts) => {
   for (const k of [id, ...alts]) if (k && loc[k]) return loc[k];
   return prettify(id);
@@ -110,6 +113,8 @@ for (const f of fs.readdirSync(P.units).filter((x) => x.endsWith('.txt'))) {
   for (const e of su) if (isBlock(e.v)) rawUnits[e.k] = { id: e.k, b: e.v, file: f };
 }
 
+// terrain blocks a sub-unit can carry (the ones the theatres use, plus river and amphibious for completeness)
+const TERRAIN_IDS = ['plains', 'desert', 'forest', 'jungle', 'hills', 'marsh', 'mountain', 'urban', 'river', 'amphibious'];
 const numOf = (b, k, d) => (typeof first(b, k) === 'number' ? first(b, k) : d);
 
 // ---- categories a unit belongs to
@@ -126,6 +131,15 @@ for (const u of Object.values(rawUnits)) {
   for (const e of first(u.b, 'need') || []) if (typeof e.v === 'number') need[e.k] = e.v;
   const transport = first(u.b, 'transport');
   const bm = all(u.b, 'battalion_mult').map((b) => ({ category: first(b, 'category'), add: first(b, 'add') === true, stats: mapStats(b) })).filter((x) => x.category);
+  // terrain modifiers: forest = { attack = -0.2 defence = -0.1 movement = -0.2 }, as fractions
+  const terrain = {};
+  for (const t of TERRAIN_IDS) {
+    const tb = first(u.b, t);
+    if (!isBlock(tb)) continue;
+    const m = {};
+    for (const k of ['attack', 'defence', 'movement']) if (typeof first(tb, k) === 'number' && first(tb, k)) m[k] = round(first(tb, k));
+    if (Object.keys(m).length) terrain[t] = m;
+  }
   const sameType = all(u.b, 'same_support_type');
   const supportType = (bare(first(u.b, 'type')) || []);
   // absolute values vs fractional modifiers: see engine notes. Store both in one object; the engine knows which is which.
@@ -157,6 +171,7 @@ for (const u of Object.values(rawUnits)) {
     sameType: sameType.filter((x) => typeof x === 'string'),
     types: supportType,
     battalionMult: bm,
+    ...(Object.keys(terrain).length ? { terrain } : {}),
     affectsSpeed: first(u.b, 'affects_speed') !== false && role === 'line',
   };
   // remove keys that belong to stat maps only via `base`
@@ -293,6 +308,7 @@ if (fs.existsSync(upFile)) {
 }
 
 // ================================================================ 4. TECH GRAPH
+const TECH_NAMES = JSON.parse(fs.readFileSync(path.join(here, 'tech-names.json'), 'utf8')); // in-game names the loc lookup gets wrong
 const unitIds = new Set(Object.keys(units));
 const isUnitTarget = (k) => k.startsWith('category_') || unitIds.has(k);
 const STAT_BLOCK_SKIP = new Set(['path', 'folder', 'categories', 'allow', 'allow_branch', 'ai_will_do', 'on_research_complete', 'on_research_complete_limit', 'ai_research_weights', 'enable_equipments', 'enable_subunits', 'enable_equipment_modules', 'enable_building', 'xor', 'XOR', 'dependencies', 'sub_technologies', 'special_project_specialization']);
@@ -316,7 +332,7 @@ for (const t of Object.values(rawTechs)) {
   const parents = []; // filled below from path edges
   techs[t.id] = {
     id: t.id,
-    name: nameOf(t.id),
+    name: TECH_NAMES[t.id] || nameOf(t.id),
     folder,
     file: t.file,
     year: numOf(b, 'start_year', 1936),

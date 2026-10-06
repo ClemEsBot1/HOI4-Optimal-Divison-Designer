@@ -32,7 +32,8 @@ export function encodeState(state, game) {
   try {
     const bits = new Uint8Array(Math.ceil(game.techOrder.length / 8));
     for (const id of state.t) { const i = game.techIndex.get(id); if (i != null) bits[i >> 3] |= 1 << (i & 7); }
-    const json = JSON.stringify({ ...state, t: b64(bits), v: dataStamp(game) });
+    // `ds` stamps the data version; `v` stays free for the open view
+    const json = JSON.stringify({ ...state, t: b64(bits), ds: dataStamp(game) });
     return urlSafe(btoa(unescape(encodeURIComponent(json))));
   } catch { return ''; }
 }
@@ -40,7 +41,11 @@ export function encodeState(state, game) {
 export function decodeState(str, game) {
   const s = JSON.parse(decodeURIComponent(escape(atob(unUrlSafe(str)))));
   let techs = null;
-  if (s.v === dataStamp(game) && typeof s.t === 'string') {
+  const stamp = dataStamp(game);
+  // links made before the stamp moved to `ds` carried it in `v`, which also held the view
+  const fresh = s.ds === stamp || (s.ds == null && s.v === stamp);
+  if (s.ds == null && s.v === stamp) delete s.v;
+  if (fresh && typeof s.t === 'string') {
     const bits = unb64(s.t);
     techs = new Set();
     game.techOrder.forEach((id, i) => { if (bits[i >> 3] & (1 << (i & 7))) techs.add(id); });

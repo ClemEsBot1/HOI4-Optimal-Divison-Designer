@@ -354,18 +354,22 @@ function designSpace(game, chassisId, role, open) {
 /** Drop items whose oriented vector is no better than another's everywhere (keeps the first of equal ones). */
 function paretoKeep(items, vec) {
   const vs = items.map(vec);
-  const order = items.map((_, i) => i).sort((a, b) => vs[b].reduce((x, y) => x + y, 0) - vs[a].reduce((x, y) => x + y, 0));
+  const sums = vs.map((v) => v.reduce((x, y) => x + y, 0));
+  const order = items.map((_, i) => i).sort((a, b) => sums[b] - sums[a]);
+  // the kept vectors, packed, so the dominance test runs over one typed array
+  const D = vs.length ? vs[0].length : 0;
+  const kept = new Float64Array(items.length * D);
   const keep = [];
+  let first = 0; // the dimension that last told two vectors apart is the likeliest to do it again: test it first
   for (const i of order) {
     const v = vs[i];
     let dominated = false;
-    for (const j of keep) {
-      const w = vs[j];
+    for (let q = 0, off = 0; q < keep.length; q++, off += D) {
       let ge = true;
-      for (let d = 0; d < v.length; d++) if (w[d] < v[d] - 1e-12) { ge = false; break; }
+      for (let e = 0, d = first; e < D; e++, d = d + 1 === D ? 0 : d + 1) if (kept[off + d] < v[d] - 1e-12) { ge = false; first = d; break; }
       if (ge) { dominated = true; break; }
     }
-    if (!dominated) keep.push(i);
+    if (!dominated) { kept.set(v, keep.length * D); keep.push(i); }
   }
   return keep.map((i) => items[i]);
 }
@@ -405,10 +409,20 @@ export function designSearch(game, techSet, chassisId, role, open, score, dirs =
   const add = (ids, k) => { let x = 0; for (const id of ids) if (id) x += num(game.raw.modules[id].add[k]); return x; };
   const mul = (ids, k) => { let x = 0; for (const id of ids) if (id) x += num(game.raw.modules[id].mul[k]); return x; };
   // oriented (addition, multiplier) vector over the stats that matter; 'both' stats must match exactly
+  const raw = new Map(); // module id -> its additions and multipliers over R
+  const rawOf = (id) => {
+    let x = raw.get(id);
+    if (!x) { const m = game.raw.modules[id]; x = { a: R.map((k) => num(m.add[k])), m: R.map((k) => num(m.mul[k])) }; raw.set(id, x); }
+    return x;
+  };
   const oriented = (ids) => {
+    const xs = [];
+    for (const id of ids) if (id) xs.push(rawOf(id));
     const v = [];
-    for (const k of R) {
-      const a = add(ids, k); const m = mul(ids, k);
+    for (let i = 0; i < R.length; i++) {
+      const k = R[i];
+      let a = 0; let m = 0;
+      for (const x of xs) { a += x.a[i]; m += x.m[i]; }
       if (dirs[k] === 'both') v.push(a, -a, m, -m);
       else v.push(dirs[k] * a, dirs[k] * m);
     }
@@ -509,8 +523,12 @@ export function designSearch(game, techSet, chassisId, role, open, score, dirs =
   const linear = score.linear ? Float64Array.from(DESIGN_KEYS, (k) => score.linear[k] || 0) : null;
   const st = {};
   let bestScore = -Infinity; let bestChosen = null; let evaluated = 0;
+  // opts.keep > 1 also keeps the next best designs (ranked, best first) for the Equipment view's alternatives
+  const keep = Math.max(1, opts.keep || 1);
+  const top = [];
+  const bar = () => (top.length >= keep ? top[keep - 1].score : -Infinity);
   for (const core of coreSums) {
-    if (core.ub <= bestScore + 1e-12) break;
+    if (core.ub <= bar() + 1e-12) break;
     const cA = Float64Array.from(DESIGN_KEYS, (k) => core.A[k]);
     const cM = Float64Array.from(DESIGN_KEYS, (k) => core.M[k]);
     const coreIds = coreInLimits ? Object.values(core.c) : null;
@@ -534,26 +552,31 @@ export function designSearch(game, techSet, chassisId, role, open, score, dirs =
         sc = score(st);
       }
       evaluated++;
-      if (sc > bestScore + 1e-12) {
-        bestScore = sc;
-        bestChosen = { ...core.c };
-        specialSlots.forEach((sn, i) => { bestChosen[sn] = setSums[q].ids[i] || null; });
+      if (top.length < keep || sc > bar() + 1e-12) {
+        const chosen = { ...core.c };
+        specialSlots.forEach((sn, i) => { chosen[sn] = setSums[q].ids[i] || null; });
+        let at = top.length;
+        while (at > 0 && top[at - 1].score < sc) at--;
+        top.splice(at, 0, { score: sc, modules: chosen });
+        if (top.length > keep) top.pop();
+        bestScore = top[0].score; bestChosen = top[0].modules;
       }
     }
   }
   if (!bestChosen) return null;
   const stats = designStats(game, chassis, variant, bestChosen, techSet);
-  return { chassis: chassisId, role, variant: variant.id, modules: bestChosen, stats, score: bestScore, evaluated, minRel, candidates: { cores: cores.length, coreFront: coreFront.length, sets: sets.length, setFront: setFront.length } };
+  const ranked = keep > 1 ? top.map((t) => ({ ...t, stats: designStats(game, chassis, variant, t.modules, techSet) })) : undefined;
+  return { chassis: chassisId, role, variant: variant.id, modules: bestChosen, stats, score: bestScore, ranked, evaluated, minRel, candidates: { cores: cores.length, coreFront: coreFront.length, sets: sets.length, setFront: setFront.length } };
 }
 
 /** Pick modules for one chassis and role for a fixed per-role objective (used before the division is known). */
-export function autoDesign(game, techSet, chassisId, role, objective, open) {
+export function autoDesign(game, techSet, chassisId, role, objective, open, extra = {}) {
   const dirs = {};
   for (const k of DESIGN_KEYS) dirs[k] = objective[k] ? Math.sign(objective[k] * (DESIGN_DIR[k] || 1)) : 0;
   // designScore is linear in the design stats, which lets the search use its fast path
   const linear = {};
   for (const k of DESIGN_KEYS) linear[k] = objective[k] ? objective[k] * (DESIGN_DIR[k] || 1) / DESIGN_SCALE[k] : 0;
-  return reliableDesign((opts) => designSearch(game, techSet, chassisId, role, open, { linear }, dirs, opts));
+  return reliableDesign((opts) => designSearch(game, techSet, chassisId, role, open, { linear }, dirs, { ...opts, ...extra }));
 }
 
 /**
@@ -575,6 +598,22 @@ function unitOpen(game, u, techSet, open, tiers, chassisBest) {
   for (const a of gate) if (u.need[a] !== undefined && !tiers.get(a)) return false;
   if (u.tank && !chassisBest.get(u.tank.chassis)) return false;
   return true;
+}
+
+/**
+ * A unit's terrain modifiers averaged over a theatre's terrain mix ({ plains: 40, forest: 25, ... }): the share of
+ * attack and defense it gains or loses there, as fractions. Without a mix, or without modifiers, both are 0.
+ */
+export function terrainFactor(u, mix) {
+  if (!mix || !u.terrain) return { attack: 0, defence: 0 };
+  let a = 0; let d = 0; let total = 0;
+  for (const [t, p] of Object.entries(mix)) {
+    if (!(p > 0)) continue;
+    const m = u.terrain[t];
+    total += p;
+    if (m) { a += p * num(m.attack); d += p * num(m.defence); }
+  }
+  return total ? { attack: a / total, defence: d / total } : { attack: 0, defence: 0 };
 }
 
 export function resolve(game, setup) {
@@ -640,15 +679,22 @@ export function resolve(game, setup) {
 
     const m = unitModifiers(mods, u);
     const F = (k) => num(u.base[k]) + num(m[k]);
+    // Terrain: a battalion's own modifiers scale its attacks and defense; a support company's apply to every
+    // battalion in the division (engineers, say), so they become a boost on all land battalions.
+    const tf = terrainFactor(u, setup.terrain);
+    const own = u.role === 'line' ? tf : { attack: 0, defence: 0 };
+    const terrainBoost = u.role !== 'line' && (tf.attack || tf.defence)
+      ? [{ category: 'category_army', stats: { ...(tf.attack ? { sa: tf.attack, ha: tf.attack } : {}), ...(tf.defence ? { def: tf.defence } : {}) } }]
+      : [];
     const trucks = num(u.need.motorized_equipment) + num(u.need.motorbike_equipment);
     const cat = columnType(u); // separate infantry, artillery, mobile artillery and armor columns
     return {
       id: u.id, name: u.name, abbr: u.abbr, role: u.role, cat, group: u.group, cats: u.cats, special: u.special,
       sameType: [u.id, ...u.sameType],
       // per-battalion stats
-      sa: eq.sa * (1 + F('sa')),
-      ha: eq.ha * (1 + F('ha')),
-      def: eq.def * (1 + F('def')),
+      sa: eq.sa * (1 + F('sa')) * (1 + own.attack),
+      ha: eq.ha * (1 + F('ha')) * (1 + own.attack),
+      def: eq.def * (1 + F('def')) * (1 + own.defence),
       brk: eq.brk * (1 + F('brk')),
       pier: eq.pier * (1 + F('pier')),
       air: eq.air * (1 + F('air')),
@@ -668,7 +714,7 @@ export function resolve(game, setup) {
       equipment,
       affectsSpeed: u.affectsSpeed,
       perks: PERK_BY_UNIT[u.id] ? { [PERK_BY_UNIT[u.id]]: 1 } : {},
-      battalionMult: u.battalionMult.filter((b) => Object.keys(b.stats).length && !b.add),
+      battalionMult: [...u.battalionMult.filter((b) => Object.keys(b.stats).length && !b.add), ...terrainBoost],
       tank: u.tank || null,
       design: design ? { chassis: design.chassis, role: design.role, variant: design.variant, modules: design.modules } : null,
     };
@@ -710,7 +756,7 @@ export function resolve(game, setup) {
 const resolveCache = new Map();
 export function resolveCached(game, setup) {
   const techs = setup.techs instanceof Set ? [...setup.techs] : (setup.techs || []);
-  const key = JSON.stringify([techs.slice().sort(), setup.doctrine || null, (setup.exclude || []).slice().sort(), setup.design || null, setup.designs || null]);
+  const key = JSON.stringify([techs.slice().sort(), setup.doctrine || null, (setup.exclude || []).slice().sort(), setup.design || null, setup.designs || null, setup.terrain || null]);
   const hit = resolveCache.get(key);
   if (hit && hit.game === game) { resolveCache.delete(key); resolveCache.set(key, hit); return hit.value; }
   const value = resolve(game, setup);

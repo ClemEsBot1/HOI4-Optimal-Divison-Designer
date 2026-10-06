@@ -34,9 +34,13 @@ export const ROLES = [
   {
     id: 'offensive_infantry', group: 'regular', name: 'Offensive Infantry', blurb: 'Infantry with enough soft attack to push when tanks are scarce.',
     weights: { sa: 9, def: 6, brk: 5, org: 8, hp: 6, ic: 8, engineer: 7, logistics: 2, recon: 2 },
-    // Capped at a mass-producible infantry cost and a minority mobile share so the search stays with an
-    // infantry-plus-support-artillery build (the classic "7 infantry + 2 artillery" shape) instead of drifting
-    // into an all-mechanized division that is really the Armoured or Space marines role wearing an infantry label.
+    // Capped at a mass-producible infantry cost and a minority mobile share so the search stays with an infantry
+    // build instead of drifting into an all-mechanized division that is really the Armoured or Space marines role
+    // wearing an infantry label. Its soft attack comes mostly from support and regimental companies: two artillery
+    // battalions make a column that never reaches the three battalions a regimental slot needs, so with 1942
+    // research "7 infantry + 2 artillery" gains under 10% soft attack over 10 infantry with guns and rockets in
+    // every slot, but loses a regimental company, a quarter of its organization (below the 40 floor) and a third
+    // of its defense and hit points.
     constraints: { wmin: 16, wmax: 27, minOrg: 40, minArm: 0, maxMobileShare: 0.35, maxIc: 3200, perWidth: true, metaWidths: [20, 25] },
   },
   {
@@ -57,8 +61,11 @@ export const ROLES = [
   {
     id: 'mountaineers', group: 'special', name: 'Mountaineers', blurb: 'Mountain infantry for hills and mountains: attack and defense where regular infantry bogs down.',
     weights: { def: 8, sa: 7, org: 9, hp: 6, brk: 3, ic: 6, mp: 3, engineer: 7, logistics: 3 },
-    // a mountain battle is 75 wide plus 25 per direction, which 25 and 15 divide exactly
-    constraints: { wmin: 12, wmax: 27, minOrg: 45, minArm: 0, maxIc: 6000, perWidth: true, metaWidths: [25, 15] },
+    // A mountain battle is 75 wide plus 25 per direction, so three, four or five 25-width divisions fill it exactly.
+    // 25 is the only meta width: with a second, smaller one the per-width score (support companies take no width)
+    // pulls the division down to 14-15. Width-reducing doctrines (Special Forces' -0.2 per mountaineer battalion)
+    // fit more battalions into the same 25.
+    constraints: { wmin: 20, wmax: 27, minOrg: 45, minArm: 0, maxIc: 6000, perWidth: true, metaWidths: [25] },
     units: { allow: ['mountaineers'], deny: REGULAR_LINE },
   },
   {

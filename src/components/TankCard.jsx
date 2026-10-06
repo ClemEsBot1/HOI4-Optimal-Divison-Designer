@@ -1,5 +1,6 @@
 import React from 'react';
 import { fmt } from '../lib/stats.js';
+import { moduleIcon } from '../lib/icons.js';
 
 const ROLE_LABEL = { armor: 'Standard armor', anti_tank: 'Tank destroyer', anti_air: 'Anti-air', artillery: 'Self-propelled artillery' };
 const CHASSIS_ICON = {
@@ -42,7 +43,9 @@ export default function TankCard({ game, d, title, badge }) {
         <div className="td-slots" role="list">
           {slots.map(([slot, id]) => (
             <div className="td-slot" role="listitem" key={slot} title={game.raw.modules[id]?.name || id.replaceAll('_', ' ')}>
-              <span className="td-slot-abbr">{SLOT_ABBR[slot] || slot.replace(/_slot(_\d)?$/, '').slice(0, 3).toUpperCase()}</span>
+              {moduleIcon(id)
+                ? <img className="td-slot-icon" src={moduleIcon(id)} alt="" />
+                : <span className="td-slot-abbr">{SLOT_ABBR[slot] || slot.replace(/_slot(_\d)?$/, '').slice(0, 3).toUpperCase()}</span>}
               <span className="td-slot-name">{game.raw.modules[id]?.name || id.replaceAll('_', ' ')}</span>
             </div>
           ))}

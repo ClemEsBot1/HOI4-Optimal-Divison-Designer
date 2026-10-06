@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import Section, { setAllCollapsed } from '../components/Section.jsx';
+import NumberInput from '../components/NumberInput.jsx';
 import TemplateGrid from '../components/TemplateGrid.jsx';
 import Pareto from '../components/Pareto.jsx';
 import UnitPool from '../components/UnitPool.jsx';
@@ -61,6 +62,7 @@ export default function DesignerView(ctx) {
       <div className="layout">
         <Rail {...ctx} />
         <div className="main">
+          <a className="rail-jump" href="#division-goals">Role, limits and priorities are below the results</a>
           {mode === 'search' && <SearchMain {...ctx} />}
           {mode === 'manual' && <ManualMain {...ctx} />}
           {mode === 'compare' && <CompareMain {...ctx} />}
@@ -76,7 +78,7 @@ function Rail(ctx) {
   const groups = GROUP_ORDER.map((g) => ({ g, stats: STATS.filter((s) => s.group === g) }));
   const ids = ['dz-role', 'dz-limits', 'dz-priorities', 'dz-opponent', 'dz-units', 'dz-bonuses'];
   return (
-    <aside className="rail" aria-label="Division goals">
+    <aside className="rail" id="division-goals" aria-label="Division goals">
       <div className="fold-all">
         <button type="button" className="ghost small" onClick={() => setAllCollapsed(ids, false)}>Expand all</button>
         <button type="button" className="ghost small" onClick={() => setAllCollapsed(ids, true)}>Collapse all</button>
@@ -104,15 +106,15 @@ function Rail(ctx) {
       <Section id="dz-limits" kicker="Hard limits" title="Limits">
         <div className="fields">
           <label>Combat width, from
-            <input type="number" min="0" max="45" value={constraints.wmin} onChange={(e) => setCons('wmin', Math.max(0, Math.min(45, Number(e.target.value) || 0)))} /></label>
+            <NumberInput min="0" max="45" integer value={constraints.wmin} onChange={(v) => setCons('wmin', v)} /></label>
           <label>to
-            <input type="number" min="0" max="45" value={constraints.wmax} onChange={(e) => setCons('wmax', Math.max(0, Math.min(45, Number(e.target.value) || 0)))} /></label>
+            <NumberInput min="0" max="45" integer value={constraints.wmax} onChange={(v) => setCons('wmax', v)} /></label>
           <label>Organization at least
-            <input type="number" min="0" max="100" value={constraints.minOrg} onChange={(e) => setCons('minOrg', Math.max(0, Number(e.target.value) || 0))} /></label>
+            <NumberInput min="0" max="100" value={constraints.minOrg} onChange={(v) => setCons('minOrg', v)} /></label>
           <label>Armor at least
-            <input type="number" min="0" max="400" value={constraints.minArm} onChange={(e) => setCons('minArm', Math.max(0, Number(e.target.value) || 0))} /></label>
+            <NumberInput min="0" max="400" value={constraints.minArm} onChange={(v) => setCons('minArm', v)} /></label>
           <label className="wide">Production cost at most (0 for no limit)
-            <input type="number" min="0" step="100" value={constraints.maxIc} onChange={(e) => setCons('maxIc', Math.max(0, Number(e.target.value) || 0))} /></label>
+            <NumberInput min="0" step="100" value={constraints.maxIc} onChange={(v) => setCons('maxIc', v)} /></label>
         </div>
         <div className="fields">
           <label>Meta widths
@@ -130,6 +132,9 @@ function Rail(ctx) {
           <input type="checkbox" checked={!!constraints.perWidth} onChange={(e) => setCons('perWidth', e.target.checked)} />
           Score per frontage: stats per width times how much of a battle's width whole divisions use (over-width costs 2% per 1% over, up to 33%), so the widest division is not picked just for being bigger
         </label>
+        {constraints.wmin > constraints.wmax && (
+          <p className="note warn-note" role="status">"From" is above "to", so the search uses widths {constraints.wmax} to {constraints.wmin}.</p>
+        )}
         <p className="note">The width range is a hard limit; inside it the search goes for the width that scores best, usually a meta width, not the widest.</p>
         {theatre.mix && (
           <p className="note theatre-note">
@@ -169,7 +174,7 @@ function Rail(ctx) {
         <div className="fields">
           {MOD_KEYS.map((m) => (
             <label key={m.key}>{m.label} %
-              <input type="number" step="1" value={mods[m.key] ?? 0} onChange={(e) => setMods((x) => ({ ...x, [m.key]: Number(e.target.value) || 0 }))} /></label>
+              <NumberInput step="1" fallback={0} value={mods[m.key] ?? 0} onChange={(v) => setMods((x) => ({ ...x, [m.key]: v }))} /></label>
           ))}
         </div>
         <label className="check">
@@ -232,7 +237,7 @@ function SearchMain(ctx) {
             </div>
             <div className="result-body">
               <div className="template-frame">
-                <TemplateGrid items={selected.items} support={selected.support} reg={selected.reg || []} byId={byId} columnSize={res.columnSize} layout={shown.layout} />
+                <TemplateGrid items={selected.items} support={selected.support} reg={selected.reg || []} byId={byId} columnSize={res.columnSize} layout={shown.layout} mods={result?.mods} opts={result?.opts} />
               </div>
               <div className="detail">
                 <h3>Composition</h3>
@@ -295,7 +300,7 @@ function SearchMain(ctx) {
                   const d = describeTemplate(t, byId);
                   const on = selected?.key === t.key;
                   return (
-                    <tr key={t.key} className={on ? 'on' : ''}>
+                    <tr key={t.key} className={'pickable' + (on ? ' on' : '')} onClick={() => pickTemplate(t)}>
                       <td><button type="button" className="rowbtn" aria-pressed={on} onClick={() => pickTemplate(t)}>{i + 1}</button></td>
                       <td className="txt">{t.archetypeLabel || ''}</td>
                       <td className="txt">{d.combat}</td>
@@ -350,9 +355,6 @@ function ManualMain(ctx) {
             <div><span>Production cost</span><b>{fmt(st.ic, 'ic')}</b></div>
             {theatre.mix && <div><span>Frontage fit</span><b>{pct(fitOf(st.width))}</b></div>}
           </div>
-          <div className="template-frame">
-            <TemplateGrid items={manual.items} support={manual.support} reg={manual.reg} byId={byId} columnSize={res.columnSize} layout={st.layout} />
-          </div>
         </Section>
       )}
     </>
@@ -363,7 +365,7 @@ function ManualMain(ctx) {
 const COMPARE_KEYS = ['width', 'sa', 'ha', 'brk', 'def', 'org', 'hp', 'arm', 'pier', 'hard', 'spd', 'rel', 'ic', 'mp', 'sup', 'trucks'];
 
 function CompareMain(ctx) {
-  const { res, result, byId, saved, removeSaved, manual, fitOf, theatre } = ctx;
+  const { res, result, byId, saved, removeSaved, renameSaved, manual, setManual, setMode, fitOf, theatre } = ctx;
   const candidates = useMemo(() => {
     if (!res?.top || !byId) return [];
     const list = res.top.map((t, i) => ({ id: `top:${t.key}`, label: `#${i + 1} ${t.archetypeLabel || ''}`, tpl: t }));
@@ -395,6 +397,23 @@ function CompareMain(ctx) {
         </div>
         {!saved.length && <p className="note">Save templates from the designer or the manual draft to compare them here; saved templates stay in this browser.</p>}
       </Section>
+      {saved.length > 0 && (
+        <Section id="cp-saved" kicker="Archive" title="Saved templates" defaultOpen={false}>
+          <ul className="saved-list">
+            {saved.map((s) => (
+              <li key={s.id}>
+                <input type="text" aria-label="Template name" defaultValue={s.name}
+                  onBlur={(e) => { const name = e.target.value.trim(); if (name && name !== s.name) renameSaved(s.id, name); else e.target.value = s.name; }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} />
+                <small>{s.savedAt ? new Date(s.savedAt).toLocaleDateString() : ''}</small>
+                <button type="button" className="ghost small" onClick={() => { setManual({ items: s.items.slice(), support: (s.support || []).slice(), reg: (s.reg || []).slice(), ...(s.columns ? { columns: s.columns } : {}) }); setMode('manual'); }}>Edit as draft</button>
+                <button type="button" className="ghost small" onClick={() => removeSaved(s.id)}>Delete</button>
+              </li>
+            ))}
+          </ul>
+          <p className="note">Rename a template by editing its name. Edit as draft opens it in Manual design.</p>
+        </Section>
+      )}
       <Section id="cp-table" kicker="Side by side" title="Comparison">
         <div className="table-scroll">
           <table className="rank compare">
@@ -420,7 +439,7 @@ function CompareMain(ctx) {
           {evals.map((e) => e.st && (
             <figure key={e.id} className="template-frame">
               <figcaption>{e.label}</figcaption>
-              <TemplateGrid items={e.tpl.items} support={e.tpl.support || []} reg={e.tpl.reg || []} byId={byId} columnSize={res.columnSize} layout={e.st.layout} />
+              <TemplateGrid items={e.tpl.items} support={e.tpl.support || []} reg={e.tpl.reg || []} byId={byId} columnSize={res.columnSize} layout={e.st.layout} mods={result?.mods} opts={result?.opts} />
             </figure>
           ))}
         </div>

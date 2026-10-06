@@ -3,7 +3,11 @@ import Section from '../components/Section.jsx';
 import { GAP_SHARE } from '../lib/optimizer.js';
 import { TERRAINS } from '../lib/frontage.js';
 import naval from '../data/designers.json';
+import raw from '../data/game.json';
 import { MIN_DESIGN_RELIABILITY } from '../lib/game.js';
+
+// terrain modifiers only exist in data extracted after they were added to the extractor
+const HAS_TERRAIN = Object.values(raw.units).some((u) => u.terrain);
 
 export default function FieldManualView({ version, meta }) {
   return (
@@ -39,7 +43,11 @@ export default function FieldManualView({ version, meta }) {
           <ul className="rules">
             <li>Tanks: every chassis that can fill a role gets an exhaustive module search with that role's priorities. Stacked reliability penalties can push a design to 0%, which in game means constant breakdowns, so a recommended design keeps at least {MIN_DESIGN_RELIABILITY * 100}% reliability whenever any legal design can.</li>
             <li>Ships: a stat is (hull + modules + the average of averaged modules) × (1 + module multipliers) × (1 + naval technology for the ship type). Each role scores the sum of priority × ln(stat), so it trades percentages like the division search.</li>
-            <li>The ship search is exact. At every step it bounds the best finish of the partial design: each maximized stat is replaced by its tangent at the best design so far, each minimized stat (cost, visibility) by its chord, and the product of added and multiplied amounts by its envelope. The bound then splits slot by slot, so each remaining slot can take its own best module, and whole branches are dropped without scoring them.</li>
+            <li>Aircraft use the same stat model (airframe instead of hull, air technology for the plane type and airframe), plus the designer's two rules: a design is legal only when the engines' thrust covers the weight of the airframe and its modules, and leftover thrust adds 0.5 agility per point (the game's THRUST_WEIGHT_AGILITY_FACTOR, added before the multipliers). The main weapon decides the plane's type. Since 1.14 most weapon stats depend on the mission: a torpedo adds naval attack and its weight only on naval strikes, a bomb bay adds ground attack on close air support and bombing on strategic runs. Each role is designed for its own mission, and on naval strikes only torpedo-class weapons add naval attack, as in the game.</li>
+            <li>Every role has a fixed set of priorities. Under Your own goal in the Ships and Aircraft tabs you can set them yourself; the role you start from keeps its hull or airframe and what the design must carry.</li>
+            <li>The ship and aircraft searches are exact. At every step it bounds the best finish of the partial design: each maximized stat is replaced by its tangent at the best design so far, each minimized stat (cost, visibility) by its chord, and the product of added and multiplied amounts by its envelope. The bound then splits slot by slot, so each remaining slot can take its own best module, and whole branches are dropped without scoring them.</li>
+            <li>Fleets (Navy page): ship counts are set per task force, at most four carriers each, with the fleet's capital ships per carrier and three screens per capital ship and carrier plus the spare you pick. Each ship is designed with the fleet's speed floor: the exact search drops any branch whose fastest finish falls short of it.</li>
+            <li>Dockyard plan: a line of d dockyards finishes its k-th ship on day k × cost ÷ (2.5 × d), so the fleet's finishing day is one of those values. For each candidate day the fewest dockyards that finish a ship type in time is a small knapsack over line sizes (at most 5 for a capital ship or carrier, 10 for a screen or submarine); a binary search finds the earliest day your dockyards cover. Spare dockyards then go to the screens wherever a big ship would launch with fewer than three screens afloat.</li>
           </ul>
         </Section>
         <Section id="fm-rules" kicker="Section 4" title="Rules as implemented">
@@ -62,12 +70,16 @@ export default function FieldManualView({ version, meta }) {
             </table>
           </div>
           <p className="note">Values from the Barbarossa update; check them in game if a later patch has changed them.</p>
+          <p>{HAS_TERRAIN
+            ? `The theatre also sets where the fighting happens: each battalion's terrain modifiers scale its soft and hard attack and its defense, averaged over the theatre's terrain, and a support company's terrain modifiers (engineers, for example) apply to every battalion. Any front weighs every terrain the same.${raw.meta.terrainSource ? ` Terrain modifiers come from the ${raw.meta.terrainSource}; units added since then (the regimental companies, for example) have none.` : ''}`
+            : 'Terrain attack and defense modifiers are read from the game files on the next data extraction; until then the theatre only changes how widths fit.'}</p>
         </Section>
         <Section id="fm-limits" kicker="Section 6" title="Known limits">
           <ul className="rules">
             <li>Not verified against the game: the exact regimental-company scaling for every stat, which column types each company can attach to, and whether doctrine supply bonuses are fractions of a unit's supply.</li>
-            <li>Not modelled: national focus technologies, leaders, terrain modifiers on attack, entrenchment, the land cruiser, flame tanks, amphibious tank roles and hand-editing a tank design.</li>
-            <li>Aircraft designs are a role guide until the aircraft designer files are extracted.</li>
+            <li>Not modelled: national focus technologies, leaders, {HAS_TERRAIN ? '' : 'terrain modifiers, '}river crossings, entrenchment, the land cruiser, flame tanks, amphibious tank roles and hand-editing a tank design.</li>
+            <li>Aircraft: air doctrines and aces are not applied, and the tactical bomber is designed for close air support (its bombing counts too, with the CAS loadout's weight and agility).</li>
+            <li>Fleet compositions are community meta from the guides the Navy page cites, not derived from the game files. The dockyard plan assumes every line starts at once at the output you enter, without refits or losses.</li>
           </ul>
         </Section>
       </div>
