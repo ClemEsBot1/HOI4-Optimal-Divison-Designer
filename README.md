@@ -6,6 +6,17 @@ provably best template, explains why it wins, shows how stable that pick is, and
 
 Live site: https://hoi-4-optimal-divison-designer.vercel.app/
 
+## Install it on your phone
+
+Division Desk is an installable web app (PWA):
+
+- **Android (Chrome):** open the live site, then tap **Install app** in the header, or the menu (⋮) → **Install app** /
+  **Add to Home screen**. It opens full screen from its own icon, with a tab bar at the bottom.
+- **iPhone (Safari):** Share → **Add to Home Screen**.
+
+After the first visit it works offline: the app, game data and images are cached on the phone, and a new version
+loads the next time it is opened online.
+
 ## What it is for
 
 Working out a strong template by hand means juggling battalion stats, support companies, tech bonuses, doctrines and
@@ -146,7 +157,8 @@ equipment localisation, and rewrites `src/data/designers.json`.
 
 ## Deploy
 
-The app is a static Vite build with no server and no environment variables. On Vercel: import the repository, keep the
+The app is a static Vite build with no server and no environment variables. `vercel.json` only sets headers so the
+service worker (`public/sw.js`) is never served stale; bump `VERSION` in it to clear every installed copy's cache. On Vercel: import the repository, keep the
 Vite preset (build command `npm run build`, output directory `dist`) and leave the root directory as the repository root.
 
 ## Project layout

@@ -22,7 +22,7 @@ const VIEWS = [
   { id: 'research', label: 'Research', icon: '/hoi4/icons/category_artillery.png' },
   { id: 'doctrine', label: 'Doctrine', icon: '/hoi4/icons/category_all_armor.png' },
   { id: 'equipment', label: 'Equipment', icon: '/hoi4/technologies/basic_medium_tank_chassis.png' },
-  { id: 'manual', label: 'Field manual', icon: '/hoi4/technologies/tech_support.png' },
+  { id: 'manual', label: 'Field manual', short: 'Manual', icon: '/hoi4/technologies/tech_support.png' },
 ];
 const MODES = [
   { id: 'search', label: 'Optimal search', blurb: 'Find and prove the best template for the role and limits.' },
@@ -47,7 +47,8 @@ function loadInitial() {
     roleId: ROLES[0].id, weights: { ...ZERO_WEIGHTS, ...ROLES[0].weights }, constraints: { ...DEFAULT_CONSTRAINTS, ...ROLES[0].constraints },
     techs: defaultTech(game), doctrine: { ...EMPTY_DOCTRINE, slotCount: 1 }, exclude: defaultExclude(game), mods: {}, opts: { ...DEFAULT_OPTS },
     axes: ROLE_AXES[ROLES[0].id], enemy: { ...DEFAULT_ENEMY }, scale: { ...DEFAULT_SCALE }, theatre: { ...DEFAULT_THEATRE },
-    view: 'designer', mode: 'search', equipTab: 'tanks',
+    // app shortcuts open a view with ?v=<view>
+    view: (() => { const v = new URLSearchParams(window.location.search).get('v'); return VIEWS.some((x) => x.id === v) ? v : 'designer'; })(), mode: 'search', equipTab: 'tanks',
   };
   try {
     const m = /#s=(.+)$/.exec(window.location.hash);
@@ -62,7 +63,7 @@ function loadInitial() {
         enemy: { ...DEFAULT_ENEMY, ...(s.e && typeof s.e === 'object' ? s.e : {}) },
         scale: { ...DEFAULT_SCALE, ...(s.k && typeof s.k === 'object' ? s.k : {}) },
         theatre: { ...DEFAULT_THEATRE, ...(s.th && typeof s.th === 'object' ? s.th : {}) },
-        view: VIEWS.some((v) => v.id === s.v) ? s.v : base.view,
+        view: VIEWS.some((v) => v.id === s.vw) ? s.vw : base.view,
         mode: MODES.some((x) => x.id === s.md) ? s.md : base.mode,
         equipTab: ['tanks', 'air', 'navy'].includes(s.eq) ? s.eq : base.equipTab,
       };
@@ -100,6 +101,16 @@ export default function App() {
 
   const [result, setResult] = useState(null); // { res, mods, opts, roleId }
   const [running, setRunning] = useState(false);
+  // Chrome on Android offers to install the app; keep its prompt for an Install button in the header
+  const [installPrompt, setInstallPrompt] = useState(null);
+  useEffect(() => {
+    const onPrompt = (e) => { e.preventDefault(); setInstallPrompt(e); };
+    const onInstalled = () => setInstallPrompt(null);
+    window.addEventListener('beforeinstallprompt', onPrompt);
+    window.addEventListener('appinstalled', onInstalled);
+    return () => { window.removeEventListener('beforeinstallprompt', onPrompt); window.removeEventListener('appinstalled', onInstalled); };
+  }, []);
+  const install = async () => { if (!installPrompt) return; installPrompt.prompt(); try { await installPrompt.userChoice; } catch { /* dismissed */ } setInstallPrompt(null); };
   const [tick, setTick] = useState(null);
   const [selected, setSelected] = useState(null);
   const [copied, setCopied] = useState(null);
@@ -199,7 +210,7 @@ export default function App() {
 
   // ---- share link ----
   useEffect(() => {
-    const s = encodeState({ r: roleId, w: weights, c: constraints, t: [...techs], d: doctrine, x: exclude, m: mods, o: opts, ax: [axisX, axisY], e: enemy, k: scale, th: theatreState, v: view, md: mode, eq: equipTab }, game);
+    const s = encodeState({ r: roleId, w: weights, c: constraints, t: [...techs], d: doctrine, x: exclude, m: mods, o: opts, ax: [axisX, axisY], e: enemy, k: scale, th: theatreState, vw: view, md: mode, eq: equipTab }, game);
     if (s) window.history.replaceState(null, '', '#s=' + s);
   }, [roleId, weights, constraints, techs, doctrine, exclude, mods, opts, axisX, axisY, enemy, scale, theatreState, view, mode, equipTab]);
 
@@ -272,17 +283,18 @@ export default function App() {
       <div className="backdrop" aria-hidden="true" />
       <header className="topbar">
         <a className="brand" href="#designer" onClick={(e) => { e.preventDefault(); go('designer'); }} aria-label="Division Desk">
-          <span className="brand-mark"><img src="/hoi4/icons/category_all_infantry.png" alt="" /></span>
+          <span className="brand-mark"><img src="/icons/icon.svg" alt="" /></span>
           <span className="brand-text"><small>HOI4 // General staff</small><strong>Division Desk</strong></span>
         </a>
         <nav className="nav" aria-label="Sections">
           {VIEWS.map((v) => (
             <button key={v.id} type="button" className={'nav-item' + (view === v.id ? ' on' : '')} aria-current={view === v.id ? 'page' : undefined} onClick={() => go(v.id)}>
-              <img src={v.icon} alt="" /><span>{v.label}</span>
+              <img src={v.icon} alt="" /><span className="nav-long">{v.label}</span><span className="nav-short" aria-hidden="true">{v.short || v.label}</span>
             </button>
           ))}
         </nav>
         <div className="topbar-status">
+          {installPrompt && <button type="button" className="small install" onClick={install}>Install app</button>}
           <span className={'signal' + (running ? ' busy' : '')}><i />{running ? 'Computing' : 'Ready'}</span>
           <span className="patch">{version ? `Patch ${version}` : `Game files · ${game.meta.generatedAt.slice(0, 10)}`}</span>
         </div>
@@ -317,7 +329,7 @@ export default function App() {
             </div>
           )}
         </Menu>
-        <span className="commandbar-note">{role ? role.name : 'Custom priorities'}{saved.length ? ` · ${saved.length} saved` : ''}{copied === 'saved' ? ' · Saved' : ''}</span>
+        <span className="commandbar-note">{ROLES.find((r) => r.id === roleId)?.name || 'Custom priorities'}{saved.length ? ` · ${saved.length} saved` : ''}{copied === 'saved' ? ' · Saved' : ''}</span>
       </div>
 
       <main className={'stage ' + phase} aria-live="polite">
