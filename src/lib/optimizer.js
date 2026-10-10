@@ -1271,10 +1271,15 @@ function setup(game, params) {
  * enough to rule most other widths out early.
  */
 const META_PROBE_NODES = 1e5;
+/** The role's meta widths that fall inside the width range. */
+function metaWidthsIn(P) {
+  const meta = P.terms.find((t) => t.kind === 'meta');
+  return meta ? meta.metas.filter((w) => w >= P.C.wmin - 1e-9 && w <= P.C.wmax + 1e-9) : [];
+}
+
 function proofRun(resolved, P, { nodeLimit, seeds, tolerance, onTick }) {
   const C = P.C;
-  const meta = P.terms.find((t) => t.kind === 'meta');
-  const probes = meta ? meta.metas.filter((w) => w >= C.wmin - 1e-9 && w <= C.wmax + 1e-9) : [];
+  const probes = metaWidthsIn(P);
   const all = [...seeds];
   let used = 0;
   for (const w of probes) {
@@ -1317,27 +1322,37 @@ export function search(game, params, onProgress = null, onTick = null) {
   const nodeLimit = params.nodeLimit || DEFAULT_NODE_LIMIT;
 
   // ---- tank designs chosen together with the template (see design.js). These rounds only need a strong template
-  // to measure the designs against, so they get a smaller budget; the final search below does the proving. ----
+  // to measure the designs against, so they get a smaller budget; the final search below does the proving.
+  // Co-design is a local search: the designs settle around the template it starts from, so a start at the wrong
+  // width can lock in designs that are worse everywhere else. It starts once over the whole range and once at each
+  // meta width, and keeps the designs whose template scores best. ----
   let resolved = baseResolved;
   let designLog = [];
   let quick = null;
   if (params.coDesign !== false && Object.keys(baseResolved.designs).length) {
     let first = true;
-    const out = coDesign(game, { ...setupBase, weights }, baseResolved, (res, seeds) => {
-      const r = branchAndBound(res, P, { topN: 1, window: 0, nodeLimit: Math.min(nodeLimit, CODESIGN_NODE_LIMIT), seeds, tolerance });
-      const e = r.ranked[0] || null;
-      if (e && first && onProgress) {
-        // show something useful straight away; the tank designs and the proof follow
-        first = false;
-        const st = evaluate(e.tpl, res.byId, mods, opts, res.columnSize);
-        const tpl = { items: orderItems(e.tpl.items, res.byId), support: e.tpl.support, reg: e.tpl.reg };
-        onProgress({ units: [...res.byId.values()], designs: res.designs, columnSize: res.columnSize, top: [{ ...tpl, key: templateKey(tpl), score: utility(st, terms, enemy), stats: st, archetype: e.archetype, archetypeLabel: archetypeLabel(e.archetype, res.byId) }], terms, enemy, proven: false, provisional: true, ms: Date.now() - t0 });
-      }
-      return e;
-    }, P);
-    resolved = out.resolved;
-    designLog = out.log;
-    quick = out.best;
+    let out = null;
+    for (const w of [null, ...metaWidthsIn(P)]) {
+      const Pw = w === null ? P : { ...P, C: { ...C, wmin: w, wmax: w } };
+      const o = coDesign(game, { ...setupBase, weights }, baseResolved, (res, seeds) => {
+        const r = branchAndBound(res, Pw, { topN: 1, window: 0, nodeLimit: Math.min(nodeLimit, CODESIGN_NODE_LIMIT), seeds, tolerance });
+        const e = r.ranked[0] || null;
+        if (e && first && onProgress) {
+          // show something useful straight away; the tank designs and the proof follow
+          first = false;
+          const st = evaluate(e.tpl, res.byId, mods, opts, res.columnSize);
+          const tpl = { items: orderItems(e.tpl.items, res.byId), support: e.tpl.support, reg: e.tpl.reg };
+          onProgress({ units: [...res.byId.values()], designs: res.designs, columnSize: res.columnSize, top: [{ ...tpl, key: templateKey(tpl), score: utility(st, terms, enemy), stats: st, archetype: e.archetype, archetypeLabel: archetypeLabel(e.archetype, res.byId) }], terms, enemy, proven: false, provisional: true, ms: Date.now() - t0 });
+        }
+        return e;
+      }, P);
+      if (o.best && (!out || o.best.score > out.best.score)) out = o;
+    }
+    if (out) {
+      resolved = out.resolved;
+      designLog = out.log;
+      quick = out.best;
+    }
   }
   const { byId, columnSize } = resolved;
   const base = { units: [...byId.values()], designs: resolved.designs, columnSize };

@@ -61,7 +61,9 @@ everywhere: theatre, research year and designer mode. Every panel folds away, an
 - **Allowed units.** Special forces (marines, paratroopers, mountaineers, rangers, amtracs) and cavalry are off by default.
   Switch any unit type on or off before searching.
 - **Tank designs chosen with the template.** Every chassis and role gets an exhaustive module search, valued by what
-  each stat is worth to the winning division, repeated until the designs and the template stop changing. The highest
+  each stat is worth to the winning division, repeated until the designs and the template stop changing. That loop
+  starts once over the whole width range and once at each of the role's meta widths, and the designs whose template
+  scores best are kept, so a start at the wrong width cannot lock in worse tanks. The highest
   engine and armor upgrade levels your research allows are applied.
 - **Opponent matchup.** Optionally score against an opponent (a preset built from your own research, or numbers typed in):
   soft and hard attack against its hardness, defense or breakthrough blocking, armor against piercing, organization damage.

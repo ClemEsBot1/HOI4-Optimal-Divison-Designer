@@ -113,6 +113,12 @@ ok(ra.top?.every((t) => { const n = t.items.length; return t.items.filter((id) =
 ok(ra.top?.every((t) => t.stats.org >= armorRole.constraints.minOrg && t.stats.ic <= armorRole.constraints.maxIc && t.stats.width >= armorRole.constraints.wmin && t.stats.width <= armorRole.constraints.wmax && (t.stats.cnt.mobile / t.stats.n) >= armorRole.constraints.minMobileShare)
   && ra.top[0].stats.width >= 30 && ra.top[0].stats.width <= 36, 'armoured role picks a usable width, and keeps organization, cost and mechanized mix');
 ok(ROLES.find((x) => x.id === 'line').constraints.wmax < armorRole.constraints.wmax, 'infantry role is narrower than armoured role');
+// tank co-design is a local search: over the full width range it must not settle on designs that lose to a search
+// pinned to one of the role's meta widths
+for (const w of armorRole.constraints.metaWidths) {
+  const pinned = search(game, { techs: [...T], exclude: ex, weights: armorRole.weights, constraints: { ...armorRole.constraints, wmin: w, wmax: w }, topN: 1 });
+  ok(ra.top[0].score >= pinned.top[0].score - ra.tolerance, `armoured role over 28-42 scores at least its best ${w}-wide template (${ra.top[0].score.toFixed(3)} vs ${pinned.top[0].score.toFixed(3)})`);
+}
 const spaceRole = ROLES.find((x) => x.id === 'space_marines');
 const rs = search(game, { techs: [...T], exclude: ex, weights: spaceRole.weights, constraints: spaceRole.constraints, topN: 2 });
 ok(rs.top?.every((t) => { const n = t.items.length; const a = t.items.filter((id) => rs.units.find((u) => u.id === id).cat === 'armor').length; return a >= 1 && a <= 2 && a / n <= 0.5; }), 'space marine role uses a small armoured component');
